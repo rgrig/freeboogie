@@ -1,0 +1,150 @@
+// This is the abstract grammar for FreeBoogie used to generate
+// the AST. See also the template (*.tpl) files.
+
+// The program is a (functional) list of (global) declarations
+Declaration :> 
+  TypeDecl, 
+  ConstDecl, 
+  Axiom,
+  Function, 
+  VariableDecl, 
+  Procedure, 
+  Implementation;
+
+TypeDecl = 
+  Attribute attr,
+  String! name,
+  Identifiers typeArgs, 
+  boolean finite, 
+  Type type, // non-null when this is a type synonym
+  Declaration tail;
+ConstDecl = 
+  Attribute attr,
+  String! id,
+  Type! type,
+  boolean uniq,
+  Declaration tail;
+
+// These are declarations that may introduce type variables
+Axiom =
+  Attribute attr,
+  String! name,
+  Identifiers typeArgs,
+  Expr! expr,
+  Declaration tail;
+Function = Attribute attr, Signature! sig, Declaration tail;
+VariableDecl =
+  Attribute attr,
+  String! name,
+  Type! type, 
+  Identifiers typeArgs,
+  Declaration tail;
+Procedure =
+  Attribute attr,
+  Signature! sig,
+  Specification spec, 
+  Declaration tail;
+Implementation =
+  Attribute attr,
+  Signature! sig,
+  Body! body, 
+  Declaration tail;
+
+// Types and constants
+Type :> PrimitiveType, UserType, MapType, IndexedType, DepType, TupleType;
+MapType = TupleType! idxType, Type! elemType;
+PrimitiveType = 
+  enum(Ptype: BOOL, INT, REF, NAME, ANY, BV, ERROR) ptype,
+  int bits; // bits is ignored if ptype != BV
+IndexedType = Type! param, Type! type;
+DepType = Type! type, Expr! pred;
+UserType = String! name, TupleType typeArgs;
+TupleType = Type! type, TupleType tail;
+  // In BoogiePL equal(TupleType(t,null), t).
+  
+
+// Signatures are used to represent uninterpreted functions
+Signature = 
+  String! name, 
+  Identifiers typeArgs,
+  Declaration args, 
+  Declaration results;
+
+// Procedures and implementations
+Specification = 
+  Identifiers typeArgs,
+  enum(SpecType: REQUIRES, MODIFIES, ENSURES) type,
+  Expr! expr, 
+  boolean free,
+  Specification tail;
+Body = Declaration vars, Block blocks;
+Block = String! name, Command cmd, Identifiers succ, Block tail;
+  // succ == null means that we return
+
+// Commands
+Command :> AssignmentCmd, AssertAssumeCmd, HavocCmd, CallCmd, WhileCmd;
+AssignmentCmd = AtomId! lhs, Expr! rhs;
+AssertAssumeCmd = 
+  enum(CmdType: ASSERT, ASSUME) type, 
+  Identifiers typeArgs, 
+  Expr! expr;
+HavocCmd = Identifiers! ids;
+CallCmd = String! procedure, TupleType types, Identifiers results, Exprs args;
+WhileCmd = Expr condition, LoopInvariant inv, Block! stmt;
+LoopInvariant = boolean free, Expr! expr, LoopInvariant tail;
+Attribute = String! type, Exprs exprs, Attribute tail;
+
+// Expressions
+Expr :> BinaryOp, UnaryOp, Atom, Exprs;
+BinaryOp = 
+  enum(Op:
+    PLUS,
+    MINUS,
+    MUL,
+    DIV,
+    MOD,
+    EQ,
+    NEQ,
+    LT,
+    LE,
+    GE,
+    GT,
+    SUBTYPE,
+    EQUIV,
+    IMPLIES,
+    AND,
+    OR) op,
+  Expr! left, 
+  Expr! right;
+UnaryOp = enum(Op: MINUS, NOT) op, Expr! e;
+Atom :> 
+  AtomCast,
+  AtomFun,
+  AtomId,
+  AtomLit,
+  AtomMapSelect,
+  AtomMapUpdate,
+  AtomNum,
+  AtomOld,
+  AtomQuant;
+AtomLit = enum(AtomType: FALSE, TRUE, NULL) val;
+AtomNum = BigInteger val;
+AtomId = String! id, TupleType types;
+AtomFun = String! function, TupleType types, Exprs args;
+AtomOld = Expr! e;
+AtomCast = Expr! e, Type! type;
+AtomQuant =
+  enum(QuantType: EXISTS, FORALL) quant,
+  Declaration! vars,
+  Attribute attr,
+  Expr! e;
+AtomMapSelect = Atom! atom, Exprs! idx;
+AtomMapUpdate = Atom! atom, Exprs! idx, Expr! val;
+
+// Some simple lists
+Identifiers = AtomId! id, Identifiers tail;
+Exprs = Expr! expr, Exprs tail;
+
+// TODO: the invariants
+Specification: type==Type.MODIFIES ==> \typeof(expr)==AtomId
+
