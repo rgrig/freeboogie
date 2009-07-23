@@ -7,7 +7,7 @@ import java.util.List;
 
 import com.google.common.collect.Lists;
 import genericutils.Logger;
-import ie.ucd.clops.runtime.options.InvalidOptionValueException;
+import ie.ucd.clops.runtime.options.exception.InvalidOptionValueException;
 import org.antlr.runtime.ANTLRFileStream;
 import org.antlr.runtime.CommonTokenStream;
 import org.antlr.runtime.RecognitionException;
@@ -51,8 +51,7 @@ public class AlternativeMain {
   private Program boogie;
 
   private TcInterface tc;
-  private List<Transformer> transformers;
-  private VcGenerator vcgen;
+  private List<Transformer> stages;
 
   /** Process the command line and call {@code run()}. */
   public static void main(String[] args) throws Exception {
@@ -81,14 +80,9 @@ public class AlternativeMain {
       parse(f);
       if (boogie.ast == null || !typecheck())
         continue; // parse error or empty input
-      for (Transformer t : transformers) {
+      for (Transformer t : stages) {
         // TODO: add some debugging facilitating code here
         boogie = t.process(boogie, tc);
-      }
-      try {
-        vcgen.process(boogie.ast, tc); // process implementations one by one
-      } catch (ProverException e) {
-        assert false: "todo: handle in vcgenerator";
       }
     }
   }
@@ -115,17 +109,22 @@ public class AlternativeMain {
       case ONE: tc = new ForgivingTc(); break;
       default: tc = new TypeChecker(); break;
     }
-    transformers = Lists.newArrayList();
-    if (opt.getMakeHavoc()) transformers.add(new HavocMaker());
-    if (opt.getCutLoops()) transformers.add(new LoopCutter());
-    if (opt.getDesugarCalls()) transformers.add(new CallDesugarer());
-    if (opt.getDesugarHavoc()) transformers.add(new HavocDesugarer());
-    if (opt.getDesugarSpec()) transformers.add(new SpecDesugarer());
+    stages = Lists.newArrayList();
+    if (opt.getMakeHavoc()) stages.add(new HavocMaker());
+    if (opt.getCutLoops()) stages.add(new LoopCutter());
+    if (opt.getDesugarCalls()) stages.add(new CallDesugarer());
+    if (opt.getDesugarHavoc()) stages.add(new HavocDesugarer());
+    if (opt.getDesugarSpec()) stages.add(new SpecDesugarer());
     if (opt.getPassivate()) {
       switch (opt.getPassivatorOpt()) {
-        case OPTIM: transformers.add(new Passivator()); break;
-        default: transformers.add(new Passificator()); break;
+        case OPTIM: stages.add(new Passivator()); break;
+        default: stages.add(new Passificator()); break;
       }
+    }
+    if (opt.getDoVcGen()) {
+      AlternativeVcGenerator vcgen = new AlternativeVcGenerator();
+      vcgen.initialize(opt);
+      stages.add(vcgen);
     }
   }
 

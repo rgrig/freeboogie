@@ -92,13 +92,22 @@ public class Logger<C extends Enum<C>, L extends Enum<L>> {
   }
 
   public void say(String m) {
-    if (sink != null) sink.println(m);
+    if (sink != null) {
+      sink.println(m);
+      sink.flush();
+    }
   }
 
   // === Helpers ===
   private void internalLog(C c, L l, String m) {
-    if (verbose) 
-      m = "" + c + " " + l + " " + System.currentTimeMillis() + " " + m;
+    if (verbose) {
+      m = String.format(
+          "%s %s %x %s",
+          c.name(), 
+          l.name(),
+          System.currentTimeMillis(),
+          m);
+    }
     say(m);
   }
 
