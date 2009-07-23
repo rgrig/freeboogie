@@ -3,7 +3,7 @@ NAME::
   :"FreeBoogie is a verifier for Boogie programs. The valid options are:"
 
 ARGS::
-  Files :{} :{file-list} :[mustExist,canBeDir="false",between=""]
+  Files :{} :{file-list} :[mustExist,canBeDir="false",between="",allowMultiple="false"]
     :"Configure the list of files to check."
 
   SeriesParallelCheck :{"--series-parallel-check", "-spc"}
@@ -14,23 +14,7 @@ ARGS::
       the parallel composition of two series--parallel graphs. For the
       purposes of this check a unique exit node is added to the graph,
       and all the real exit nodes go to this one."
-  PrettyPrint :{"--pretty-print", "-pp"} :{file}
-    :"Print the transformed Boogie program. Even if no transformation
-      is specified explicitly on the command line, a certain amount of
-      desugaring is done during parsing."
-  PrintBoogie2 :{"--print-boogie2", "-pb2"} :{file}
-    :[canBeDir="false"]
-    :"Temporary switch used during the transition to Boogie 2."
-  PrintSymbolTable :{"--print-symbol-table", "-pst"} :{file}
-    :"Print the symbol table of the transformed program. The symbol
-      table is a list of definitions, each linked to all the uses of
-      that identifier."
-  PrintFlowgraphs :{"--print-flowgraphs", "-pf"} :{file}
-    :"Print the flowgraph of each implementation in a format understood
-      by dot (from graphviz). You will need to split the output into
-      different files yourself (if there was more than one implementation
-      in the input)."
-  
+ 
   SkipHavocLoopVariables :{"--skip-havoc", "-sh"} :[allowArg="false"]
     :"Do not havoc variables changed in a loop upon entering the loop.
       This is unsound if loops are cut later."
@@ -45,7 +29,7 @@ ARGS::
       expression."
 
   PassivatorOpt :{"--passivator"} :{enum}
-    :[choices="optim(OPTIM),escjava(ESCJAVA)", default="optim"]
+    :[choices="OPTIM,ESCJAVA", default="optim"]
     :"The optim passivator introduces a minimum number of new
       variables. The escjava algorithm can be selected for doing
       performance measurements: It should always be worse."
@@ -56,7 +40,7 @@ ARGS::
   AssumeAsserts :{"--assume-asserts", "-aa"}
     :"If set, then 'assert X' is treated as 'assert X; assume X'."
   ProverOpt :{"--prover", "-p"} :{enum} 
-    :[choices="simplify(SIMPLIFY),yesman(YESMAN)", default="simplify"]
+    :[choices="SIMPLIFY,YESMAN", default="simplify"]
     :"Configure which prover to use. The prover 'yes' can be useful
       for debugging (and for doing demos) because it always says that
       the code is OK."
@@ -72,23 +56,29 @@ ARGS::
     :"Configure what type of information should go to stdout.
       By default all categories are disabled. Errors go to stderr."
   ReportLevel :{"--report-level", "--out-level", "-ol"} :{enum}
-    :[choices="quiet(QUIET),normal(NORMAL),verbose(VERBOSE),debug(DEBUG)", 
-      default="normal"]
+    :[choices="QUIET,NORMAL,VERBOSE,DEBUG", default="normal"]
     :"Configure how much information goes to stdout."
   LogFile :{"--log-file", "-lf"} :{file} 
     :[canBeDir="false",default="freeboogie.log"]
     :"Configure where logging should be done. If the file does not exist
       it is created; if the file does exist the new log messages are appended."
   LogCategories :{"--log-categories", "-lc"} :{enum-list} 
-    :[choices="main(MAIN),vcgen(VCGEN),prover(PROVER),stats(STATS),backend(BACKEND)"]
+    :[choices="MAIN,VCGEN,PROVER,STATS,BACKEND"]
     :"Configure what type of information should go in the log file. 
       By default all categories are disabled."
   LogLevel :{"--log-level", "-ll"} :{enum} 
-    :[choices="severe(SEVERE),warning(WARNING),info(INFO)", default="warning"]
+    :[choices="SEVERE,WARNING,INFO", default="warning"]
     :"Configure how much information should be logged."
+  DumpIntermediateStages :{"--dump-intermediate-stages", "-dis"} :{file}
+    :[canExist="false"]
+    :"Specify a directory where to dump the result of each transformation.
+      The dump includes a Boogie program, its symbol table, and its
+      flowgraphs."
+
   Help :{"--help", "-h"}
     :"Display this message."
 
+  // These cannot appear on the command line.
   MakeHavoc :{} :[default="true"]
   CutLoops :{} :[default="true"]
   DesugarCalls :{} :[default="true"]
@@ -102,29 +92,32 @@ FORMAT::
 
 WHERE::
   Option:
-    OutputOption |
-    PrintOption |
-    PhaseOption |
     ActionOption |
-    ConfigOption;
+    StageOption |
+    ConfigOption |
+    OutputOption;
 
-  OutputOption: LogFile | LogCategories | LogLevel | ReportOn | ReportLevel;
-  PrintOption: PrettyPrint | PrintSymbolTable | PrintFlowgraphs | PrintBoogie2;
-  PhaseOption: 
-    Passivator |
-    DesugarSpecs |
-    DesugarCalls |
-    DesugarHavoc |
-    HavocLoopVariables |
-    CutLoops |
-    DesugarMaps |
-    UnshareVc;
   ActionOption: SeriesParallelCheck;
+  StageOption:
+    SkipHavocLoopVariables |
+    SkipAskProver |
+    RunToHavocLoopVariables |
+    RunToCutLoops |
+    CheckOnly;
   ConfigOption:
-    BoogieVersionOpt |
+    PassivatorOpt |
+    VcMethodOpt |
+    AssumeAsserts |
+    ProverOpt |
     ProverCommandLineOpt |
-    ProverOpt | 
-    VcMethodOpt;
+    BoogieVersionOpt;
+  OutputOption: 
+    LogFile |
+    LogCategories |
+    LogLevel |
+    ReportOn |
+    ReportLevel |
+    DumpIntermediateStages;
 
 OVERRIDES::
   {$(ProverOpt).toLowerCase().equals("simplify") && !$(ProverCommandLineOpt?)} -> 
