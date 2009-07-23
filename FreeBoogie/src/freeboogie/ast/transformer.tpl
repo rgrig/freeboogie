@@ -12,13 +12,14 @@ import freeboogie.tc.TcInterface;
 import freeboogie.tc.TypeUtils;
 
 /**
-  Intended to be used as a base class by visitors that either only inspect
-  the AST or transform the AST. If you want to inspect nodes of type X into
-  something else then you should override {@code see(X x, ...)}. (Most of
-  the time you also need to code visiting of the children.) If you want to
-  replace (some) nodes of type X by something you should override
-  {@code eval(X x, ...)} and return the substitution. This class will take
-  care of path copying.
+  Intended to be used as a base class by visitors that either
+  only inspect the AST or transform the AST. If you want to
+  inspect nodes of type X into then you should override {@code
+  see(X x, ...)}. (Most of the time you also need to code
+  visiting of the children.) If you want to replace (some) nodes
+  of type X by something you should override {@code eval(X x,
+  ...)} and return the substitution. This class will take care of
+  path copying.
   
   @see freeboogie.ast.Evaluator
  */

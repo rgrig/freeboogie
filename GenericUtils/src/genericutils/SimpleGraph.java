@@ -81,6 +81,9 @@ public class SimpleGraph<N> {
     return parents.get(to);
   }
 
+  /** Returns the number of nodes in this graph. */
+  public int nodeCount() { return parents.size(); }
+
   // used for cycle detection and topological sorting
   private HashSet<N> seen;
   private HashSet<N> done;

@@ -50,9 +50,11 @@ ARGS::
       variables. The escjava algorithm can be selected for doing
       performance measurements: It should always be worse."
   VcMethodOpt :{"--vc-method", "-vm"} :{enum}
-    :[choices="wp(WP),wpno(WPNO),sp(SP)", default="wp"]
+    :[choices="wp(WP),sp(SP)", default="wp"]
     :"Configure which method should be used for building a VC from the
       transformed Boogie."
+  AssumeAsserts :{"--assume-asserts", "-aa"}
+    :"If set, then 'assert X' is treated as 'assert X; assume X'."
   ProverOpt :{"--prover", "-p"} :{enum} 
     :[choices="simplify(SIMPLIFY),yesman(YESMAN)", default="simplify"]
     :"Configure which prover to use. The prover 'yes' can be useful
@@ -70,18 +72,19 @@ ARGS::
     :"Configure what type of information should go to stdout.
       By default all categories are disabled. Errors go to stderr."
   ReportLevel :{"--report-level", "--out-level", "-ol"} :{enum}
-    :[choices="QUIET,NORMAL,VERBOSE,DEBUG", default="NORMAL"]
+    :[choices="quiet(QUIET),normal(NORMAL),verbose(VERBOSE),debug(DEBUG)", 
+      default="normal"]
     :"Configure how much information goes to stdout."
   LogFile :{"--log-file", "-lf"} :{file} 
     :[canBeDir="false",default="freeboogie.log"]
     :"Configure where logging should be done. If the file does not exist
       it is created; if the file does exist the new log messages are appended."
   LogCategories :{"--log-categories", "-lc"} :{enum-list} 
-    :[choices="MAIN"]
+    :[choices="main(MAIN),vcgen(VCGEN),prover(PROVER),stats(STATS),backend(BACKEND)"]
     :"Configure what type of information should go in the log file. 
       By default all categories are disabled."
   LogLevel :{"--log-level", "-ll"} :{enum} 
-    :[choices="SEVERE,WARNING,INFO", default="WARNING"]
+    :[choices="severe(SEVERE),warning(WARNING),info(INFO)", default="warning"]
     :"Configure how much information should be logged."
   Help :{"--help", "-h"}
     :"Display this message."
@@ -92,6 +95,7 @@ ARGS::
   DesugarHavoc :{} :[default="true"]
   DesugarSpec :{} :[default="true"]
   Passivate :{} :[default="true"]
+  DoVcGen :{} :[default="true"]
 
 FORMAT::
   (Option | Files)* | Help;

@@ -4,9 +4,9 @@ import java.io.*;
 import java.util.logging.*;
 
 import genericutils.*;
-import ie.ucd.clops.runtime.automaton.AutomatonException;
-import ie.ucd.clops.runtime.options.InvalidOptionPropertyValueException;
-import ie.ucd.clops.runtime.options.InvalidOptionValueException;
+import ie.ucd.clops.runtime.automaton.exception.AutomatonException;
+import ie.ucd.clops.runtime.options.exception.InvalidOptionPropertyValueException;
+import ie.ucd.clops.runtime.options.exception.InvalidOptionValueException;
 import org.antlr.runtime.ANTLRFileStream;
 import org.antlr.runtime.CommonTokenStream;
 
@@ -174,7 +174,7 @@ public class Main {
     HavocDesugarer d = new HavocDesugarer();
     program = new Program(d.process(program.ast, tc), program.fileName);
   }
-
+/*
   private void verify() throws ProverException {
     ACalculus<SmtTerm> calculus = null;
     switch (opt.getVcMethodOpt()) {
@@ -225,7 +225,7 @@ public class Main {
       }
     }
   }
-
+*/
   public void badCli() {
     System.err.println("I don't understand what you want. Try --help.");
     System.exit(1);
