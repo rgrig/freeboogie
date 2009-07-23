@@ -49,8 +49,8 @@ public final class FbCliUtil {
       if (!d.equals("")) x += "  (default: " + d + ")";
       newOption.aliasData = x;
     }
-    newOption.description = "$option.getDescription()";
-    options.add(newOption);
+    newOption.description = "$!option.getDescription()";
+    if (!"".equals(newOption.description)) options.add(newOption);
 #end
 
     Terminal t = Terminal.setupTerminal();

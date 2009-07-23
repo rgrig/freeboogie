@@ -141,8 +141,8 @@ public class Main {
     program = p.process(program, tc);
   }
   private void passify() {
-    Passificator p = new Passificator(tc);
-    program = p.process(program);
+    Passificator p = new Passificator();
+    program = p.process(program, tc);
   }
   
   private void removeMaps() {
@@ -177,7 +177,7 @@ public class Main {
 
   private void verify() throws ProverException {
     ACalculus<SmtTerm> calculus = null;
-    switch (opt.getVcMethod()) {
+    switch (opt.getVcMethodOpt()) {
     case WP: 
       calculus = new WeakestPrecondition<SmtTerm>(tc); 
       break;
@@ -193,9 +193,9 @@ public class Main {
     }
     
     if (prover == null) {
-      switch (opt.getProver()) {
+      switch (opt.getProverOpt()) {
       case SIMPLIFY: 
-        prover = new SimplifyProver(opt.getProverCommandLine().split("\\s+"));
+        prover = new SimplifyProver(opt.getProverCommandLineOpt().split("\\s+"));
         break;
       case YESMAN:
         prover = new YesSmtProver();

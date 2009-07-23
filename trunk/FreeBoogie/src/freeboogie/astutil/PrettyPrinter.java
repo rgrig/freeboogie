@@ -265,7 +265,7 @@ public class PrettyPrinter extends Transformer {
     Declaration tail
   ) {
     say("axiom");
-    if (Main.opt.getBoogieVersion() == FbCliOptionsInterface.BoogieVersion.TWO) {
+    if (Main.opt.getBoogieVersionOpt() == FbCliOptionsInterface.BoogieVersionOpt.TWO) {
       say(" ");
       say(name);
     }
@@ -274,7 +274,7 @@ public class PrettyPrinter extends Transformer {
       typeArgs.eval(this);
       say(">");
     }
-    if (Main.opt.getBoogieVersion() == FbCliOptionsInterface.BoogieVersion.TWO) {
+    if (Main.opt.getBoogieVersionOpt() == FbCliOptionsInterface.BoogieVersionOpt.TWO) {
       say(":");
     }
     say(" ");
@@ -558,7 +558,7 @@ public class PrettyPrinter extends Transformer {
       say(" ");
     }
     if (finite && 
-      Main.opt.getBoogieVersion() == FbCliOptionsInterface.BoogieVersion.TWO) {
+      Main.opt.getBoogieVersionOpt() == FbCliOptionsInterface.BoogieVersionOpt.TWO) {
       say("finite ");
     }
     say(name);
