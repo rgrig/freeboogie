@@ -51,12 +51,7 @@ public class AlternativeMain {
   private Program boogie;
 
   private TcInterface tc;
-  private HavocMaker havocMaker;
-  private LoopCutter loopCutter;
-  private CallDesugarer callDesugarer;
-  private HavocDesugarer havocDesugarer;
-  private SpecDesugarer specDesugarer;
-  private Passivator passivator;
+  private List<Transformer> transformers;
   private VcGenerator vcgen;
 
   /** Process the command line and call {@code run()}. */
@@ -68,7 +63,9 @@ public class AlternativeMain {
     m.run(p.getOptionStore());
   }
 
+  /** Process each file. */
   public void run(FbCliOptionsInterface opt) {
+    Main.opt = opt; // HACK: to remove
     this.opt = opt;
     if (opt.isHelpSet()) {
       FbCliUtil.printUsage();
@@ -84,7 +81,10 @@ public class AlternativeMain {
       parse(f);
       if (boogie.ast == null || !typecheck())
         continue; // parse error or empty input
-      transformBoogie();
+      for (Transformer t : transformers) {
+        // TODO: add some debugging facilitating code here
+        boogie = t.process(boogie, tc);
+      }
       try {
         vcgen.process(boogie.ast, tc); // process implementations one by one
       } catch (ProverException e) {
@@ -94,6 +94,8 @@ public class AlternativeMain {
   }
 
   private void setupLogging() {
+    // NOTE: The explicit specialization on the following two
+    // lines is there only because of a bug in javac.
     out = Logger.<ReportOn, ReportLevel>get("out");
     log = Logger.<LogCategories, LogLevel>get("log");
     out.sink(System.out); 
@@ -109,9 +111,21 @@ public class AlternativeMain {
   }
 
   private void initStages() {
-    switch (opt.getBoogieVersion()) {
+    switch (opt.getBoogieVersionOpt()) {
       case ONE: tc = new ForgivingTc(); break;
       default: tc = new TypeChecker(); break;
+    }
+    transformers = Lists.newArrayList();
+    if (opt.getMakeHavoc()) transformers.add(new HavocMaker());
+    if (opt.getCutLoops()) transformers.add(new LoopCutter());
+    if (opt.getDesugarCalls()) transformers.add(new CallDesugarer());
+    if (opt.getDesugarHavoc()) transformers.add(new HavocDesugarer());
+    if (opt.getDesugarSpec()) transformers.add(new SpecDesugarer());
+    if (opt.getPassivate()) {
+      switch (opt.getPassivatorOpt()) {
+        case OPTIM: transformers.add(new Passivator()); break;
+        default: transformers.add(new Passificator()); break;
+      }
     }
   }
 
@@ -136,16 +150,9 @@ public class AlternativeMain {
       boogie = tc.process(boogie);
     } catch (ErrorsFoundException e) {
       e.report();
-      return true;
+      return false;
     }
-    return false;
-  }
-
-  private void transformBoogie() {
-    List<Transformer> phases = Lists.newArrayList();
-    boogie = havocMaker.process(boogie, tc);
-
-    assert false : "todo";
+    return true;
   }
 
   private void normal(String s) {
