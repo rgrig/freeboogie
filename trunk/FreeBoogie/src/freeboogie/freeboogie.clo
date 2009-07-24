@@ -56,7 +56,7 @@ ARGS::
     :"Configure what type of information should go to stdout.
       By default all categories are disabled. Errors go to stderr."
   ReportLevel :{"--report-level", "--out-level", "-ol"} :{enum}
-    :[choices="QUIET,NORMAL,VERBOSE,DEBUG", default="normal"]
+    :[choices="DEBUG,VERBOSE,NORMAL,QUIET", default="normal"]
     :"Configure how much information goes to stdout."
   LogFile :{"--log-file", "-lf"} :{file} 
     :[canBeDir="false",default="freeboogie.log"]
@@ -67,7 +67,7 @@ ARGS::
     :"Configure what type of information should go in the log file. 
       By default all categories are disabled."
   LogLevel :{"--log-level", "-ll"} :{enum} 
-    :[choices="SEVERE,WARNING,INFO", default="warning"]
+    :[choices="INFO,WARNING,ERROR", default="warning"]
     :"Configure how much information should be logged."
   DumpIntermediateStages :{"--dump-intermediate-stages", "-dis"} :{file}
     :[canExist="false"]
