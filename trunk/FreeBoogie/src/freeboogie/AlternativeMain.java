@@ -7,6 +7,7 @@ import java.util.List;
 
 import com.google.common.collect.Lists;
 import genericutils.Logger;
+import ie.ucd.clops.runtime.errors.CLError;
 import ie.ucd.clops.runtime.options.exception.InvalidOptionValueException;
 import org.antlr.runtime.ANTLRFileStream;
 import org.antlr.runtime.CommonTokenStream;
@@ -54,10 +55,13 @@ public class AlternativeMain {
   private List<Transformer> stages;
 
   /** Process the command line and call {@code run()}. */
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) {
     FbCliParser p = new FbCliParser();
-    try { if (!p.parse(args)) badUsage(); }
-    catch (InvalidOptionValueException e) { badUsage(); }
+    List<CLError> ce = p.parse(args);
+    if (!ce.isEmpty()) {
+      // TODO: report errors
+      badUsage();
+    }
     AlternativeMain m = new AlternativeMain();
     m.run(p.getOptionStore());
   }
