@@ -1,0 +1,17 @@
+#summary Coding style and discussion.
+#labels Version-UpToDate
+
+= Overview =
+
+ * Unless otherwise specified below, follow the [http://java.sun.com/docs/codeconv/ Sun conventions].
+ * Indent by 2 spaces. Do _not_ use tabs. Indent continuation lines by 4 spaces.
+ * A property `foo` of type `T` is implemented by a pair of methods `public T foo()` and `public void foo(T value)`. The prefix get/set is _not_ used.
+ * The import section is made out of three groups separated by an empty line: (1) imports from the Java API, (2) imports from libraries, (3) imports from other packages of the same project. In each group, static imports come _after_ normal ones. A `*` import should be used if (1) there are more than three names that need to be imported and (2) there is no naming ambiguity introduced by using the star.
+ * Do _not_ use curly brackets for one-statement-one-line blocks. If more than one line is taken by the block then do use them. (Obviously, you _have_ to use them if more than one statement is in the block.) Also, if they are a loop body or follow an `if/else`, then put then on the same line as `if/for/while/...` if possible. Remember the Sun limitation to 80 character lines per line.
+ * Do _not_ use parentheses, unless needed.
+ * If you have to split a list on multiple lines (such as a parameter list) then put one item per line.
+ * The length of variable names should be (positively) correlated to the size of their scope. It's perfectly fine to use a one-letter variable name if it is used only on three lines, but *not* if it is a field.
+
+= Discussion =
+
+No discussion yet. Use comments if you disagree and I'll either explain here or change my mind.
