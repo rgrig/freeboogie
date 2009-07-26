@@ -5,6 +5,7 @@ import java.io.Writer;
 import java.math.BigInteger;
 import java.util.HashMap;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 import freeboogie.Main;
@@ -46,13 +47,7 @@ public class PrettyPrinter extends Transformer {
   private void initConstants() {
   }
   
-  /**
-   * Initialize the pretty printer with a writer.
-   * @param w the writer
-   */
-  public PrettyPrinter(Writer w) {
-    assert w != null;
-    writer = w;
+  public PrettyPrinter() {
     indent = 2;
     indentLevel = 0;
     skipVar = 0;
@@ -100,6 +95,11 @@ public class PrettyPrinter extends Transformer {
     specRep.put(Specification.SpecType.REQUIRES, "requires ");
     unRep.put(UnaryOp.Op.MINUS, "-");
     unRep.put(UnaryOp.Op.NOT, "!");
+  }
+
+  public void writer(Writer writer) {
+    Preconditions.checkNotNull(writer);
+    this.writer = writer;
   }
   
   /** Swallow exceptions. */
@@ -394,7 +394,7 @@ public class PrettyPrinter extends Transformer {
 
   @Override
   public void see(
-    Function function,
+    FunctionDecl function,
     Attribute attr,
     Signature sig,
     Declaration tail

@@ -147,7 +147,8 @@ public class Passificator extends ABasicPassifier {
   private boolean verifyAst(Declaration ast) {
     if (!getTypeChecker().process(ast).isEmpty()) {
       PrintWriter pw = new PrintWriter(System.out);
-      PrettyPrinter pp = new PrettyPrinter(pw);
+      PrettyPrinter pp = new PrettyPrinter();
+      pp.writer(pw);
       ast.eval(pp);
       pw.flush();
       Err.internal(this + " produced invalid Boogie.");

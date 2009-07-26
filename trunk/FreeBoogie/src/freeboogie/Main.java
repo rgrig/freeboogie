@@ -93,7 +93,8 @@ public class Main {
 
   public Main() {
     pwriter = new PrintWriter(System.out);
-    pp = new PrettyPrinter(pwriter);
+    pp = new PrettyPrinter();
+    pp.writer(pwriter);
     pb2 = new Boogie2Printer(pwriter);
     fgd = new FlowGraphDumper();
     vcgen = new VcGenerator<SmtTerm>();
@@ -101,9 +102,9 @@ public class Main {
 
   private void printSymbolTable() {
     SymbolTable st = tc.getST();
-    st.funcs.iterDef(new Printer<AtomFun, Function>("function", st.funcs,
-      new ClosureR<Function, String>() {
-        @Override public String go(Function p) {
+    st.funcs.iterDef(new Printer<AtomFun, FunctionDecl>("function", st.funcs,
+      new ClosureR<FunctionDecl, String>() {
+        @Override public String go(FunctionDecl p) {
           return p.getSig().getName();
         }}));
     st.ids.iterDef(new Printer<AtomId, Declaration>("identifier", st.ids,
