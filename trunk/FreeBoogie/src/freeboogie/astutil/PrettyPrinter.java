@@ -7,11 +7,11 @@ import java.util.HashMap;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+import genericutils.Err;
 
 import freeboogie.Main;
 import freeboogie.ast.*;
-import freeboogie.cli.FbCliOptionsInterface;
-import genericutils.Err;
+import static freeboogie.cli.FbCliOptionsInterface.BoogieVersionOpt;
 
 /**
  * Prints AST nodes in a readable (and parseable) way.
@@ -43,16 +43,10 @@ public class PrettyPrinter extends Transformer {
   protected HashMap<PrimitiveType.Ptype,String> typeRep;
   protected HashMap<Specification.SpecType,String> specRep;
   protected HashMap<UnaryOp.Op,String> unRep;
+
+  protected BoogieVersionOpt boogieVersion;
   
   private void initConstants() {
-  }
-  
-  public PrettyPrinter() {
-    indent = 2;
-    indentLevel = 0;
-    skipVar = 0;
-    prefixByBq = false;
-  
     cmdRep = Maps.newHashMap();
     atomRep = Maps.newHashMap();
     quantRep = Maps.newHashMap();
@@ -96,10 +90,23 @@ public class PrettyPrinter extends Transformer {
     unRep.put(UnaryOp.Op.MINUS, "-");
     unRep.put(UnaryOp.Op.NOT, "!");
   }
+  
+  public PrettyPrinter() {
+    indent = 2;
+    indentLevel = 0;
+    skipVar = 0;
+    prefixByBq = false;
+    initConstants();
+  }
 
   public void writer(Writer writer) {
     Preconditions.checkNotNull(writer);
     this.writer = writer;
+  }
+
+  public void boogieVersion(BoogieVersionOpt boogieVersion) {
+    Preconditions.checkNotNull(boogieVersion);
+    this.boogieVersion = boogieVersion;
   }
   
   /** Swallow exceptions. */
@@ -265,17 +272,16 @@ public class PrettyPrinter extends Transformer {
     Declaration tail
   ) {
     say("axiom");
-    if (Main.opt.getBoogieVersionOpt() == FbCliOptionsInterface.BoogieVersionOpt.TWO) {
-      say(" ");
-      say(name);
+    switch (boogieVersion) {
+      case TWO: say(" "); say(name); break;
     }
     if (typeArgs != null) {
       say("<");
       typeArgs.eval(this);
       say(">");
     }
-    if (Main.opt.getBoogieVersionOpt() == FbCliOptionsInterface.BoogieVersionOpt.TWO) {
-      say(":");
+    switch (boogieVersion) {
+      case TWO: say(":"); break;
     }
     say(" ");
     expr.eval(this); semi();
@@ -557,9 +563,13 @@ public class PrettyPrinter extends Transformer {
       attr.eval(this);
       say(" ");
     }
-    if (finite && 
-      Main.opt.getBoogieVersionOpt() == FbCliOptionsInterface.BoogieVersionOpt.TWO) {
-      say("finite ");
+    switch (boogieVersion) {
+      case TWO:
+        if (finite) {
+          say("finite");
+          say(" ");
+        }
+        break;
     }
     say(name);
     // TODO: print space-separated typeArgs
