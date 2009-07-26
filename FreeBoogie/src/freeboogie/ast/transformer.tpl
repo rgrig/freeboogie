@@ -1,3 +1,5 @@
+vim:filetype=java:
+
 \file{Transformer.java}
 /**
   This file was generated from transformer.tpl. Do not edit.
@@ -27,6 +29,11 @@ public class Transformer extends Evaluator<Ast> {
   private final Ast NULL = AtomId.mk("<NULL>",null);
   private Deque<Ast> result = new ArrayDeque<Ast>();
   protected TcInterface tc;
+
+  /** Returns the name of this transformer. */
+  public String name() {
+    return getClass().getName();
+  }
 
   public Program process(Program p, TcInterface tc) {
     return new Program(process(p.ast, tc), p.fileName);

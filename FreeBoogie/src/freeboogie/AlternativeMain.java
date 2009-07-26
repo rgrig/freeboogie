@@ -1,11 +1,11 @@
 package freeboogie;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.util.List;
 
+import com.google.common.base.Function;
 import com.google.common.collect.Lists;
+import genericutils.Closure;
 import genericutils.Logger;
 import ie.ucd.clops.runtime.errors.CLError;
 import ie.ucd.clops.runtime.options.exception.InvalidOptionValueException;
@@ -13,19 +13,17 @@ import org.antlr.runtime.ANTLRFileStream;
 import org.antlr.runtime.CommonTokenStream;
 import org.antlr.runtime.RecognitionException;
 
-import freeboogie.ast.Program;
-import freeboogie.ast.Transformer;
+import freeboogie.ast.*;
+import freeboogie.astutil.PrettyPrinter;
 import freeboogie.backend.ProverException;
 import freeboogie.cli.FbCliOptionsInterface;
 import freeboogie.cli.FbCliParser;
 import freeboogie.cli.FbCliUtil;
+import freeboogie.dumpers.FlowGraphDumper;
 import freeboogie.parser.FbLexer;
 import freeboogie.parser.FbParser;
-import freeboogie.tc.TcInterface;
-import freeboogie.tc.ForgivingTc;
-import freeboogie.tc.TypeChecker;
+import freeboogie.tc.*;
 import freeboogie.vcgen.*;
-
 import static freeboogie.cli.FbCliOptionsInterface.*;
 import static freeboogie.cli.FbCliOptionsInterface.LogCategories;
 import static freeboogie.cli.FbCliOptionsInterface.LogLevel;
@@ -49,18 +47,53 @@ public class AlternativeMain {
   private FbCliOptionsInterface opt;
   private Logger<ReportOn, ReportLevel> out;
   private Logger<LogCategories, LogLevel> log;
-  private Program boogie;
 
+  private Program boogie;
   private TcInterface tc;
   private List<Transformer> stages;
+
+  private PrettyPrinter prettyPrinter = new PrettyPrinter();
+  private FlowGraphDumper flowGraphDumper = new FlowGraphDumper();
+
+  // used for dumping the symbol table
+  private static Function<AtomId, String> nameOfAtomId =
+    new Function<AtomId, String>() {
+      @Override public String apply(AtomId d) { return d.getId(); }
+    };
+  private static Function<TypeDecl, String> nameOfType =
+    new Function<TypeDecl, String>() {
+      @Override public String apply(TypeDecl d) { return d.getName(); }
+    };
+  private static Function<FunctionDecl, String> nameOfFunctionDecl =
+    new Function<FunctionDecl, String>() {
+      @Override public String apply(FunctionDecl d) {
+        return d.getSig().getName();
+      }
+    };
+  private static Function<Procedure, String> nameOfProcedure =
+    new Function<Procedure, String>() {
+      @Override public String apply(Procedure d) {
+        return d.getSig().getName();
+      }
+    };
+  private static Function<Declaration, String> nameOfVar =
+    new Function<Declaration, String>() {
+      @Override public String apply(Declaration d) {
+        if (d instanceof VariableDecl) return ((VariableDecl)d).getName();
+        else return ((ConstDecl)d).getId();
+      }
+    };
 
   /** Process the command line and call {@code run()}. */
   public static void main(String[] args) {
     FbCliParser p = new FbCliParser();
     List<CLError> ce = p.parse(args);
     if (!ce.isEmpty()) {
-      // TODO: report errors
+      for (CLError e : ce) {
+        // TODO: report errors
+      }
       badUsage();
+      return;
     }
     AlternativeMain m = new AlternativeMain();
     m.run(p.getOptionStore());
@@ -75,7 +108,7 @@ public class AlternativeMain {
       return;
     }
     setupLogging();
-    initStages();
+    initialize();
 
     if (opt.getFiles().isEmpty())
       normal("Nothing to do. Try --help.");
@@ -85,8 +118,8 @@ public class AlternativeMain {
       if (boogie.ast == null || !typecheck())
         continue; // parse error or empty input
       for (Transformer t : stages) {
-        // TODO: add some debugging facilitating code here
         boogie = t.process(boogie, tc);
+        dumpState(t.name());
       }
     }
   }
@@ -108,12 +141,18 @@ public class AlternativeMain {
     log.verbose(true);
   }
 
-  private void initStages() {
+  private void initialize() {
+    // Initialize typechecker.
     switch (opt.getBoogieVersionOpt()) {
       case ONE: tc = new ForgivingTc(); break;
       default: tc = new TypeChecker(); break;
     }
+
+    // Initialize the Boogie transformers.
     stages = Lists.newArrayList();
+    stages.add(new Transformer() { @Override public String name() {
+      return "Parsing";
+    }}); // dummy transformer to report state immediately after parsing
     if (opt.getMakeHavoc()) stages.add(new HavocMaker());
     if (opt.getCutLoops()) stages.add(new LoopCutter());
     if (opt.getDesugarCalls()) stages.add(new CallDesugarer());
@@ -157,6 +196,60 @@ public class AlternativeMain {
     }
     return true;
   }
+
+  private void dumpState(String stageName) {
+    if (!opt.isDumpIntermediateStagesSet()) return;
+    log.say(
+        LogCategories.MAIN,
+        LogLevel.INFO,
+        "Dump after stage " + stageName + ".");
+    File dir = new File(opt.getDumpIntermediateStages(), stageName);
+    dir.mkdirs();
+
+    // dump boogie
+    try {
+      PrintWriter bw = new PrintWriter(new File(dir, boogie.fileName));
+      prettyPrinter.writer(bw);
+      prettyPrinter.process(boogie, tc);
+      bw.flush();
+    } catch (FileNotFoundException e) {
+      assert false : "PrintWriter should create the file.";
+    }
+
+    // dump symbol table
+    try {
+      SymbolTable st = tc.getST();
+      PrintWriter stw = new PrintWriter(new File(dir, "symbols.txt"));
+      printSymbols(stw, "function", st.funcs, nameOfFunctionDecl);
+      printSymbols(stw, "identifier", st.ids, nameOfVar);
+      printSymbols(stw, "procedure", st.procs, nameOfProcedure);
+      printSymbols(stw, "type", st.types, nameOfType);
+      printSymbols(stw, "typevar", st.typeVars,nameOfAtomId);
+      stw.flush();
+    } catch (FileNotFoundException e) {
+      assert false : "PrintWriter should create the file.";
+    }
+
+    // dump flowgraphs
+    flowGraphDumper.directory(dir);
+    flowGraphDumper.process(boogie, tc);
+  }
+
+  private <U extends Ast, D extends Ast> void printSymbols(
+      final PrintWriter w,
+      final String t,
+      final UsageToDefMap<U, D> map,
+      final Function<D, String> toString
+  ) {
+    map.iterDef(new Closure<D>() {
+      @Override public void go(D d) {
+        w.println(t + " " + toString.apply(d));
+        w.println("  definition at " + d.loc());
+        w.print("  usages at");
+        for (U u : map.usages(d)) w.print(" " + u.loc());
+        w.println();
+      }});    
+}
 
   private void normal(String s) {
     out.say(ReportOn.MAIN, ReportLevel.NORMAL, s);
