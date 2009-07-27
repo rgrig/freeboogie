@@ -1,2 +1,2 @@
-fbrun freeboogie.ast.gen.Main fb.ag simple.tpl
+java -jar ../../dist/astgen-*.jar fb.ag simple.tpl
 

@@ -1,1 +1,1 @@
-fbrun freeboogie.ast.gen.Main in.ag
+java -jar ../../dist/astgen-*.jar in.ag
