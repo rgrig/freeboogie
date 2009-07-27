@@ -29,7 +29,24 @@ import static freeboogie.cli.FbCliOptionsInterface.LogCategories;
 import static freeboogie.cli.FbCliOptionsInterface.LogLevel;
 
 /**
- * TODO: Put a nice comment here an din VcGenerator.
+  The entry point for FreeBoogie.
+
+  The function {@code main()} is called, as usual, when the
+  program is run from the command line. It parses the command
+  line and delegates the other work to {@code run()}, which takes
+  an option store as a parameter. An easy way to wrap FreeBoogie
+  programatically is to populate an option store and call this
+  run method.
+
+  The {@code run()} function loops over all the boogie
+  transformation phases enabled by the options. After each phase
+  is run, optional debugging data is printed. The Boogie program
+  is printed using {@code PrettyPrinter}, the flowgraphs are
+  printed using {@code FlowGraphDumper}, and the symbol table is
+  printed by some helper code from the {@code Main} class itself.
+
+  @see freeboogie.astutil.PrettyPrinter
+  @see freeboogie.dumpers.FlowGraphDumper
  */
 public class Main {
 
