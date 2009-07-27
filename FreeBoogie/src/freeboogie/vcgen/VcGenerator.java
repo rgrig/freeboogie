@@ -15,7 +15,24 @@ import static freeboogie.cli.FbCliOptionsInterface.LogLevel;
 import static freeboogie.cli.FbCliOptionsInterface.ReportLevel;
 import static freeboogie.cli.FbCliOptionsInterface.ReportOn;
 
-/** Work in progress. This will replace {@code VcGenerator}. */
+/**
+  Checks the correctness of each implementation and reports
+  the results.
+
+  The results are reported to the logger "out".
+
+  Although this class is implemented by extending {@code
+  Transformer} it does not modify the AST.
+
+  Before using it, you should {@code initialize()} it by passing
+  in options. This will configure the main VC method (like SP vs
+  WP), the stages that are applied afterwards to modify the logic
+  formula, and the theorem prover which is queried.
+
+  This class handles restarting the prover in case a
+  communication problem, a segfault, or some other horrible
+  situation arises.
+ */
 public class VcGenerator extends Transformer {
   private Logger<LogCategories, LogLevel> log = 
     Logger.<LogCategories, LogLevel>get("log");
