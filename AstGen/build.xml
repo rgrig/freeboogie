@@ -34,6 +34,13 @@
     </javadoc>
   </target>
 
+  <target name="test" depends="dist" description="run functional tests">
+    <exec executable="test/test" 
+          dir="test"
+          resolveexecutable="true"
+          failonerror="true"/>
+  </target>
+
   <!-- Distribution targets -->
 
   <target name="dist" depends="compile">
