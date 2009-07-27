@@ -1,0 +1,6 @@
+#summary A reference for using AstGen
+#labels Version-UpToDate
+
+= Introduction =
+
+AstGen is a component used to generate various artifacts from a simple abstract grammar. For those familiar with functional languages, the abstract grammar is 
