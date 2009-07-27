@@ -1,3 +1,4 @@
 #!/bin/bash
-ulimit -t 5 # should process 1MB in at most five seconds
+#uncomment the next line once you make it faster
+#ulimit -t 5 # should process 1MB in at most five seconds
 java -jar ../../dist/astgen-*.jar in.ag

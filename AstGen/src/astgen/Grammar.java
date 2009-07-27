@@ -14,16 +14,18 @@ import com.google.common.collect.Maps;
  */
 public class Grammar {
 
-  /** A map from class names to {@code AgClass} objects.  */
-  public Map<String, AgClass> classes = Maps.newHashMap();
+  /**
+   * A map from class names to {@code AgClass} objects.
+   */
+  public Map<String, AgClass> classes;
 
   public HashMap<String, String> userDefs;
 
-  public TransitiveRelation<String> subtype = 
-      new TransitiveRelation<String>();
-  public TransitiveRelation<String> convertible = 
-      new TransitiveRelation<String>();
-
+  /** Creates a new grammar object. */
+  public Grammar() {
+    classes = new HashMap<String, AgClass>(101);
+  }
+  
   /**
    * Return the class with the specified name, initializing an 
    * {@code AgClass} object if necessary.
