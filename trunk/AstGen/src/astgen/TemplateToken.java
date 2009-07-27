@@ -9,35 +9,44 @@ public class TemplateToken extends Token {
   
   /** Token types. */
   public enum Type {
-    /* \file */ FILE,
-    /* \\user_define */ USER_DEFINE,
-    /* \classes */ CLASSES,
-    /* \is_abstract */ IF_ABSTRACT,
-    /* \abstract_classes */ ABSTRACT_CLASSES,
-    /* \normal_classes */ NORMAL_CLASSES,
-    /* \class_name */ CLASS_NAME,
-    /* \base_name */ BASE_NAME,
-    /* \members */ MEMBERS,
-    /* \selfmembers */ SELFMEMBERS,
-    /* \inheritemembers */ INHERITEDMEMBERS,
-    /* \member_type */ MEMBER_TYPE,
-    /* \member_name */ MEMBER_NAME,
-    /* \if_primitive */ IF_PRIMITIVE,
-    /* \if_nonnull */ IF_NONNULL,
-    /* \if_enum */ IF_ENUM,
-    /* \children */ CHILDREN,
-    /* \primitives */ PRIMITIVES,
-    /* \enums */ ENUMS,
-    /* \enum_name */ ENUM_NAME,
-    /* \values */ VALUES,
-    /* \value_name */ VALUE_NAME,
-    /* \invariants */ INVARIANTS,
-    /* \inv */ INV,
-    /* [ */ LB,
-    /* ] */ RB,
-    /* { */ LC,
-    /* } */ RC,
-    /* some text to be copied verbatim */ OTHER
+    // In the template, these look similar.
+    FILE,
+    USER_DEFINE,
+    CLASSES,
+    IF_ABSTRACT,
+    ABSTRACT_CLASSES,
+    NORMAL_CLASSES,
+    CLASS_NAME,
+    BASE_NAME,
+    MEMBERS,
+    SELFMEMBERS,
+    INHERITEDMEMBERS,
+    MEMBER_TYPE,
+    MEMBER_NAME,
+    IF_PRIMITIVE,
+    IF_NONNULL,
+    IF_ENUM,
+    IF_TAGGED,
+    CHILDREN,
+    PRIMITIVES,
+    ENUMS,
+    ENUM_NAME,
+    VALUES,
+    VALUE_NAME,
+    INVARIANTS,
+    INV,
+
+    // These are symbols in the template.
+    LP, // (
+    RP, // )
+    LB, // [
+    RB, // ]
+    LC, // {
+    RC, // }
+    OR, // |
+    AND, // &
+
+    OTHER // to be copied verbatim
   }
 
   /** Case styles for identifiers. */

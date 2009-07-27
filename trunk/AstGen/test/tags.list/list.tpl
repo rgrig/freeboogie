@@ -8,21 +8,18 @@ an AST that has members tagged as lists.
 \normal_classes{
   class \ClassName extends \BaseName {
     // === memeber declarations ===
-    \children{
+    \members{
       \if_tagged{list}{
-        private final List<\MemberType> \memberName;
+        private final List<\if_primitive{\MemberType}{\MemberType}> \memberName;
       }{
-        private final \MemberType \memberName;
+        private final \if_primitive{\Membertype}{\MemberType} \memberName;
       }
-    }
-    \primitives{
-      private final \Membertype \memberName;
     }
 
     // === construction ===
     public \ClassName(
       \members[,]{
-        \if_primitive{\Membertype}{\memberType} \memberName
+        \if_primitive{\Membertype}{\MemberType} \memberName
       }
     ) {
       \members{
@@ -43,7 +40,7 @@ an AST that has members tagged as lists.
       int r = 0;
       \children{
         \if_tagged{list}{
-          r += \memberName.size();
+          r += this.\memberName.size();
         }{
           ++r;
         }
@@ -55,10 +52,11 @@ an AST that has members tagged as lists.
       assert 0 <= index;
       \children{
         \if_tagged{list}{
-          if (index < \memberName.size()) return \memberName.get(index);
-          else index -= \memberName.size();
+          if (index < this.\memberName.size()) 
+            return this.\memberName.get(index);
+          else index -= this.\memberName.size();
         }{
-          if (index == 0) return \memberName;
+          if (index == 0) return this.\memberName;
           else --index;
         }
       }

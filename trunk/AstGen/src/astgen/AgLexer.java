@@ -21,6 +21,8 @@ public class AgLexer extends PeekStream<AgToken> {
     oneCharTokens.put(';', AgToken.Type.SEMICOLON);
     oneCharTokens.put('(', AgToken.Type.LP);
     oneCharTokens.put(')', AgToken.Type.RP);
+    oneCharTokens.put('[', AgToken.Type.LB);
+    oneCharTokens.put(']', AgToken.Type.RB);
     oneCharTokens.put('\n', AgToken.Type.NL);
   }
   

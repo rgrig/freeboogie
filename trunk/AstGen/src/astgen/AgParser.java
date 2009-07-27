@@ -111,6 +111,18 @@ public class AgParser {
     while (t.type == AgToken.Type.COMMA) {
       t = nextToken();
       AgMember mem = new AgMember();
+      while (t.type == AgToken.Type.LB) {
+        t = nextToken();
+        if (t.type != AgToken.Type.ID) {
+          err("A tag looks like [this].");
+          skipStatementBecauseOf(t);
+          return;
+        }
+        mem.tags.add(t.rep);
+        if (nextToken().type != AgToken.Type.RB)
+          Err.help("I'll pretend there was a tag closing ] here.");
+        else t = nextToken();
+      }
       if (t.type == AgToken.Type.ENUM) {
         mem.type = parseEnum(cls);
         if (mem.type == null) return;
@@ -126,7 +138,7 @@ public class AgParser {
       }
       t = nextToken();
       if (t.type == AgToken.Type.BANG) {
-        mem.nonNull = true;
+        mem.tags.add("nonnull");
         t = nextToken();
       }
       if (t.type != AgToken.Type.ID) {

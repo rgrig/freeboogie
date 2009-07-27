@@ -17,6 +17,8 @@ public class AgToken extends Token {
     BANG,
     LP,
     RP,
+    LB,
+    RB,
     COMMA,
     ID,
     WS,
