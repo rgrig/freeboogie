@@ -1,2 +1,2 @@
-java -jar ../../dist/astgen-*.jar fb.ag simple.tpl
+java -jar ../../dist/astgen-*.jar list.ag list.tpl
 
