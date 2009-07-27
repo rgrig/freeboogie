@@ -1,2 +1,2 @@
-java -jar ../../dist/astgen-*.jar list.ag list.tpl
+java -ea -jar ../../dist/astgen-*.jar list.ag list.tpl
 

@@ -64,6 +64,9 @@ public class TemplateParser {
    * macros seen in the input.
    */
 
+  @SuppressWarnings("serial")
+  private static class EofReached extends IOException {}
+
   private static final Logger log = Logger.getLogger("astgen");
   
   private TemplateLexer lexer;
@@ -133,64 +136,68 @@ public class TemplateParser {
    * nesting level is seen.
    */
   private void processTop(int curlyStop, int bracketStop) throws IOException {
-    readToken();
-    while (lastToken != null) {
-      switch (lastToken.type) {
-      case FILE:
-        processFile(); break;
-      case USER_DEFINE:
-        processUserDefine(); break;
-      case CLASSES:
-        processClasses(); break;
-      case IF_ABSTRACT:
-        processIsAbstract(); break;
-      case ABSTRACT_CLASSES:
-        processAbstractClasses(); break;
-      case NORMAL_CLASSES:
-        processNormalClasses(); break;
-      case CLASS_NAME:
-        processClassName(); break;
-      case BASE_NAME:
-        processBaseName(); break;
-      case MEMBERS:
-        processMembers(); break;
-      case SELFMEMBERS:
-        processSelfMembers(); break;
-      case INHERITEDMEMBERS:
-        processInheritedMembers(); break;
-      case MEMBER_TYPE:
-        processMemberType(); break;
-      case MEMBER_NAME:
-        processMemberName(); break;
-      case IF_PRIMITIVE:
-        processIfPrimitive(); break;
-      case IF_NONNULL:
-        processIfNonnull(); break;
-      case IF_ENUM:
-        processIfEnum(); break;
-      case CHILDREN:
-        processChildren(); break;
-      case PRIMITIVES:
-        processPrimitives(); break;
-      case ENUMS:
-        processEnums(); break;
-      case ENUM_NAME:
-        processEnumName(); break;
-      case VALUES:
-        processValues(); break;
-      case VALUE_NAME:
-        processValueName(); break;
-      case INVARIANTS:
-        processInvariants(); break;
-      case INV:
-        processInv(); break;
-      default:
-        if (curlyStop == curlyCnt || bracketStop == bracketCnt) return;
-        write(lastToken.rep);
-      }
-      if (curlyCnt == 0 && bracketCnt == 0) lexer.eat();
+    try {
       readToken();
-    }
+      while (true) {
+        switch (lastToken.type) {
+        case FILE:
+          processFile(); break;
+        case USER_DEFINE:
+          processUserDefine(); break;
+        case CLASSES:
+          processClasses(); break;
+        case IF_ABSTRACT:
+          processIsAbstract(); break;
+        case ABSTRACT_CLASSES:
+          processAbstractClasses(); break;
+        case NORMAL_CLASSES:
+          processNormalClasses(); break;
+        case CLASS_NAME:
+          processClassName(); break;
+        case BASE_NAME:
+          processBaseName(); break;
+        case MEMBERS:
+          processMembers(); break;
+        case SELFMEMBERS:
+          processSelfMembers(); break;
+        case INHERITEDMEMBERS:
+          processInheritedMembers(); break;
+        case MEMBER_TYPE:
+          processMemberType(); break;
+        case MEMBER_NAME:
+          processMemberName(); break;
+        case IF_PRIMITIVE:
+          processIfPrimitive(); break;
+        case IF_NONNULL:
+          processIfNonnull(); break;
+        case IF_ENUM:
+          processIfEnum(); break;
+        case IF_TAGGED:
+          processIfTagged(); break;
+        case CHILDREN:
+          processChildren(); break;
+        case PRIMITIVES:
+          processPrimitives(); break;
+        case ENUMS:
+          processEnums(); break;
+        case ENUM_NAME:
+          processEnumName(); break;
+        case VALUES:
+          processValues(); break;
+        case VALUE_NAME:
+          processValueName(); break;
+        case INVARIANTS:
+          processInvariants(); break;
+        case INV:
+          processInv(); break;
+        default:
+          if (curlyStop == curlyCnt || bracketStop == bracketCnt) return;
+          write(lastToken.rep);
+        }
+        if (curlyCnt == 0 && bracketCnt == 0) lexer.eat();
+        readToken();
+      }
+    } catch (EofReached e) { /* fine */ }
   }
   
   /*
@@ -407,7 +414,7 @@ public class TemplateParser {
       skipToRc(curlyCnt, true);
       return;
     }
-    processYesNo(memberContext.peek().nonNull);
+    processYesNo(memberContext.peek().tags.contains("nonnull"));
   }
   
   private void processIfEnum() throws IOException {
@@ -417,6 +424,21 @@ public class TemplateParser {
       return;
     }
     processYesNo(memberContext.peek().isenum);
+  }
+
+  private void processIfTagged() throws IOException {
+    if (!checkContext(memberContext)) {
+      skipToRc(curlyCnt, true);
+      skipToRc(curlyCnt, true);
+      skipToRc(curlyCnt, true);
+      return;
+    }
+    readToken();
+    if (lastToken.type != TemplateToken.Type.LC) {
+      err("You should give a { tag expression } after \\if_tagged.");
+      Err.help("I'll act as if <" + lastToken.rep + "> was {.");
+    }
+    processYesNo(evalTagExpr(memberContext.peek().tags));
   }
 
   private void processChildren() throws IOException {
@@ -479,6 +501,38 @@ public class TemplateParser {
     if (checkContext(invariantContext))
       write(invariantContext.peek());
   }
+
+  private boolean evalTagExpr(Set<String> tags) throws IOException {
+    boolean value = evalTagAtom(tags);
+    while (true) {
+      readToken();
+      TemplateToken.Type op = lastToken.type;
+      switch (op) {
+        case RP:
+        case RC:
+          return value;
+      }
+      boolean v = evalTagAtom(tags);
+      switch (op) {
+        case AND: value &= v; break;
+        case OR: value |= v; break;
+        default:
+          err("Tag expressions can only contain ( ) | & and identifiers.");
+      }
+    }
+  }
+
+  private boolean evalTagAtom(Set<String> tags) throws IOException {
+    readToken();
+    if (lastToken.type == TemplateToken.Type.LP)
+      return evalTagExpr(tags);
+    else if (lastToken.type == TemplateToken.Type.OTHER)
+      return tags.contains(lastToken.rep.trim());
+    else {
+      err("I was expecting a tag here.");
+      return false;
+    }
+  }
   
   private void skipToRc(int cnt, boolean warn) throws IOException {
     skipToR(cnt, Integer.MAX_VALUE, warn);
@@ -509,7 +563,7 @@ public class TemplateParser {
   
   private void readToken() throws IOException {
     lastToken = lexer.next();
-    if (lastToken == null) return;
+    if (lastToken == null) throw new EofReached();
     log.finer("read token <" + lastToken.rep + "> of type " + lastToken.type);
     if (lastToken.type == TemplateToken.Type.LB) ++bracketCnt;
     if (lastToken.type == TemplateToken.Type.RB) --bracketCnt;

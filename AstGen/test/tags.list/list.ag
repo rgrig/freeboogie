@@ -12,8 +12,8 @@ Function =
 Command :> Assignment, IO;
 
 Assignment =
-  String lhs,
-  Expression rhs;
+  String! lhs,
+  Expression! rhs;
 
 IO =
   enum(Type : IN, OUT) direction,

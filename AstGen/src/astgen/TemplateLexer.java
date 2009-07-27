@@ -64,6 +64,7 @@ public class TemplateLexer extends PeekStream<TemplateToken> {
     macros.put("\\if_primitive", TemplateToken.Type.IF_PRIMITIVE);
     macros.put("\\if_nonnull", TemplateToken.Type.IF_NONNULL);
     macros.put("\\if_enum", TemplateToken.Type.IF_ENUM);
+    macros.put("\\if_tagged", TemplateToken.Type.IF_TAGGED);
     macros.put("\\children", TemplateToken.Type.CHILDREN);
     macros.put("\\primitives", TemplateToken.Type.PRIMITIVES);
     macros.put("\\enums", TemplateToken.Type.ENUMS);
@@ -118,10 +119,14 @@ public class TemplateLexer extends PeekStream<TemplateToken> {
     idCases.put("\\Valuename", TemplateToken.Case.ORIGINAL_CASE);
     
     
+    oneCharTokens.put('(', TemplateToken.Type.LP);
+    oneCharTokens.put(')', TemplateToken.Type.RP);
     oneCharTokens.put('[', TemplateToken.Type.LB);
     oneCharTokens.put(']', TemplateToken.Type.RB);
     oneCharTokens.put('{', TemplateToken.Type.LC);
     oneCharTokens.put('}', TemplateToken.Type.RC);
+    oneCharTokens.put('|', TemplateToken.Type.OR);
+    oneCharTokens.put('&', TemplateToken.Type.AND);
     
     maxMacroLen = 0;
     for (String s : macros.keySet())
