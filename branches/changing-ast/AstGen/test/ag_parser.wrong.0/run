@@ -1,0 +1,1 @@
+java -jar ../../dist/astgen-*.jar in.ag

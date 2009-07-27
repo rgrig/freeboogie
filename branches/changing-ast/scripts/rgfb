@@ -1,0 +1,19 @@
+#!/bin/bash
+
+checkProject() {
+  cd /tmp/FbStuff/$2
+  ant $1 > log || cat log | mail -s "$2 fails \"ant $1\"" radugrigore@gmail.com
+}
+
+checkRepo() {
+  rm -rf /tmp/FbStuff
+  cd /tmp
+  svn co $2 FbStuff
+  checkProject $1 AstGen
+  checkProject $1 FreeBoogie
+  checkProject $1 GenericUtils
+}
+
+checkRepo compile https://radugrigore@freeboogie.googlecode.com/svn/trunk/
+checkRepo test svn+ssh://rgrig@kind.ucd.ie/Volumes/Data/svn_mobius/src/mobius.esc/freeboogie/
+#vim:sw=2:

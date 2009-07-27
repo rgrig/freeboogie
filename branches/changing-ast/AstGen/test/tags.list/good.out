@@ -1,0 +1,256 @@
+
+
+
+  class Assignment extends Command {
+    // === memeber declarations ===
+    
+      
+        private final String lhs;
+      
+    
+      
+        private final Expression rhs;
+      
+    
+
+    // === construction ===
+    public Assignment(
+      
+        String lhs
+      ,
+        Expression rhs
+      
+    ) {
+      
+        assert lhs != null;
+        this.lhs = lhs;
+      
+        assert rhs != null;
+        this.rhs = rhs;
+      
+    }
+
+    // === read-only accessors ===
+    
+      public String lhs() {
+        return lhs;
+      }
+    
+      public Expression rhs() {
+        return rhs;
+      }
+    
+
+    // === the Composite pattern ===
+    public int length() {
+      int r = 0;
+      
+      return r;
+    }
+
+    public Ast child(int index) {
+      assert 0 <= index;
+      
+      assert false : "index is too big";
+      return null;
+    }
+  }
+
+  class Function extends Ast {
+    // === memeber declarations ===
+    
+      
+        private final String name;
+      
+    
+      
+        private final List<String> arguments;
+      
+    
+      
+        private final List<Command> commands;
+      
+    
+
+    // === construction ===
+    public Function(
+      
+        String name
+      ,
+        String arguments
+      ,
+        Command commands
+      
+    ) {
+      
+        
+        this.name = name;
+      
+        assert arguments != null;
+        this.arguments = arguments;
+      
+        assert commands != null;
+        this.commands = commands;
+      
+    }
+
+    // === read-only accessors ===
+    
+      public String name() {
+        return name;
+      }
+    
+      public String arguments() {
+        return arguments;
+      }
+    
+      public Command commands() {
+        return commands;
+      }
+    
+
+    // === the Composite pattern ===
+    public int length() {
+      int r = 0;
+      
+        
+          r += this.commands.size();
+        
+      
+      return r;
+    }
+
+    public Ast child(int index) {
+      assert 0 <= index;
+      
+        
+          if (index < this.commands.size()) 
+            return this.commands.get(index);
+          else index -= this.commands.size();
+        
+      
+      assert false : "index is too big";
+      return null;
+    }
+  }
+
+  class Io extends Command {
+    // === memeber declarations ===
+    
+      
+        private final Type direction;
+      
+    
+      
+        private final String variable;
+      
+    
+
+    // === construction ===
+    public Io(
+      
+        Type direction
+      ,
+        String variable
+      
+    ) {
+      
+        
+        this.direction = direction;
+      
+        
+        this.variable = variable;
+      
+    }
+
+    // === read-only accessors ===
+    
+      public Type direction() {
+        return direction;
+      }
+    
+      public String variable() {
+        return variable;
+      }
+    
+
+    // === the Composite pattern ===
+    public int length() {
+      int r = 0;
+      
+      return r;
+    }
+
+    public Ast child(int index) {
+      assert 0 <= index;
+      
+      assert false : "index is too big";
+      return null;
+    }
+  }
+
+  class Program extends Ast {
+    // === memeber declarations ===
+    
+      
+        private final String name;
+      
+    
+      
+        private final List<Function> functions;
+      
+    
+
+    // === construction ===
+    public Program(
+      
+        String name
+      ,
+        Function functions
+      
+    ) {
+      
+        
+        this.name = name;
+      
+        assert functions != null;
+        this.functions = functions;
+      
+    }
+
+    // === read-only accessors ===
+    
+      public String name() {
+        return name;
+      }
+    
+      public Function functions() {
+        return functions;
+      }
+    
+
+    // === the Composite pattern ===
+    public int length() {
+      int r = 0;
+      
+        
+          r += this.functions.size();
+        
+      
+      return r;
+    }
+
+    public Ast child(int index) {
+      assert 0 <= index;
+      
+        
+          if (index < this.functions.size()) 
+            return this.functions.get(index);
+          else index -= this.functions.size();
+        
+      
+      assert false : "index is too big";
+      return null;
+    }
+  }
+
