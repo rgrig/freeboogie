@@ -87,7 +87,7 @@ public class AgLexer extends PeekStream<AgToken> {
         while (lastChar != '\n') readChar();
         readChar();
       }
-    } else if (Character.isLetter(lastChar)) {
+    } else if (isIdFirstCharacter(lastChar)) {
       do readChar();
       while (isIdCharacter(lastChar));
       if (repBuilder.toString().equals("enum")) 
@@ -114,8 +114,13 @@ public class AgLexer extends PeekStream<AgToken> {
     return r;
   }
 
-  private static boolean isIdCharacter(char c) {
+
+  private static boolean isIdFirstCharacter(char c) {
     return Character.isLetter(c)
+        || c == '_';
+  }
+  private static boolean isIdCharacter(char c) {
+    return isIdFirstCharacter(c)
       || c == '<'
       || c == '>'; // allow generic types
   }

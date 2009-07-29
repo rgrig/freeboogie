@@ -27,6 +27,7 @@ public class TemplateToken extends Token {
     IF_NONNULL,
     IF_ENUM,
     IF_TAGGED,
+    IF_TERMINAL,
     CHILDREN,
     PRIMITIVES,
     ENUMS,
