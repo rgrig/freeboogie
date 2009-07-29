@@ -63,3 +63,9 @@ from a template such as
 {{{
 TODO
 }}}
+
+== Invocation ==
+
+ {{{ [options] ABSTRACT_GRAMMAR TEMPLATES }}}
+
+Where -b CLASSNAME determines the parent for classes with no parent in the grammar,   -d DIRECTORY determines the directory for files created according to the templates.
