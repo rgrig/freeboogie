@@ -95,6 +95,8 @@
         debug="${debug}">
       <classpath refid="classpath" />
       <compilerarg value="-Xlint:all" />
+      <compilerarg value="-Xmaxerrs" /><compilerarg value="10" />
+      <compilerarg value="-Xmaxwarns" /><compilerarg value="10" />
     </javac>
   </target>
 
@@ -109,6 +111,8 @@
         optimize="yes" 
         debug="no">
       <classpath refid="classpath" /> 
+      <compilerarg value="-Xmaxerrs" /><compilerarg value="10" />
+      <compilerarg value="-Xmaxwarns" /><compilerarg value="10" />
     </javac>
   </target>
 
@@ -123,6 +127,8 @@
         debug="${debug}">
       <classpath refid="classpath" /> 
       <compilerarg value="-Xlint:all" />
+      <compilerarg value="-Xmaxerrs" /><compilerarg value="10" />
+      <compilerarg value="-Xmaxwarns" /><compilerarg value="10" />
     </javac>
   </target>
   

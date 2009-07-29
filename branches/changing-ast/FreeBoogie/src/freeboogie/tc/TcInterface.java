@@ -27,7 +27,7 @@ public interface TcInterface {
    * @param ast the AST to check
    * @return the detected errors 
    */
-  List<FbError> process(Declaration ast);
+  List<FbError> process(Program p);
 
   Program process(Program p) throws ErrorsFoundException;
 
@@ -75,7 +75,7 @@ public interface TcInterface {
    * Returns the (possibly modified) AST that was last processed.
    * @return the last processed AST
    */
-  Declaration getAST();
+  Program getAST();
   
 }
 

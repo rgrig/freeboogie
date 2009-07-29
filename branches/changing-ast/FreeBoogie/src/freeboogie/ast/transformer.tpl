@@ -10,6 +10,9 @@ import java.math.BigInteger;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+
 import freeboogie.tc.TcInterface;
 import freeboogie.tc.TypeUtils;
 
@@ -36,24 +39,18 @@ public class Transformer extends Evaluator<Ast> {
   }
 
   public Program process(Program p, TcInterface tc) {
-    return new Program(process(p.ast, tc), p.fileName);
-  }
-
-  public Declaration process(Declaration ast, TcInterface tc) {
-    this.tc = tc;
-    return TypeUtils.internalTypecheck((Declaration)ast.eval(this), tc);
+    return TypeUtils.internalTypecheck((Program)p.eval(this), tc);
   }
 
 \normal_classes{
-
   public void see(
     \ClassName \className,
     \members[,]{
-      \if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType} 
+      \if_tagged{list}{ImmutableList<}{}\if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}\if_tagged{list}{>}{} 
       \memberName
     }
   ) {
-    assert \className != null;
+    Preconditions.checkNotNull(\className);
     boolean sameChildren = true;
     \members{
       \if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}

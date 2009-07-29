@@ -28,7 +28,6 @@ Body.java
 CallCmd.java
 Command.java
 ConstDecl.java
-Declaration.java
 DepType.java
 Expr.java
 FunctionDecl.java

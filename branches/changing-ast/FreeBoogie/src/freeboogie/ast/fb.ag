@@ -16,19 +16,17 @@ Program =
 GlobalDecl :> 
   ConstDecl, 
   VariableDecl;
-GlobalDecl =
-  String! name;
 
 // Group all elements that can have attributes.
-Declaration :> 
-  TypeDecl, 
-  Axiom, 
-  GlobalDecl, 
-  FunctionDecl, 
-  Procedure, 
-  Implementation;
-Declaration =
-  [list] Attribute attributes;
+//Declaration :> 
+//  TypeDecl, 
+//  Axiom, 
+//  GlobalDecl, 
+//  FunctionDecl, 
+//  Procedure, 
+//  Implementation;
+//Declaration =
+//  [list] Attribute attributes;
 
 TypeDecl = 
   boolean finite, 
@@ -40,9 +38,11 @@ Axiom =
   [list] AtomId typeArgs,
   Expr! expr;
 VariableDecl =
+  String! name,
   Type! type, 
   [list] AtomId typeArgs;
 ConstDecl = 
+  String! name,
   Type! type,
   boolean uniq;
 FunctionDecl = 

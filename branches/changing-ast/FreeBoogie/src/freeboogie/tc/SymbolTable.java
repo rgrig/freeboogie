@@ -24,8 +24,8 @@ public class SymbolTable {
    * Identifiers. The declarations might only be {@code ConstDecl} and
    * {@code VariableDecl}.
    */
-  public UsageToDefMap<AtomId, Declaration> ids
-    = new UsageToDefMap<AtomId, Declaration>();
+  public UsageToDefMap<AtomId, GlobalDecl> ids
+    = new UsageToDefMap<AtomId, GlobalDecl>();
 
   /** Type variables. */
   public UsageToDefMap<UserType, AtomId> typeVars

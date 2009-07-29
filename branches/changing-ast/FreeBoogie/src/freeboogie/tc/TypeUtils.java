@@ -176,7 +176,7 @@ public final class TypeUtils {
    * Typechecks {@code ast} using {@code tc}. Raises an internal
    * error if the typecheck fails.
    */
-  public static Declaration internalTypecheck(Declaration ast, TcInterface tc) {
+  public static Program internalTypecheck(Program ast, TcInterface tc) {
     if (!tc.process(ast).isEmpty()) {
       PrintWriter pw = new PrintWriter(System.out);
       PrettyPrinter pp = new PrettyPrinter();

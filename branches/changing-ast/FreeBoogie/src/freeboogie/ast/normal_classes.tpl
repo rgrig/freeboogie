@@ -21,21 +21,27 @@ public final class \ClassName extends \BaseName {
   }
 
   // === construction ===
-  private \ClassName(\members[,]{\Membertype \memberName}) {
+  private \ClassName(\members[,]{\if_tagged{list}{Iterable<}{}\Membertype\if_tagged{list}{>}{} \memberName}) {
     this(\members[,]{\memberName}, FileLocation.unknown());
   }
 
-  private \ClassName(\members[,]{\Membertype \memberName}, FileLocation location) {
+  private \ClassName(\members[,]{\if_tagged{list}{Iterable<}{}\Membertype\if_tagged{list}{>}{} \memberName}, FileLocation location) {
     this.location = location;
-    \members{this.\memberName = \memberName;}
+    \members{
+      \if_tagged{list}{
+        this.\memberName = ImmutableList.builder().addAll(\memberName).build();
+      }{
+        this.\memberName = \memberName;
+      }
+    }
     checkInvariant();
   }
   
-  public static \ClassName mk(\members[,]{\Membertype \memberName}) {
+  public static \ClassName mk(\members[,]{\if_tagged{list}{Iterable<}{}\Membertype\if_tagged{list}{>}{} \memberName}) {
     return new \ClassName(\members[,]{\memberName});
   }
 
-  public static \ClassName mk(\members[,]{\Membertype \memberName}, FileLocation location) {
+  public static \ClassName mk(\members[,]{\if_tagged{list}{Iterable<}{}\Membertype\if_tagged{list}{>}{} \memberName}, FileLocation location) {
     return new \ClassName(\members[,]{\memberName}, location);
   }
 
@@ -49,7 +55,7 @@ public final class \ClassName extends \BaseName {
 
   // === accessors ===
   \members{
-    public \if_primitive{\Membertype}{\MemberType} \memberName() { 
+    public \Membertype \memberName() { 
       return \memberName;
     }
   }
