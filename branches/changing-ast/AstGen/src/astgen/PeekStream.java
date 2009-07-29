@@ -15,7 +15,7 @@ import java.util.logging.Logger;
  * so that memory is not wasted.
  *
  * The user of this class should implement the method {@code read}
- * which returns element in order or {@code null} if the end-of-file
+ * which returns elements in order or {@code null} if the end-of-file
  * is reached.
  * 
  * @author rgrig 

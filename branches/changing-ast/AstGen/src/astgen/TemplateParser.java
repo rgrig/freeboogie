@@ -14,6 +14,7 @@ import java.util.Stack;
 import java.util.TreeSet;
 import java.util.logging.Logger;
 
+import com.google.common.collect.Lists;
 import genericutils.Err;
 
 /**
@@ -190,6 +191,8 @@ public class TemplateParser {
           processInvariants(); break;
         case INV:
           processInv(); break;
+        case DEF:
+          processDef(); break;
         default:
           if (curlyStop == curlyCnt || bracketStop == bracketCnt) return;
           write(lastToken.rep);
@@ -231,11 +234,7 @@ public class TemplateParser {
 
   /** Reads { key } and outputs the associated value. */
   private void processUserDefine() throws IOException {
-    readToken();
-    if (lastToken.type != TemplateToken.Type.LC) {
-      err("Hey, \\user_define should be followed by {");
-      Err.help("I'll act as if <" + lastToken.rep + "> was {.");
-    }
+    eat(TemplateToken.Type.LC);
     readToken();
     String value = grammar.userDefs.get(lastToken.rep);
     if (value == null) {
@@ -303,11 +302,7 @@ public class TemplateParser {
   
   private void processYesNo(boolean yes) throws IOException {
     if (!yes) skipToRc(curlyCnt, false);
-    readToken();
-    if (lastToken.type != TemplateToken.Type.LC) {
-      err("An if macro should be followed by {yes}{no}.");
-      Err.help("I'll act as if <" + lastToken.rep + "> was {.");
-    }
+    eat(TemplateToken.Type.LC);
     processTop(curlyCnt - 1, Integer.MAX_VALUE);
     if (yes) skipToRc(curlyCnt, false);
   }
@@ -502,6 +497,32 @@ public class TemplateParser {
       write(invariantContext.peek());
   }
 
+  private void processDef() throws IOException {
+    eat(TemplateToken.Type.LC);
+    readToken();
+    if (lastToken.type != TemplateToken.Type.OTHER) {
+      err("You can't use funny stuff as the name of a user shorthand.");
+      skipToRc(curlyCnt, true);
+      skipToRc(curlyCnt, true);
+      return;
+    }
+    String shorthand = lastToken.rep.trim();
+    eat(TemplateToken.Type.RC);
+    int exitLevel = curlyCnt;
+    eat(TemplateToken.Type.LC);
+    ArrayList<TemplateToken> def = Lists.newArrayList();
+System.err.print(shorthand + " = ");
+    while (true) {
+      readToken();
+      if (lastToken.type == TemplateToken.Type.RC && curlyCnt == exitLevel)
+        break;
+      def.add(lastToken);
+System.err.print(lastToken.rep);
+    }
+System.err.println();
+    lexer.userShorthand(shorthand, def);
+  }
+
   private boolean evalTagExpr(Set<String> tags) throws IOException {
     boolean value = evalTagAtom(tags);
     while (true) {
@@ -560,11 +581,19 @@ public class TemplateParser {
     } 
     if (w) Err.help("I'm skipping: " + sb);
   }
-  
-  private void readToken() throws IOException {
+
+  private void eat(TemplateToken.Type expected) throws IOException {
     lastToken = lexer.next();
     if (lastToken == null) throw new EofReached();
     log.finer("read token <" + lastToken.rep + "> of type " + lastToken.type);
+    if (expected != null) {
+      if (expected != lastToken.type) {
+        err("I was expecting " + expected.name() + ".");
+        Err.help("I'll act as if <" + lastToken.rep + "> is a " + 
+            expected.name() + ".");
+      }
+      lastToken.type = expected;
+    }
     if (lastToken.type == TemplateToken.Type.LB) ++bracketCnt;
     if (lastToken.type == TemplateToken.Type.RB) --bracketCnt;
     if (lastToken.type == TemplateToken.Type.LC) ++curlyCnt;
@@ -575,7 +604,11 @@ public class TemplateParser {
       balancedWarning = false;
     }
   }
-  
+
+  private void readToken() throws IOException {
+    eat(null);
+  }
+
   private void switchOutput(Writer newOutput) throws IOException {
     if (output != null) output.flush();
     output = newOutput;
@@ -583,62 +616,8 @@ public class TemplateParser {
       log.fine("Output is turned off.");
   }
 
-  /*
-   * Writes |id| using the case convention |cs|.
-   */
-  private static String convertId(String id, TemplateToken.Case cs) 
-  throws IOException {
-    if (cs == TemplateToken.Case.ORIGINAL_CASE) return id;
-    StringBuilder res = new StringBuilder(id.length());
-    boolean first = true;
-    boolean prevIs_ = true;
-    boolean prevIsUpper = false;
-    for (int i = 0; i < id.length(); ++i) {
-      char c = id.charAt(i);
-      if (c == '_') prevIs_ = true;
-      else {
-        boolean thisIsUpper = Character.isUpperCase(c);
-        if (prevIs_ || (thisIsUpper && !prevIsUpper)) {
-          // beginning of word
-          switch (cs) {
-          case CAMEL_CASE:
-            if (first) res.append(Character.toLowerCase(c));
-            else res.append(Character.toUpperCase(c));
-            break;
-          case PASCAL_CASE:
-            res.append(Character.toUpperCase(c));
-            break;
-          case LOWER_CASE:
-            if (!first) res.append('_');
-            res.append(Character.toLowerCase(c));
-            break;
-          case UPPER_CASE:
-            if (!first) res.append('_');
-            res.append(Character.toUpperCase(c));
-            break;
-          default:
-            Err.fatal("Don't know which case to use for " + id);
-          }
-        } else {
-          // the rest of letters
-          switch (cs) {
-          case UPPER_CASE:
-            res.append(Character.toUpperCase(c));
-            break;
-          default:
-            res.append(Character.toLowerCase(c));
-          }
-        }
-        first = false;
-        prevIs_ = false;
-        prevIsUpper = thisIsUpper;
-      }
-    }
-    return res.toString();
-  }
-
   private void writeId(String id, TemplateToken.Case cs) throws IOException {
-    write(convertId(id, cs));
+    write(cs.convertId(id));
   }
    
   /*
@@ -658,8 +637,8 @@ public class TemplateParser {
   /** Tests. */
   public static void main(String[] args) throws Exception {
     System.out.println("UserDefine = " + 
-      convertId("user_define", TemplateToken.Case.PASCAL_CASE));
+      TemplateToken.Case.PASCAL_CASE.convertId("user_define"));
     System.out.println("Generic = " + 
-      convertId("generic", TemplateToken.Case.PASCAL_CASE));
+      TemplateToken.Case.PASCAL_CASE.convertId("generic"));
   }
 }
