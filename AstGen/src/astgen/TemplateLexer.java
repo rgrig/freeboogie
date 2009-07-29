@@ -12,6 +12,7 @@ import genericutils.Err;
  * `other' and will be later copied verbatim to the output. 
  * 
  * @author rgrig 
+ * @author Mikolas Janota
  */
 public class TemplateLexer extends PeekStream<TemplateToken> {
   
@@ -36,6 +37,7 @@ public class TemplateLexer extends PeekStream<TemplateToken> {
     macros.put("\\Userdefine", TemplateToken.Type.USER_DEFINE);
     macros.put("\\classes", TemplateToken.Type.CLASSES);
     macros.put("\\if_abstract", TemplateToken.Type.IF_ABSTRACT);
+    macros.put("\\if_terminal", TemplateToken.Type.IF_TERMINAL);
     macros.put("\\abstract_classes", TemplateToken.Type.ABSTRACT_CLASSES);
     macros.put("\\normal_classes", TemplateToken.Type.NORMAL_CLASSES);
     macros.put("\\class_name", TemplateToken.Type.CLASS_NAME);
