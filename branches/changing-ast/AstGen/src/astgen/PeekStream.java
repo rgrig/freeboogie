@@ -1,168 +1,149 @@
 package astgen;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
+
 /**
- * Provides a convenient interface for reading a stream of {@code T}s.
- * 
- * Elements are read one by one using the method {@code next}. The current
- * position in the stream can be {@code mark}ed. The method {@code rewind}
- * goes to the closest previous marked position or to the beginning of
- * the stream. The elements from the beginning of the stream to the current
- * position can be {@code eat}en. In general, elements should be eaten
- * whenever you know you will not need to rewind and read them again,
- * so that memory is not wasted.
- *
- * The user of this class should implement the method {@code read}
- * which returns elements in order or {@code null} if the end-of-file
- * is reached.
- * 
- * @author rgrig 
- * @param <T> the type of the stream elements
+  Provides a convenient interface for reading a stream of {@code
+  T}s.
+
+  Elements are read one by one using the method {@code next}.
+  The current position in the stream can be {@code mark}ed. The
+  method {@code rewind} goes to the closest previous marked
+  position or to the beginning of the stream. The user can also
+  remove all marks by saying {@code unmark()}. This will throw
+  old tokens to the garbage, thereby eventually freeing up
+  memory.
+  
+  Also, you can define shorthand mappings from one element X to a
+  list of elements Y1, ..., Yn. If {@code next(true)} is called
+  the expansion is done behind the scenes. This should play well
+  with rewind, and any combination of {@code next(false)}, and
+  {@code next(true)} should be safe.
+
+  The user of this class should implement the method {@code
+  read} which returns elements in order or {@code null} if the
+  end-of-file is reached.
+
+  @author rgrig 
+  @param <T> the type of the stream elements
  */
-public abstract class PeekStream<T> {
+public abstract class PeekStream<T extends Token> {
   /*
-   * We keep a |buffer| of elements that have been used and of locations.
-   * An element is paired with the location of the previous element.
-   * The field |nextElement| points into the |buffer| to a node that
-   * contains the element to be returned by the subsequent call to |next|
-   * and the location returned by a call to |getLoc|.
-   * 
-   * Some of the nodes in |buffer| are marked by being added to the stack
-   * |markedStack|. This stack is used to |rewind|.
-   * 
-   * NOTE Even if the time and space complexity of this implementation is
-   * reasonable it should be noted that the constant factors (especially for
-   * space) are quite big. 
+    We keep a |buffer| of elements that have been returned by
+    {@code next} but not yet eaten. These are linked from the
+    oldest to the newest, so that wo can re-iterate through them.
+    Each element is a pair (token, location). We also keep
+    a list of marked elements. This goes from newest to oldest
+    and is used like a stack: |mark| does push and |rewind|
+    does |pop|.
+
+    Shorthands are remembered in a map from tokens to a list
+    of tokens. If |next(true)| is called and the next node is
+    a shorthand then it is expanded by copying rhs and tagging
+    each with its own location. A pointer to this expansion
+    is saved so that it is not repeated in case the user rewinds
+    and reads again.
    */
 
-  private class Node<S> {
+  private static class Node<S> {
     public S data;
     public Node<S> next;
     
-    /**
-     * {@code next} is set to {@code null}.
-     */
-    public Node(S data) {
-      this.data = data;
-      this.next = null;
-    }
-    
+    public Node(S data) { this.data = data; }
+
     public Node(S data, Node<S> next) {
       this.data = data;
       this.next = next;
     }
   }
   
-  private class ElLocPair {
-    /** Element. */
+  private static class ElLocPair<T extends Token> {
+    public Node<ElLocPair<T>> expansion;
     public T elem;
-    
-    /** Location of _previous_ element. */
     public Location<T> loc;
     
     public ElLocPair(T elem, Location<T> loc) {
-      this.elem = elem; this.loc = loc;
+      this.elem = elem; 
+      this.loc = loc;
     }
   }
   
   private static final Logger log = Logger.getLogger("astgen");
   
-  private Node<ElLocPair> buffer;
-  private Node<ElLocPair> nextElement; 
-  private Node<Node<ElLocPair>> markedStack;
+  private Node<ElLocPair<T>> lastElement; 
+  private Node<Node<ElLocPair<T>>> marked;
+  private Map<String, List<T>> shorthands = Maps.newHashMap();
   
   private Location<T> initLoc;
 
-  /**
-   * Creates a {@code PeekStream} and sets a location tracking object.
-   * @param loc the location tracking object
-   */
-  public PeekStream(Location<T> loc) {
-    initLoc = loc;
-    markedStack = null;
-    
-    // The constructor cannnot call read() because the subclass is not init
-    buffer = nextElement = null;
-  }
+  /** Sets {@code initLoc}. */
+  public PeekStream(Location<T> loc) { initLoc = loc; }
+  public void addShorthand(String t, List<T> e) { shorthands.put(t, e); }
 
   /**
    * Returns the next element in the stream, or {@code null} if beyond its end. 
    * @return the next element in the stream
    * @throws IOException if thrown by underlying stream
    */
-  public T next() throws IOException {
-    if (buffer == null) {
-      ElLocPair x = new ElLocPair(read(), initLoc);
-      buffer = nextElement = new Node<ElLocPair>(x);
+  public T next(boolean expand) throws IOException {
+    Node<ElLocPair<T>> nextElement;
+    if (lastElement == null || lastElement.next == null) {
+      T nextToken = read();
+      nextElement = new Node<ElLocPair<T>>(
+          new ElLocPair<T>(nextToken, loc().advance(nextToken)));
+      if (lastElement != null) lastElement.next = nextElement;
+    } else nextElement = lastElement.next;
+    lastElement = nextElement;
+
+    List<T> equiv;
+    if (expand) {
+      while ((equiv = shorthands.get(lastElement.data.elem.rep)) != null) {
+        if (lastElement.data.expansion == null) {
+          Node<ElLocPair<T>> e = null;
+          for (T t : Iterables.reverse(equiv)) {
+            e = new Node<ElLocPair<T>>(
+                new ElLocPair<T>(t, lastElement.data.loc), e);
+          }
+          if (e == null) return next(true); // empty expansion
+          lastElement.data.expansion = e;
+          while (e.next != null) e = e.next;
+          e.next = lastElement.next;
+        }
+        lastElement = lastElement.data.expansion;
+      }
     }
-    if (nextElement.data.elem == null) return null;
-    T result = nextElement.data.elem;
-    if (nextElement.next == null) {
-      Location<T> l = nextElement.data.loc.advance(result);
-      ElLocPair x = new ElLocPair(read(), l);
-      nextElement.next = new Node<ElLocPair>(x);
-    }
-    nextElement = nextElement.next;
-    return result;
+    return lastElement.data.elem;
   }
-  
-  /**
-   * Marks the current position (if not already marked).
-   * @see astgen.PeekStream#rewind()
-   */
+ 
+  /** Mark the element last returned by {@code next()}. */
   public void mark() {
-    if (markedStack != null && markedStack.data == nextElement) return;
-    markedStack = new Node<Node<ElLocPair>>(nextElement, markedStack);
+    marked = new Node<Node<ElLocPair<T>>>(lastElement, marked);
   }
   
-  /**
-   * Go back to the previously marked element or to the beginning of 
-   * the (not-yet-eaten) stream if no element is marked.
-   * @see astgen.PeekStream#mark()
-   */
+  /** Go back to the previously marked element. */
   public void rewind() {
-    if (markedStack == null) nextElement = buffer;
-    else {
-      nextElement = markedStack.data;
-      markedStack = markedStack.next;
-    }
+    Preconditions.checkState(marked != null, "There is no marker.");
+    lastElement = marked.data;
+    marked = marked.next;
+  }
+ 
+  public void unmark() { marked = null; }
+  
+  /** The location of the last thing returned by {@code next()},
+      or {@code initLoc} if {@code next()} was not called yet. */
+  public Location<T> loc() {
+    if (lastElement == null) return initLoc;
+    else return lastElement.data.loc;
   }
   
-  /**
-   * Eats the elements from the beginning up to, and including, the
-   * last element read by {@code next}. 
-   */
-  public void eat() {
-    log.entering("PeekStream", "eat");
-    while (buffer != nextElement) {
-      if (markedStack != null && markedStack.data == buffer) 
-        markedStack = markedStack.next;
-      buffer = buffer.next;
-    }
-  }
-  
-  /**
-   * Returns the location of the current element (that is, the one before
-   * what {@code next} would return). If {@code next} was not called then
-   * return the location object given to the constructor.
-   * @return the location in the stream
-   */
-  public Location<T> getLoc() {
-    if (buffer == null) return initLoc;
-    return nextElement.data.loc;
-  }
-  
-  /**
-   * Returns a the name of this {@code PeekStream}. It is meant to be 
-   * used for reporting errors, debugging, and so on.
-   * 
-   * @return the name of this {@code PeekStream} 
-   */
-  public String getName() {
-    return "";
-  }
+  public String name() { return getClass().getName(); }
   
   /**
    * Reads one element from the underlying stream. Must return {@code null}

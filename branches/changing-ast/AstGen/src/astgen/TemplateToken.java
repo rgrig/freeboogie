@@ -13,7 +13,6 @@ public class TemplateToken extends Token {
   public static enum Type {
     // In the template, these look similar.
     FILE,
-    USER_DEFINE,
     CLASSES,
     IF_ABSTRACT,
     ABSTRACT_CLASSES,

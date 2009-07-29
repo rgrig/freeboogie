@@ -1,20 +1,11 @@
 package astgen;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.StringWriter;
-import java.io.Writer;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
-import java.util.Stack;
-import java.util.TreeSet;
+import java.io.*;
+import java.util.*;
 import java.util.logging.Logger;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import genericutils.Err;
 
 /**
@@ -93,6 +84,11 @@ public class TemplateParser {
   private Set<AgClass> abstractClasses;
   private Set<AgClass> normalClasses;
   
+  // used for implementing user shorthands like \def{x}{foo}
+  private Map<String, Deque<TemplateToken>> userShorthands;
+  private int bufferIndex;
+  private Deque<TemplateToken> buffer = new ArrayDeque<TemplateToken>();
+
   /**
    * Prepares for parsing a template.
    *
@@ -124,6 +120,15 @@ public class TemplateParser {
    */
   public void process(Grammar g) throws IOException {
     grammar = g;
+    userShorthands = Maps.newHashMap();
+    for (Map.Entry<String, String> e : g.userDefs.entrySet()) {
+      Deque<TemplateToken> equiv = new ArrayDeque<TemplateToken>();
+      equiv.addFirst(new TemplateToken(
+          TemplateToken.Type.OTHER, 
+          e.getValue(),
+          TemplateToken.Case.ORIGINAL_CASE));
+      userShorthands.put("\\" + e.getKey(), equiv);
+    }
     processTop(Integer.MAX_VALUE, Integer.MAX_VALUE);
     if (output != null) output.flush();
   }
@@ -143,8 +148,6 @@ public class TemplateParser {
         switch (lastToken.type) {
         case FILE:
           processFile(); break;
-        case USER_DEFINE:
-          processUserDefine(); break;
         case CLASSES:
           processClasses(); break;
         case IF_ABSTRACT:
@@ -232,25 +235,6 @@ public class TemplateParser {
     }
   }
 
-  /** Reads { key } and outputs the associated value. */
-  private void processUserDefine() throws IOException {
-    eat(TemplateToken.Type.LC);
-    readToken();
-    String value = grammar.userDefs.get(lastToken.rep);
-    if (value == null) {
-      err("You should say -D" + lastToken.rep + "=SOMETHING "
-        + "on the command line.");
-      value = "<UNDEFINED " + lastToken.rep + ">";
-    }
-    writeId(value, lastToken.idCase);
-    readToken();
-    if (lastToken.type != TemplateToken.Type.RC) {
-      err("The macro \\user_define should refer to a key that " 
-        + "is a simple identifier.");
-      skipToRc(curlyCnt, true);
-    }
-  }
-  
   /** Reads the separator that will separate the members of {@code set}, 
    *  which are communicated via {@code stack}. 
    */
@@ -261,7 +245,7 @@ public class TemplateParser {
     if (lastToken.type == TemplateToken.Type.LB) {
       readToken();
       if (lastToken.type != TemplateToken.Type.OTHER) {
-         err("Sorry, you can't use any funny stuff as a separator.");
+          err("Sorry, you can't use any funny stuff as a separator.");
         skipToRc(curlyCnt, true);
         return;
       }
@@ -506,21 +490,21 @@ public class TemplateParser {
       skipToRc(curlyCnt, true);
       return;
     }
-    String shorthand = lastToken.rep.trim();
+    String shorthand = "\\" + lastToken.rep.trim();
     eat(TemplateToken.Type.RC);
     int exitLevel = curlyCnt;
     eat(TemplateToken.Type.LC);
-    ArrayList<TemplateToken> def = Lists.newArrayList();
-System.err.print(shorthand + " = ");
+    Deque<TemplateToken> def = new ArrayDeque<TemplateToken>();
+//System.err.print(shorthand + " = ");
     while (true) {
-      readToken();
+      readRawToken();
       if (lastToken.type == TemplateToken.Type.RC && curlyCnt == exitLevel)
         break;
-      def.add(lastToken);
-System.err.print(lastToken.rep);
+      def.addFirst(lastToken);
+//System.err.print(lastToken.rep);
     }
-System.err.println();
-    lexer.userShorthand(shorthand, def);
+//System.err.println();
+    userShorthands.put(shorthand, def);
   }
 
   private boolean evalTagExpr(Set<String> tags) throws IOException {
@@ -582,9 +566,41 @@ System.err.println();
     if (w) Err.help("I'm skipping: " + sb);
   }
 
+  // NOTE: This loops forever and eventually throws StackOverflow
+  // for recursive user shorthands.
+  private TemplateToken reallyGetToken(boolean expand) throws IOException {
+    TemplateToken r = null;
+    r = buffer.pollFirst();
+if (r != null) System.err.print("BUF");
+    if (r == null) r = lexer.next();
+if (r != null) System.err.println("LEX <" + r.rep + ">");
+    if (r == null) throw new EofReached();
+    if (expand) {
+      Deque<TemplateToken> tokens = userShorthands.get(r.rep);
+      if (tokens != null) {
+System.err.println("EXPAND <" + r.rep + ">");
+        for (TemplateToken t : tokens) buffer.addFirst(t);
+        return reallyGetToken(true);
+      }
+    }
+    return r;
+  }
+
   private void eat(TemplateToken.Type expected) throws IOException {
-    lastToken = lexer.next();
-    if (lastToken == null) throw new EofReached();
+    readTokenGeneric(expected, true);
+  }
+
+  private void readToken() throws IOException {
+    readTokenGeneric(null, true);
+  }
+
+  private void readRawToken() throws IOException {
+    readTokenGeneric(null, false);
+  }
+
+  private void readTokenGeneric(TemplateToken.Type expected, boolean expand)
+  throws IOException {
+    lastToken = reallyGetToken(expand);
     log.finer("read token <" + lastToken.rep + "> of type " + lastToken.type);
     if (expected != null) {
       if (expected != lastToken.type) {
@@ -603,10 +619,7 @@ System.err.println();
       Err.help("I don't guarantee what happens if you use unbalaced [] or {}.");
       balancedWarning = false;
     }
-  }
-
-  private void readToken() throws IOException {
-    eat(null);
+//System.err.println("<" + lastToken.rep + ">");
   }
 
   private void switchOutput(Writer newOutput) throws IOException {

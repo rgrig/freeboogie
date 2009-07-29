@@ -44,7 +44,7 @@ public class AgLexer extends PeekStream<AgToken> {
   
   private void readChar() throws IOException {
     if (lastChar != null) repBuilder.append(lastChar);
-    lastChar = stream.next();
+    lastChar = stream.next(false);
   }
 
   private String rep() {
@@ -98,7 +98,7 @@ public class AgLexer extends PeekStream<AgToken> {
       readChar();
     }
     
-    stream.eat();
+    stream.unmark();
     return new AgToken(type, rep());
   }
   
@@ -110,7 +110,7 @@ public class AgLexer extends PeekStream<AgToken> {
    */
   public AgToken nextGood() throws IOException {
     AgToken r;
-    do r = next(); while (r != null && !r.isGood());
+    do r = next(false); while (r != null && !r.isGood());
     return r;
   }
 

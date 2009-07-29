@@ -49,11 +49,6 @@ public class TemplateLexer extends PeekStream<TemplateToken> {
     oneCharTokens.put('&', TemplateToken.Type.AND);
   }
 
-  private int maxMacroLen;
-  private Map<String, ArrayList<TemplateToken>> userShorthands = Maps.newHashMap();
-  private int bufferIndex;
-  private ArrayList<TemplateToken> buffer;
-
   /** 
    * Initialize a lexer. 
    * @param stream the underlying character stream
@@ -62,21 +57,11 @@ public class TemplateLexer extends PeekStream<TemplateToken> {
     super(new TokenLocation<TemplateToken>());
     this.stream = stream;
     lastChar = null;
-
-    maxMacroLen = 0;
-    for (String s : macros.keySet())
-      maxMacroLen = Math.max(maxMacroLen, s.length());
   }
   
   @Override
   public String getName() {
     return stream.getName();
-  }
-
-  public void userShorthand(String t, ArrayList<TemplateToken> b) {
-    String m = "\\" + t;
-    userShorthands.put(m, b);
-    maxMacroLen = Math.max(maxMacroLen, m.length());
   }
   
   /*
@@ -87,66 +72,35 @@ public class TemplateLexer extends PeekStream<TemplateToken> {
    */
   @Override
   protected TemplateToken read() throws IOException {
-    if (buffer != null && bufferIndex < buffer.size()) {
-      return buffer.get(bufferIndex++);
-    }
-
     if (lastChar == null) lastChar = stream.next();
     if (lastChar == null) return null;
     
     TemplateToken.Type type = oneCharTokens.get(lastChar);
     TemplateToken.Case idCase = null;
     sb = new StringBuilder();
-    sb.append(lastChar);
     
     if (type != null) {
+      sb.append(lastChar);
       lastChar = stream.next();
     } else if (lastChar == '\\') {
-      stream.mark();
-      // read the macro
-      while (
-          sb.length() <= maxMacroLen && 
-          !macros.containsKey(sb.toString()) &&
-          !userShorthands.containsKey(sb.toString())) {
-        lastChar = stream.next();
-        sb.append(lastChar);
-      }
-      if (sb.length() > maxMacroLen) {
-        err("Please don't use '\\' outside macro names: <" + sb + ">.");
-        sb.setLength(0);
-        sb.append('\\');
-        stream.rewind();
-        lastChar = null;
-        type = TemplateToken.Type.OTHER;
-      } else if (lastChar == null) {
-        err("The template ends abruptly while I was reading a macro: " + sb);
-        type = TemplateToken.Type.OTHER;
-      } else {
-        lastChar = stream.next();
-        buffer = userShorthands.get(sb.toString());
-System.err.print("[Searched " + sb + "]");
-        if (buffer != null) {
-System.err.print("[Expanding " + sb + "]");
-          bufferIndex = 0;
-          return read();
-        }
-        type = macros.get(sb.toString());
-        idCase = idCases.get(sb.toString());
-      }
+      do sb.append(lastChar);
+      while (Character.isLetter(lastChar = stream.next()) || lastChar == '_');
+      type = macros.get(sb.toString());
+      idCase = idCases.get(sb.toString());
     } else {
       // read in plain text
       type = TemplateToken.Type.OTHER;
-      lastChar = stream.next();
-      while (lastChar != null && lastChar != '\\' 
-        && !oneCharTokens.containsKey(lastChar)
-      ) {
-        sb.append(lastChar);
-        lastChar = stream.next();
-      }
+      do sb.append(lastChar);
+      while (
+          (lastChar = stream.next()) != null && 
+          lastChar != '\\' &&
+          !oneCharTokens.containsKey(lastChar));
     }
     
     stream.eat();
+    if (type == null) type = TemplateToken.Type.OTHER;
     if (idCase == null) idCase = TemplateToken.Case.ORIGINAL_CASE;
+//System.err.println("<" + sb + ">");
     return new TemplateToken(type, sb.toString(), idCase);
   }
   
