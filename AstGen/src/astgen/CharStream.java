@@ -8,44 +8,25 @@ import java.io.InputStream;
  * 
  * @author rgrig 
  */
-public class CharStream extends PeekStream<Character> {
-  
-  private InputStream stream;
+public class CharStream extends PeekStream<CharToken> {
   private String name;
+  private InputStream stream;
   
-  /**
-   * Sets the input stream.
-   * @param stream the input stream
-   */
   public CharStream(InputStream stream) {
-    super(new CharLocation());
     this.stream = stream;
-    this.name = "INTERNAL ERROR: CharStream name not set";
   }
   
-  /**
-   * Sets the input stream and the name to be used to identify it
-   * (for reporting errors).
-   * 
-   * @param stream the input stream
-   * @param name the name of the stream
-   */
   public CharStream(InputStream stream, String name) {
     this(stream);
     this.name = name;
   }
   
-  @Override
-  public String getName() {
-    return name;
-  }
-
-  /* @see astgen.PeekStream#read() */
-  @Override
-  public Character read() throws IOException {
-    Character r = null;
+  @Override public CharToken read() throws IOException {
+    CharToken r = null;
     int c = stream.read();
-    if (c != -1) r = Character.valueOf((char) c);
+    if (c != -1) r = new CharToken(c);
     return r;
   }
+
+  @Override public String name() { return name; }
 }

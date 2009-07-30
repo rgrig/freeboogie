@@ -1,0 +1,20 @@
+// A grammar for a simple language that uses the 'list' tag.
+
+Program =
+  String name,
+  [list] Function functions;
+
+Function =
+  String name,
+  [list] String arguments,
+  [list] Command commands;
+
+Command :> Assignment, IO;
+
+Assignment =
+  String! lhs,
+  Expression! rhs;
+
+IO =
+  enum(Type : IN, OUT) direction,
+  String variable;

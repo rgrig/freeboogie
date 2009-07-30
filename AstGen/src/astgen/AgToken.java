@@ -5,7 +5,8 @@ package astgen;
  * 
  * @author rgrig 
  */
-public class AgToken extends Token {
+public class AgToken implements Token {
+  private String rep;
 
   /** The tokens in an AG. */
   public enum Type {
@@ -30,20 +31,14 @@ public class AgToken extends Token {
   /** The type of token. */
   public Type type;
   
-  /**
-   * Initializes a token.
-   * @param type the token type
-   * @param rep the token representation in the input stream
-   */
   public AgToken(Type type, String rep) {
-    super(rep);
+    this.rep = rep;
     this.type = type;
   }
+
+  @Override public String rep() { return rep; }
   
-  /**
-   * Returns whether this is a syntactically meaningful token.
-   * @return whether this is a syntactically meaningful token
-   */
+  /** Is this syntactically meaningful? */
   public boolean isGood() {
     return type != Type.COMMENT 
       && type != Type.WS
