@@ -7,7 +7,8 @@ import genericutils.Err;
  *
  * @author rgrig 
  */
-public class TemplateToken extends Token {
+public class TemplateToken implements Token {
+  private String rep;
   
   /** Token types. */
   public static enum Type {
@@ -137,8 +138,10 @@ public class TemplateToken extends Token {
    * @param idCase the case convention of the token and of the represented id
    */
   public TemplateToken(Type type, String rep, Case idCase) {
-    super(rep);
+    this.rep = rep;
     this.type = type;
     this.idCase = idCase;
   }
+
+  @Override public String rep() { return rep; }
 }

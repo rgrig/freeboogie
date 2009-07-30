@@ -19,10 +19,16 @@
 
   <target name="compile">
     <mkdir dir="build" />
-    <javac srcdir="src" destdir="build"
-        deprecation="yes" optimize="yes" debug="${debug}">
+    <javac 
+        srcdir="src" 
+        destdir="build"
+        deprecation="yes" 
+        optimize="yes" 
+        debug="${debug}">
       <classpath refid="classpath" />
       <compilerarg value="-Xlint:all" />
+      <compilerarg value="-Xmaxerrs"/><compilerarg value="10"/>
+      <compilerarg value="-Xmaxwarns"/><compilerarg value="10"/>
     </javac>
   </target>
 

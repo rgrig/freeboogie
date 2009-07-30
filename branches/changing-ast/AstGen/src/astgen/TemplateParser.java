@@ -84,11 +84,6 @@ public class TemplateParser {
   private Set<AgClass> abstractClasses;
   private Set<AgClass> normalClasses;
   
-  // used for implementing user shorthands like \def{x}{foo}
-  private Map<String, Deque<TemplateToken>> userShorthands;
-  private int bufferIndex;
-  private Deque<TemplateToken> buffer = new ArrayDeque<TemplateToken>();
-
   /**
    * Prepares for parsing a template.
    *
@@ -120,14 +115,13 @@ public class TemplateParser {
    */
   public void process(Grammar g) throws IOException {
     grammar = g;
-    userShorthands = Maps.newHashMap();
     for (Map.Entry<String, String> e : g.userDefs.entrySet()) {
-      Deque<TemplateToken> equiv = new ArrayDeque<TemplateToken>();
-      equiv.addFirst(new TemplateToken(
+      List<TemplateToken> equiv = Lists.newArrayList();
+      equiv.add(new TemplateToken(
           TemplateToken.Type.OTHER, 
           e.getValue(),
           TemplateToken.Case.ORIGINAL_CASE));
-      userShorthands.put("\\" + e.getKey(), equiv);
+      lexer.addShorthand("\\" + e.getKey(), equiv);
     }
     processTop(Integer.MAX_VALUE, Integer.MAX_VALUE);
     if (output != null) output.flush();
@@ -198,9 +192,9 @@ public class TemplateParser {
           processDef(); break;
         default:
           if (curlyStop == curlyCnt || bracketStop == bracketCnt) return;
-          write(lastToken.rep);
+          write(lastToken.rep());
         }
-        if (curlyCnt == 0 && bracketCnt == 0) lexer.eat();
+        if (curlyCnt == 0 && bracketCnt == 0) lexer.unmark();
         readToken();
       }
     } catch (EofReached e) { /* fine */ }
@@ -249,7 +243,7 @@ public class TemplateParser {
         skipToRc(curlyCnt, true);
         return;
       }
-      separator = lastToken.rep;
+      separator = lastToken.rep();
       readToken();
       if (lastToken.type != TemplateToken.Type.RB) {
         err("The separator is not properly closed by ].");
@@ -415,7 +409,7 @@ public class TemplateParser {
     readToken();
     if (lastToken.type != TemplateToken.Type.LC) {
       err("You should give a { tag expression } after \\if_tagged.");
-      Err.help("I'll act as if <" + lastToken.rep + "> was {.");
+      Err.help("I'll act as if <" + lastToken.rep() + "> was {.");
     }
     processYesNo(evalTagExpr(memberContext.peek().tags));
   }
@@ -490,21 +484,21 @@ public class TemplateParser {
       skipToRc(curlyCnt, true);
       return;
     }
-    String shorthand = "\\" + lastToken.rep.trim();
+    String shorthand = "\\" + lastToken.rep().trim();
     eat(TemplateToken.Type.RC);
     int exitLevel = curlyCnt;
     eat(TemplateToken.Type.LC);
-    Deque<TemplateToken> def = new ArrayDeque<TemplateToken>();
+    List<TemplateToken> def = Lists.newArrayList();
 //System.err.print(shorthand + " = ");
     while (true) {
       readRawToken();
       if (lastToken.type == TemplateToken.Type.RC && curlyCnt == exitLevel)
         break;
-      def.addFirst(lastToken);
+      def.add(lastToken);
 //System.err.print(lastToken.rep);
     }
 //System.err.println();
-    userShorthands.put(shorthand, def);
+    lexer.addShorthand(shorthand, def);
   }
 
   private boolean evalTagExpr(Set<String> tags) throws IOException {
@@ -532,7 +526,7 @@ public class TemplateParser {
     if (lastToken.type == TemplateToken.Type.LP)
       return evalTagExpr(tags);
     else if (lastToken.type == TemplateToken.Type.OTHER)
-      return tags.contains(lastToken.rep.trim());
+      return tags.contains(lastToken.rep().trim());
     else {
       err("I was expecting a tag here.");
       return false;
@@ -557,7 +551,7 @@ public class TemplateParser {
     while (true) {
       readToken();
       if (lastToken == null) break;
-      sb.append(lastToken.rep);
+      sb.append(lastToken.rep());
       if (lastToken.type == TemplateToken.Type.RC 
         && curlyStop == curlyCnt) break;
       if (lastToken.type == TemplateToken.Type.RB 
@@ -570,19 +564,9 @@ public class TemplateParser {
   // for recursive user shorthands.
   private TemplateToken reallyGetToken(boolean expand) throws IOException {
     TemplateToken r = null;
-    r = buffer.pollFirst();
-if (r != null) System.err.print("BUF");
-    if (r == null) r = lexer.next();
-if (r != null) System.err.println("LEX <" + r.rep + ">");
+    r = lexer.next(expand);
+//if (r != null) System.err.println("LEX <" + r.rep() + ">");
     if (r == null) throw new EofReached();
-    if (expand) {
-      Deque<TemplateToken> tokens = userShorthands.get(r.rep);
-      if (tokens != null) {
-System.err.println("EXPAND <" + r.rep + ">");
-        for (TemplateToken t : tokens) buffer.addFirst(t);
-        return reallyGetToken(true);
-      }
-    }
     return r;
   }
 
@@ -601,11 +585,11 @@ System.err.println("EXPAND <" + r.rep + ">");
   private void readTokenGeneric(TemplateToken.Type expected, boolean expand)
   throws IOException {
     lastToken = reallyGetToken(expand);
-    log.finer("read token <" + lastToken.rep + "> of type " + lastToken.type);
+    log.finer("read token <" + lastToken.rep() + "> of type " + lastToken.type);
     if (expected != null) {
       if (expected != lastToken.type) {
         err("I was expecting " + expected.name() + ".");
-        Err.help("I'll act as if <" + lastToken.rep + "> is a " + 
+        Err.help("I'll act as if <" + lastToken.rep() + "> is a " + 
             expected.name() + ".");
       }
       lastToken.type = expected;
@@ -643,7 +627,7 @@ System.err.println("EXPAND <" + r.rep + ">");
   }
   
   private void err(String e) {
-    Err.error(lexer.getName() + lexer.getLoc() + ": " + e);
+    Err.error(lexer.name() + lexer.loc() + ": " + e);
   }
 
   

@@ -19,7 +19,7 @@ import genericutils.Err;
 public class TemplateLexer extends PeekStream<TemplateToken> {
   
   private CharStream stream;
-  private Character lastChar;
+  private CharToken tok;
   private StringBuilder sb;
   
   private static final Map<String, TemplateToken.Type> macros =
@@ -54,15 +54,11 @@ public class TemplateLexer extends PeekStream<TemplateToken> {
    * @param stream the underlying character stream
    */
   public TemplateLexer(CharStream stream) {
-    super(new TokenLocation<TemplateToken>());
     this.stream = stream;
-    lastChar = null;
+    tok = null;
   }
   
-  @Override
-  public String getName() {
-    return stream.getName();
-  }
+  @Override public String name() { return stream.name(); }
   
   /*
    * This method always reads ahead one character.
@@ -72,32 +68,34 @@ public class TemplateLexer extends PeekStream<TemplateToken> {
    */
   @Override
   protected TemplateToken read() throws IOException {
-    if (lastChar == null) lastChar = stream.next();
-    if (lastChar == null) return null;
+    if (tok == null) tok = stream.next(false);
+    if (tok == null) return null;
     
-    TemplateToken.Type type = oneCharTokens.get(lastChar);
+    TemplateToken.Type type = oneCharTokens.get(tok.c());
     TemplateToken.Case idCase = null;
     sb = new StringBuilder();
     
     if (type != null) {
-      sb.append(lastChar);
-      lastChar = stream.next();
-    } else if (lastChar == '\\') {
-      do sb.append(lastChar);
-      while (Character.isLetter(lastChar = stream.next()) || lastChar == '_');
+      sb.append(tok.c());
+      tok = stream.next(false);
+    } else if (tok.c() == '\\') {
+      do sb.append(tok.c());
+      while (
+          Character.isLetter((tok = stream.next(false)).c()) || 
+          tok.c() == '_');
       type = macros.get(sb.toString());
       idCase = idCases.get(sb.toString());
     } else {
       // read in plain text
       type = TemplateToken.Type.OTHER;
-      do sb.append(lastChar);
+      do sb.append(tok.c());
       while (
-          (lastChar = stream.next()) != null && 
-          lastChar != '\\' &&
-          !oneCharTokens.containsKey(lastChar));
+          (tok = stream.next(false)) != null && 
+          tok.c() != '\\' &&
+          !oneCharTokens.containsKey(tok.c()));
     }
     
-    stream.eat();
+    stream.unmark();
     if (type == null) type = TemplateToken.Type.OTHER;
     if (idCase == null) idCase = TemplateToken.Case.ORIGINAL_CASE;
 //System.err.println("<" + sb + ">");
@@ -105,6 +103,6 @@ public class TemplateLexer extends PeekStream<TemplateToken> {
   }
   
   private void err(String e) {
-    Err.error(getName() + stream.getLoc() + ": " + e);
+    Err.error(name() + stream.loc() + ": " + e);
   }
 }

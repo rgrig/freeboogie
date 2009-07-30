@@ -81,10 +81,8 @@ public abstract class PeekStream<T extends Token> {
   private Node<Node<ElLocPair<T>>> marked;
   private Map<String, List<T>> shorthands = Maps.newHashMap();
   
-  private Location<T> initLoc;
+  private Location<T> initLoc = new Location<T>();
 
-  /** Sets {@code initLoc}. */
-  public PeekStream(Location<T> loc) { initLoc = loc; }
   public void addShorthand(String t, List<T> e) { shorthands.put(t, e); }
 
   /**
@@ -104,7 +102,9 @@ public abstract class PeekStream<T extends Token> {
 
     List<T> equiv;
     if (expand) {
-      while ((equiv = shorthands.get(lastElement.data.elem.rep)) != null) {
+      while (lastElement.data.elem != null) {
+        equiv = shorthands.get(lastElement.data.elem.rep());
+        if (equiv == null) break;
         if (lastElement.data.expansion == null) {
           Node<ElLocPair<T>> e = null;
           for (T t : Iterables.reverse(equiv)) {

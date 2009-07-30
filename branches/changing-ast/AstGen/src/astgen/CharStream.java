@@ -8,11 +8,11 @@ import java.io.InputStream;
  * 
  * @author rgrig 
  */
-public class CharStream extends PeekStream<Character> {
+public class CharStream extends PeekStream<CharToken> {
+  private String name;
   private InputStream stream;
   
   public CharStream(InputStream stream) {
-    super(new CharLocation());
     this.stream = stream;
   }
   
@@ -21,12 +21,12 @@ public class CharStream extends PeekStream<Character> {
     this.name = name;
   }
   
-  /* @see astgen.PeekStream#read() */
-  @Override
-  public Character read() throws IOException {
-    Character r = null;
+  @Override public CharToken read() throws IOException {
+    CharToken r = null;
     int c = stream.read();
-    if (c != -1) r = Character.valueOf((char) c);
+    if (c != -1) r = new CharToken(c);
     return r;
   }
+
+  @Override public String name() { return name; }
 }
