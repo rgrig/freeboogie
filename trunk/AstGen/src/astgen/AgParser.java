@@ -82,7 +82,7 @@ public class AgParser {
     }
     okToFinish = false;
     
-    String className = t.rep;
+    String className = t.rep();
     t = nextToken();
     if (t.type == AgToken.Type.EQ) {
       // parse "class = members"
@@ -97,7 +97,7 @@ public class AgParser {
       skipStatementBecauseOf(t);
       return;
     }
-    lexer.eat();
+    lexer.unmark();
     log.fine("Parsed statement from AG (" + className + ").");
   }
   
@@ -118,7 +118,7 @@ public class AgParser {
           skipStatementBecauseOf(t);
           return;
         }
-        mem.tags.add(t.rep);
+        mem.tags.add(t.rep());
         if (nextToken().type != AgToken.Type.RB)
           Err.help("I'll pretend there was a tag closing ] here.");
         else t = nextToken();
@@ -127,7 +127,7 @@ public class AgParser {
         mem.type = parseEnum(cls);
         if (mem.type == null) return;
       } else if (t.type == AgToken.Type.ID)
-        mem.type = t.rep;
+        mem.type = t.rep();
       else {
         if (memCnt == 0) { 
           Err.help(
@@ -146,7 +146,7 @@ public class AgParser {
         skipStatementBecauseOf(t);
         return;
       }
-      mem.name = t.rep;
+      mem.name = t.rep();
       cls.addMember(mem);
       ++memCnt;
       t = nextToken();
@@ -159,10 +159,10 @@ public class AgParser {
   private void parseSpec(String className) throws IOException {
     AgClass cls = grammar.getAgClass(className);
     StringBuilder sb = new StringBuilder();
-    AgToken tok = lexer.next();
+    AgToken tok = lexer.next(false);
     while (tok != null && tok.type != AgToken.Type.NL) {
-      sb.append(tok.rep);
-      tok = lexer.next();
+      sb.append(tok.rep());
+      tok = lexer.next(false);
     }
     if (tok == null) {
       Err.error("The spec for '" + className + "' ends abruptly.");
@@ -185,7 +185,7 @@ public class AgParser {
         skipStatementBecauseOf(id);
         return;
       }
-      AgClass derived = grammar.getAgClass(id.rep);
+      AgClass derived = grammar.getAgClass(id.rep());
       if (derived.getBaseClass() != null) {
         err("You specify multiple base classes for '" + derived.name +"'");
         Err.help("I'll use '" + derived.getBaseClassName() + "'");
@@ -220,7 +220,7 @@ public class AgParser {
       skipStatementBecauseOf(t);
       return null;
     }
-    AgEnum agEnum = cls.getEnum(t.rep);
+    AgEnum agEnum = cls.getEnum(t.rep());
     
     t = nextToken();
     if (t.type != AgToken.Type.COLON) {
@@ -236,7 +236,7 @@ public class AgParser {
         skipStatementBecauseOf(t);
         return null;
       }
-      agEnum.values.add(t.rep);
+      agEnum.values.add(t.rep());
       t = nextToken();
       if (t.type == AgToken.Type.RP) break;
       if (t.type != AgToken.Type.COMMA) {
@@ -253,26 +253,26 @@ public class AgParser {
   private void skipStatementBecauseOf(AgToken tok) 
   throws IOException, EofReached {
     StringBuilder sb = new StringBuilder();
-    err("I'm confused by '" + tok.rep + "'");
+    err("I'm confused by '" + tok.rep() + "'");
     do {
       tok = nextToken();
       if (tok.type == AgToken.Type.ID) sb.append(' ');
-      sb.append(tok.rep);
+      sb.append(tok.rep());
     } while (tok.type != AgToken.Type.SEMICOLON);
     Err.error("I skipped: " + sb);
-    lexer.eat();
+    lexer.unmark();
   }
   
   private AgToken nextToken() throws IOException, EofReached {
     AgToken token = lexer.nextGood();
     if (token == null) throw new EofReached();
-    log.finer("read token: " + token.rep);
+    log.finer("read token: " + token.rep());
     return token;
   }
 
   private void err(String e) {
-    lexer.eat();
-    Err.error("AG" + lexer.getLoc() + ": " + e);
+    lexer.unmark();
+    Err.error("AG" + lexer.loc() + ": " + e);
   }
   
   /**

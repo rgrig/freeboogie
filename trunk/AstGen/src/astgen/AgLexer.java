@@ -27,7 +27,8 @@ public class AgLexer extends PeekStream<AgToken> {
   }
   
   private CharStream stream;
-  private Character lastChar;
+  private CharToken lastToken;
+  private char lastChar;
   private StringBuilder repBuilder;
   
   /**
@@ -36,20 +37,20 @@ public class AgLexer extends PeekStream<AgToken> {
    * @throws IOException if thrown by the underlying stream
    */
   public AgLexer(CharStream stream) throws IOException {
-    super(new TokenLocation<AgToken>());
     this.stream = stream;
     repBuilder = new StringBuilder();
     readChar();
   }
   
   private void readChar() throws IOException {
-    if (lastChar != null) repBuilder.append(lastChar);
-    lastChar = stream.next();
+    if (lastToken != null) repBuilder.append(lastChar);
+    lastToken = stream.next(false);
+    if (lastToken != null) lastChar = lastToken.c();
   }
 
   private String rep() {
     String r = repBuilder.toString();
-    repBuilder = new StringBuilder();
+    repBuilder.setLength(0);
     return r;
   }
   
@@ -63,7 +64,7 @@ public class AgLexer extends PeekStream<AgToken> {
    */
   @Override
   protected AgToken read() throws IOException {
-    if (lastChar == null) return null;
+    if (lastToken == null) return null;
     
     AgToken.Type type = oneCharTokens.get(lastChar);
     if (type != null) {
@@ -71,7 +72,7 @@ public class AgLexer extends PeekStream<AgToken> {
     } else if (Character.isWhitespace(lastChar)) {
       type = AgToken.Type.WS;
       do readChar(); 
-      while (lastChar != null && Character.isWhitespace(lastChar));
+      while (lastToken != null && Character.isWhitespace(lastChar));
     } else if (lastChar == ':') {
       readChar();
       if (lastChar == '>') { 
@@ -98,7 +99,7 @@ public class AgLexer extends PeekStream<AgToken> {
       readChar();
     }
     
-    stream.eat();
+    stream.unmark();
     return new AgToken(type, rep());
   }
   
@@ -110,7 +111,7 @@ public class AgLexer extends PeekStream<AgToken> {
    */
   public AgToken nextGood() throws IOException {
     AgToken r;
-    do r = next(); while (r != null && !r.isGood());
+    do r = next(false); while (r != null && !r.isGood());
     return r;
   }
 

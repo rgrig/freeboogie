@@ -38,7 +38,7 @@ public final class Main {
       log.addHandler(logh);
       log.setUseParentHandlers(false);
       log.setLevel(Level.WARNING); // for release
-      //log.setLevel(Level.ALL); // for debug
+      log.setLevel(Level.ALL); // for debug
     } catch (IOException e) {
       System.err.println("I can't create a log file. Nevermind.");
     }
