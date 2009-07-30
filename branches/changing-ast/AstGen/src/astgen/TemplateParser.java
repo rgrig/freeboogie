@@ -489,15 +489,12 @@ public class TemplateParser {
     int exitLevel = curlyCnt;
     eat(TemplateToken.Type.LC);
     List<TemplateToken> def = Lists.newArrayList();
-//System.err.print(shorthand + " = ");
     while (true) {
       readRawToken();
       if (lastToken.type == TemplateToken.Type.RC && curlyCnt == exitLevel)
         break;
       def.add(lastToken);
-//System.err.print(lastToken.rep);
     }
-//System.err.println();
     lexer.addShorthand(shorthand, def);
   }
 
@@ -560,12 +557,8 @@ public class TemplateParser {
     if (w) Err.help("I'm skipping: " + sb);
   }
 
-  // NOTE: This loops forever and eventually throws StackOverflow
-  // for recursive user shorthands.
   private TemplateToken reallyGetToken(boolean expand) throws IOException {
-    TemplateToken r = null;
-    r = lexer.next(expand);
-//if (r != null) System.err.println("LEX <" + r.rep() + ">");
+    TemplateToken r = lexer.next(expand);
     if (r == null) throw new EofReached();
     return r;
   }
@@ -603,7 +596,6 @@ public class TemplateParser {
       Err.help("I don't guarantee what happens if you use unbalaced [] or {}.");
       balancedWarning = false;
     }
-//System.err.println("<" + lastToken.rep + ">");
   }
 
   private void switchOutput(Writer newOutput) throws IOException {
