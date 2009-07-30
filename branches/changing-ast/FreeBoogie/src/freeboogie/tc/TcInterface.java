@@ -29,8 +29,6 @@ public interface TcInterface {
    */
   List<FbError> process(Program p);
 
-  Program process(Program p) throws ErrorsFoundException;
-
   /**
    * Returns the flow graph of {@code impl}.
    *  use {{@link #getFlowGraph(Body)} instead

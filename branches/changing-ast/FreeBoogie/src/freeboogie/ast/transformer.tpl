@@ -1,9 +1,11 @@
 vim:filetype=java:
 
+\def{mt}{\if_tagged{list}{ImmutableList<}{}\if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}\if_tagged{list}{>}{}}
+\def{mtn}{\mt \memberName}
+\def{mtn_list}{\members[,]{\mtn}}
+
 \file{Transformer.java}
-/**
-  This file was generated from transformer.tpl. Do not edit.
- */
+/** Do NOT edit. See transformer.tpl instead. */
 package freeboogie.ast;
 
 import java.math.BigInteger;
@@ -43,13 +45,7 @@ public class Transformer extends Evaluator<Ast> {
   }
 
 \normal_classes{
-  public void see(
-    \ClassName \className,
-    \members[,]{
-      \if_tagged{list}{ImmutableList<}{}\if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}\if_tagged{list}{>}{} 
-      \memberName
-    }
-  ) {
+  public void see(\ClassName \className,\mtn_list) {
     Preconditions.checkNotNull(\className);
     boolean sameChildren = true;
     \members{

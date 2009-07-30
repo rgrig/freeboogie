@@ -1,3 +1,5 @@
+vim:ft=java:
+
 This is the generic interface for a visitor that can return
 a value. As a convenience, the object is also deconstructed
 in the class. The original object is sent nevertheless because
