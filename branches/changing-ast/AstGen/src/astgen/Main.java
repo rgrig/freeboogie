@@ -14,6 +14,7 @@ import genericutils.Err;
  * <pre>java astgen.Main [-b defaultBase] grammar templates</pre>.
  * 
  * @author rgrig
+ * @author Mikolas Janota
  */
 public final class Main {
   private static final Logger log = Logger.getLogger("astgen");
@@ -44,6 +45,7 @@ public final class Main {
     
     int arg_idx = 0;
     Grammar grammar = null;
+    String outputPath=null;
 
     HashMap<String, String> userDefs = new HashMap<String, String>(23);
     if (arg_idx < args.length && args[arg_idx].equals("-b")) {
@@ -52,6 +54,14 @@ public final class Main {
       defaultBase = args[arg_idx++];
       userDefs.put("defaultBaseName", defaultBase);
     }
+    if (arg_idx < args.length && args[arg_idx].equals("-d")) {
+      if (++arg_idx == args.length)
+        Err.fatal("You must give an output path after '-d'");
+      outputPath = args[arg_idx++];
+    }
+
+
+
 
     Pattern dp = Pattern.compile("-D(\\w*)=(.*)");
     while (arg_idx < args.length) {
@@ -83,6 +93,7 @@ public final class Main {
       // process a template
       try {
         TemplateParser template = new TemplateParser(args[arg_idx]);
+        if (outputPath != null) template.setOutputPath(outputPath);
         template.process(grammar);
       } catch (FileNotFoundException e) {
         Err.error("I can't find " + args[arg_idx] + 

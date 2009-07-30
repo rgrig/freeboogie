@@ -12,6 +12,10 @@ import java.util.List;
 public class AgClass implements Comparable<AgClass> {
   /** The name of the class. */
   public String name = null;
+
+  /** {@code True} iff the represented class has no children */ 
+  private boolean isTerminal=true;
+
   
   /** The base class name of this class. 
    * Should be nonnull for a consistent grammar. */
@@ -36,6 +40,10 @@ public class AgClass implements Comparable<AgClass> {
     for (AgEnum e : enums) if (e.name.equals(enumName)) return e;
     return null;
   }
+
+  /** {@code True} iff the represented class has no children in the
+   * inheritence hierarchy. */ 
+  /*@pure*/public boolean isTerminal() { return isTerminal; }
 
   /** Returns all the members in this class, including the inherited ones.
    * @return {@code getInheritedMembers} concat {@code getSelfMembers}
@@ -75,6 +83,7 @@ public class AgClass implements Comparable<AgClass> {
   public void setBaseClass(AgClass baseClass) {
     base = baseClass.name;
     this.baseClass = baseClass;
+    baseClass.isTerminal = false;// tell the base class that it has at least 1 child
   }
 
   public String getBaseClassName() {

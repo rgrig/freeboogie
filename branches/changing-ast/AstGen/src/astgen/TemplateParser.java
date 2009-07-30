@@ -15,7 +15,8 @@ import genericutils.Err;
  * The <tt>\file</tt> macro switches the output to another
  * destination. (A common trick is to use /dev/stdout as a
  * sink to inform the user about the progress of the template
- * processing.)
+ * processing.) The method {@code setOutputPath} can be used to 
+ * determine the output directory.
  *
  * Some macros must be nested in others. For example
  * \class_name must be nested in \classes or \normal_classes or
@@ -40,6 +41,7 @@ import genericutils.Err;
  *     It gets tedious to write it.
  *
  * @author rgrig 
+ * @author Mikolas Janota 
  */
 public class TemplateParser {
   /*
@@ -71,7 +73,8 @@ public class TemplateParser {
   private Stack<String> invariantContext;
   
   private Writer output;
-  
+  private String outputPath = null; // output directory 
+
   private int curlyCnt; // counts {} nesting
   private int bracketCnt; // counts [] nesting
   
@@ -107,6 +110,14 @@ public class TemplateParser {
     abstractClasses = null;
     normalClasses = null;
   }
+
+  /** Set the directory where the output files should be generated,
+   *  if null, then goes to current. */
+  //@modifies outputPath; 
+  public void setOutputPath(/*@nullable*/String path) {
+    outputPath = path;
+  }
+
 
   /**
    * Processes the current template using grammar {@code g}.
@@ -172,6 +183,8 @@ public class TemplateParser {
           processIfEnum(); break;
         case IF_TAGGED:
           processIfTagged(); break;
+        case IF_TERMINAL:
+          processIfTerminal(); break;
         case CHILDREN:
           processChildren(); break;
         case PRIMITIVES:
@@ -219,7 +232,8 @@ public class TemplateParser {
     processTop(curlyCnt - 1, Integer.MAX_VALUE);
     String fn = sw.toString().replaceAll("\\s+", "_");
     try {
-      FileWriter fw = new FileWriter(fn);
+      File f = outputPath==null ? new File(fn) : new File(outputPath, fn);
+      FileWriter fw = new FileWriter(f);
       switchOutput(fw);
       log.info("The output goes to the file " + fn);
     } catch (IOException e) {
@@ -413,6 +427,16 @@ public class TemplateParser {
     }
     processYesNo(evalTagExpr(memberContext.peek().tags));
   }
+
+  private void processIfTerminal() throws IOException {
+    if (!checkContext(classContext)) {
+      skipToRc(curlyCnt, true);
+      skipToRc(curlyCnt, true);
+      return;
+    }
+    processYesNo(classContext.peek().isTerminal());
+  }
+
 
   private void processChildren() throws IOException {
     if (!checkContext(classContext)) {

@@ -29,6 +29,7 @@ public class TemplateToken implements Token {
     IF_NONNULL,
     IF_ENUM,
     IF_TAGGED,
+    IF_TERMINAL,
     CHILDREN,
     PRIMITIVES,
     ENUMS,
