@@ -1,4 +1,4 @@
-#summary Guidelines on how to use the SVN repository when developing for !FreeBoogie.
+#summary Guidelines on how to use the SVN repository
 #labels Incomplete
 
 TODO
