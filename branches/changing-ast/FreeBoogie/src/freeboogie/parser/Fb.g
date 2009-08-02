@@ -1,12 +1,16 @@
+// vim:ft=java:
 grammar Fb;
 
 @header {
   package freeboogie.parser; 
-  import freeboogie.ast.*; 
-  import freeboogie.tc.TypeUtils;
-  import genericutils.Id;
+
   import java.math.BigInteger;
 
+  import com.google.common.collect.ImmutableList;
+  import genericutils.Id;
+
+  import freeboogie.ast.*; 
+  import freeboogie.tc.TypeUtils;
 }
 @lexer::header {
   package freeboogie.parser;
@@ -31,96 +35,79 @@ grammar Fb;
 
 }
 
-program returns [Declaration v]:
-  declarations EOF { if(ok) $v=$declarations.v; }
+program returns [Program v]:
+  decl* EOF;
+
+decl:
+    type_decl
+  | axiom_decl
+  | var_decl
+  | const_decl
+  | fun_decl
+  | proc_decl
+  | impl_decl
 ;
 
-declarations returns [Declaration v]:
-                                                { $v=null; }
-  | 'type' d=type_decl_tail                     { $v=$d.v; }
-  | 'const' d=const_decl_tail                   { $v=$d.v; }
-  | 'axiom' d=axiom_tail                        { $v=$d.v; }
-  | 'function' d=function_decl_tail             { $v=$d.v; }
-  | 'var' d=global_decl_tail                    { $v=$d.v; }
-  | 'procedure' d=procedure_decl_tail           { $v=$d.v; }
-  | 'implementation' d=implementation_decl_tail { $v=$d.v; }
+type_decl:
+    'type' ID (',' ID)* ';';
+
+axiom_decl:
+    'axiom' type_vars e=expr ';' 
 ;
 
-type_decl_tail returns [Declaration v]:
-    ID (
-    (';' t1=declarations { if(ok) $v=TypeDecl.mk(null,$ID.text,null,true,null,$t1.v,tokLoc($ID));})
-  | (',' t2=type_decl_tail { if(ok) $v=TypeDecl.mk(null,$ID.text,null,true,null,$t2.v,tokLoc($ID)); }))
+type_vars returns [ImmutableList<AtomId> v]:
+    { $v=ImmutableList.of(); }
+  | '<' id_list '>' { if (ok) $v=$id_list.v; }
 ;
 
-const_decl_tail returns [Declaration v]:
-    (u='unique')? ID ':' type (
-    (';' t1=declarations    
-      { if(ok) $v=ConstDecl.mk(null,$ID.text,$type.v,$u!=null,$t1.v,tokLoc($ID)); })
-  | (',' t2=const_decl_tail 
-      { if(ok) $v=ConstDecl.mk(null,$ID.text,$type.v,$u!=null,$t2.v,tokLoc($ID)); }))
+var_decl:
+    'var' one_var_decl (',' one_var_decl)* ';'
 ;
 
-function_decl_tail returns [Declaration v]:
-  s=signature ';' declarations
-    { if(ok) $v=FunctionDecl.mk(null,$s.v,$declarations.v,fileLoc($s.v)); }
+one_var_decl:
+    ID type_args ':' type
 ;
 
-axiom_tail returns [Declaration v]:
-  ('<' tv=id_list '>')? e=expr ';' declarations 
-    { if(ok) $v=Axiom.mk(null,Id.get("axiom"),$tv.v,$e.v,$declarations.v,fileLoc($e.v)); }
+const_decl:
+    'const' one_const_decl (',' one_const_decl)* ';'
 ;
 
-global_decl_tail returns [Declaration v]:
-    ID ('<' tv=id_list '>')? ':' type (
-    (';' t1=declarations     
-      { if(ok) $v=VariableDecl.mk(null,$ID.text,$type.v,$tv.v,$t1.v,tokLoc($ID)); })
-  | (',' t2=global_decl_tail 
-      { if(ok) $v=VariableDecl.mk(null,$ID.text,$type.v,$tv.v,$t2.v,tokLoc($ID)); }))
+one_const_decl:
+    'unique' ID ':' type
 ;
 
-procedure_decl_tail returns [Declaration v]:
-  s=signature ';'? spec_list body? t=declarations
-    { if(ok) {
-        Declaration proc_tail = $t.v;
-        if ($body.v != null)
-          proc_tail = Implementation.mk(null,TypeUtils.stripDep($s.v).clone(),$body.v,proc_tail,fileLoc($s.v));
-        $v=Procedure.mk(null,$s.v,$spec_list.v,proc_tail,fileLoc($s.v)); 
-    }}
+fun_decl:
+    'function' signature ';'
 ;
-	
-implementation_decl_tail returns [Declaration v]:
-  s=signature body t=declarations
-    { if(ok) $v = Implementation.mk(null,$s.v,$body.v,$t.v,fileLoc($s.v)); }
+
+proc_decl:
+    'procedure' signature ';'? spec_list body?
+;
+
+impl_decl:
+    'implementation' signature body
 ;
 
 signature returns [Signature v]:
-  ID ('<' tv=id_list '>')? '(' (a=opt_id_type_list)? ')' 
+  ID type_vars '(' (a=opt_id_type_list)? ')' 
   ('returns' '(' (b=opt_id_type_list)? ')')?
     { if(ok) $v = Signature.mk($ID.text,$tv.v,$a.v,$b.v,tokLoc($ID)); }
 ;
 
-spec_list returns [Specification v]:
-      { $v=null; }
-  | (f='free')? 'requires' ('<' tv=id_list '>')? h=expr ';' t=spec_list
-      { if(ok) $v=Specification.mk($tv.v,Specification.SpecType.REQUIRES,$h.v,$f!=null,$t.v,fileLoc($h.v)); }
-  | 'modifies' t=modifies_tail
-      { $v=$modifies_tail.v; }
-  | (f='free')? 'ensures' ('<' tv=id_list '>')? h=expr ';' t=spec_list
-      { if(ok) $v=Specification.mk($tv.v,Specification.SpecType.ENSURES,$h.v,$f!=null,$t.v,fileLoc($h.v)); }
+spec_list returns [ImmutableList<Specification> v]:
+      { ImmutableList.Builder<Specification> builder = ImmutableList.builder(); }
+  | (spec { builder.add($spec.v); })*
+      { $v = builder.build(); }
 ;
 
-modifies_tail returns [Specification v]:
-    (f='free')? ids=id_list ';' t=spec_list { if (ok) {
-      Identifiers x = $ids.v;
-      Exprs e = null;
-      while (x != null) {
-        e = Exprs.mk(x.getId(), e);
-        x = x.getTail();
-      }
-      $v=Specification.mk(null,Specification.SpecType.MODIFIES,e,$f!=null,$t.v,fileLoc($ids.v));
-    }}
+// TODO(radugrigore): continue here
+spec returns [Specification v]:
+  (f='free')? 
+  (((r='requires' | e='ensures') tv=type_vars h=expr)
+      { if(ok) $v=Specification.mk($tv.v,Specification.SpecType.REQUIRES,$h.v,$f!=null,$t.v,fileLoc($h.v)); }
+  |('modifies' ID (',' ID)*)) ';'
 ;
-	
+
 body returns [Body v]:
   '{' ('var' var_id_type_list)? b=block_list '}'
     { if(ok) $v = Body.mk($var_id_type_list.v,$b.v,fileLoc($b.v)); }

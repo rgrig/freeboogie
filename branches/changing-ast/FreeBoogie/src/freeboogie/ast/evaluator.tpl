@@ -5,50 +5,65 @@ a value. As a convenience, the object is also deconstructed
 in the class. The original object is sent nevertheless because
 we may want to use it.
 
+Some useful macros:
+\def{smt}{\if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}}
+\def{mt}{\if_tagged{list}{ImmutableList<}{}\smt\if_tagged{list}{>}{}}
+\def{mtn}{\mt \memberName}
+\def{mtn_list}{\members[,]{\mtn}}
+
 \file{Evaluator.java}
-/** 
-  This file is generated from evaluator.tpl. Do not edit.
- */
+/** Do NOT edit. See evaluator.tpl instead. */
 package freeboogie.ast;
+
 import java.math.BigInteger;
 import java.util.HashMap;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 
 /**
   Use as a base class when you want to compute a value of type
   {@code R} for each node. An example is the typechecker.
  */
 public class Evaluator<R> {
-  protected HashMap<Ast, R> evalCache = new HashMap<Ast, R>();
+  protected HashMap<Ast, R> evalCache = Maps.newHashMap();
   protected R memo(Ast a, R r) { 
     if (r != null) evalCache.put(a, r);
     return r;
   }
-  public R get(Ast a) { return evalCache.get(a); }
-
-\normal_classes{
-  public R eval(\ClassName \className, 
-    \members[,]{
-      \if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}
-      \memberName
-    }
-  ) {
-    if (evalCache.containsKey(\className)) return evalCache.get(\className);
-    enterNode(\className);
-    \children{if (\memberName != null) \memberName.eval(this);}
-    exitNode(\className);
-    return null;
+  public R get(Ast a) { 
+    R r = evalCache.get(a);
+    Preconditions.checkState(r != null, 
+        "Only call get() if you know that that the value was computed."
+        + " Otherwise use eval().");
+    return r; 
   }
-}
-  public void enterNode(Ast ast) {}
-  public void exitNode(Ast ast) {}
+
+  \classes{\if_terminal{
+    public R eval(\ClassName \className,\mtn_list) {
+      R result_ = evalCache.get(\className);
+      if (result_ != null) return result_;
+      enterNode(\className);
+      for (Ast child_ : \className.children()) child_.eval(this);
+      exitNode(\className);
+      return null;
+    }
+  }{}}
+
+  // === hooks for derived classes ===
+  public void enterNode(Ast ast) { /* do nothing */ }
+  public void exitNode(Ast ast) { /* do nothing */ }
 }
 
 \file{AssociativeEvaluator.java}
-/**
-  This file is generated from evaluator.tpl. Do not edit.
- */
+/** Do NOT edit. See evaluator.tpl instead. */
 package freeboogie.ast;
+
 import java.math.BigInteger;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import genericutils.AssociativeOperator;
 
 public class AssociativeEvaluator<R> extends Evaluator<R> {
@@ -56,20 +71,16 @@ public class AssociativeEvaluator<R> extends Evaluator<R> {
   public AssociativeEvaluator(AssociativeOperator<R> assocOp) {
     this.assocOp = assocOp;
   }
-\normal_classes{
-  @Override public R eval(\ClassName \className,
-    \members[,]{
-      \if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}
-      \memberName
+  \classes{\if_terminal{
+    @Override public R eval(\ClassName \className,\mtn_list) {
+      R result_ = evalCache.get(\className);
+      if (result_ != null) return result_;
+      result_ = assocOp.zero();
+      enterNode(\className);
+      for (Ast child_ : \className.children())
+        result_ = assocOp_.plus(result_,child_.eval(this));
+      exitNode(\className);
+      return memo(\className, result_);
     }
-  ) {
-    if (evalCache.containsKey(\className)) return evalCache.get(\className);
-    R result_ = assocOp.zero();
-    enterNode(\className);
-    \children{if (\memberName != null) 
-      result_ = assocOp.plus(result_, \memberName.eval(this));}
-    exitNode(\className);
-    return memo(\className, result_);
-  }
-}
+  }{}}
 }

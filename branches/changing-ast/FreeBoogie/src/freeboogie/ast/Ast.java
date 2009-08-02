@@ -1,5 +1,7 @@
 package freeboogie.ast;
 
+import com.google.common.collect.ImmutableList;
+
 /** 
  * Base class for the AST hierarchy. 
  *
@@ -24,6 +26,9 @@ public abstract class Ast implements Cloneable {
   public FileLocation loc() {
     return location;
   }
+
+  protected ImmutableList<Ast> children;
+  public abstract ImmutableList<Ast> children();
   
   /**
    * Dispatches to {@code e.eval} based on the static type of the node

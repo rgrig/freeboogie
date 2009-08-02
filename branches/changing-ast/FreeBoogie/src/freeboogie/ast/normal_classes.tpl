@@ -55,6 +55,20 @@ public final class \ClassName extends \BaseName {
   // === accessors ===
   \members{public \mtn() { return \memberName; }}
 
+  @Override public ImmutableList<Ast> children() {
+    if (children != null) return children;
+    ImmutableList.Builder<Ast> builder_ = ImmutableList.builder();
+    \children{
+      \if_tagged{list}{
+        builder_.addAll(\memberName);
+      }{
+        if (\memberName != null) builder_.add(\memberName);
+      }
+    }
+    children = builder_.build();
+    return children;
+  }
+
   // === the Visitor pattern ===
   @Override
   public <R> R eval(Evaluator<R> evaluator) { 

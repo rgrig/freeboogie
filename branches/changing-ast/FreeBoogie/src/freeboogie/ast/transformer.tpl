@@ -44,62 +44,54 @@ public class Transformer extends Evaluator<Ast> {
     return TypeUtils.internalTypecheck((Program)p.eval(this), tc);
   }
 
-\normal_classes{
-  public void see(\ClassName \className,\mtn_list) {
-    Preconditions.checkNotNull(\className);
-    boolean sameChildren = true;
-    \members{
-      \if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}
-      new\MemberName = 
-        \if_primitive{\memberName}{
-          \memberName == null ? null :(\MemberType)\memberName.eval(this)
-        };
-      \if_primitive{}{sameChildren &= new\MemberName == \memberName;}
-    }
+  \classes{\if_terminal{
+    public void see(\ClassName \className,\mtn_list) {
+      Preconditions.checkNotNull(\className);
+      boolean sameChildren= true;
+      \members{
+        \mt new\MemberName = 
+          \if_primitive{\memberName}{
+            \memberName == null ? null :(\MemberType)\memberName.eval(this)
+          };
+        \if_primitive{}{sameChildren &= new\MemberName == \memberName;}
+      }
 
-    if (!sameChildren) {
-      result.removeFirst();
-      result.addFirst(\ClassName.mk(\members[,]{new\MemberName},\className.loc()));
+      if (!sameChildren) {
+        result.removeFirst();
+        result.addFirst(\ClassName.mk(\members[,]{new\MemberName},\className.loc()));
+      }
     }
-  }
-  
-  @Override
-  public Ast eval(
-    \ClassName \className,
-    \members[,]{
-      \if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType} 
-      \memberName
+    
+    @Override
+    public Ast eval(\ClassName \className,\mtn_list) {
+      // Deque<> doesn't support null elements
+      result.addFirst(\className == null ? NULL : \className);
+      enterNode(\className);
+      see(\className,\members[,]{\memberName});
+      exitNode(\className);
+      Ast r = result.removeFirst();
+      return r == NULL ? null : r;
     }
-  ) {
-    // Deque<> doesn't support null elements
-    result.addFirst(\className == null ? NULL : \className);
-    enterNode(\className);
-    see(\className,\members[,]{\memberName});
-    exitNode(\className);
-    Ast r = result.removeFirst();
-    return r == NULL ? null : r;
-  }
-}
+  }{}}
 }
 
 \file{visitor.skeleton}
 // You can copy and paste the text below when you define a visitor that
 // needs to override most functions on the base class.
 
-\normal_classes{  @Override
-  public void see(\ClassName \className, \members[, ]{\if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType} \memberName}) {
+\classes{\if_terminal{  @Override
+  public void see(\ClassName \className, \mtn_list) {
     assert false : "not implemented";
   }
-  
-}
+}{}}
 
 // *********
 
-\normal_classes{  @Override
-  public \ClassName eval(\ClassName \className, \members[, ]{\if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType} \memberName}) {
+\classes{\if_terminal{  @Override
+  public \ClassName see(\ClassName \className, \mtn_list) {
     assert false : "not implemented";
     return null;
   }
+}{}}
 
-}
 

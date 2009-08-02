@@ -6,6 +6,7 @@ import java.math.BigInteger;
 import java.util.HashMap;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import genericutils.Err;
 
@@ -144,7 +145,7 @@ public class PrettyPrinter extends Transformer {
   public void see(
     AssertAssumeCmd assertAssumeCmd, 
     AssertAssumeCmd.CmdType type, 
-    Identifiers typeVars, 
+    ImmutableList<AtomId> typeVars, 
     Expr expr
   ) {
     say(cmdRep.get(type));
@@ -179,7 +180,7 @@ public class PrettyPrinter extends Transformer {
     AtomFun atomFun, 
     String function, 
     TupleType types, 
-    Exprs args
+    ImmutableList<Expr> args
   ) {
     say(function);
     if (types != null) {
@@ -209,7 +210,11 @@ public class PrettyPrinter extends Transformer {
   }
 
   @Override
-  public void see(AtomMapSelect atomMapSelect, Atom atom, Exprs idx) {
+  public void see(
+      AtomMapSelect atomMapSelect, 
+      Atom atom, 
+      ImmutableList<Expr> idx
+  ) {
     atom.eval(this);
     say("[");
     idx.eval(this);
@@ -217,7 +222,12 @@ public class PrettyPrinter extends Transformer {
   }
 
   @Override
-  public void see(AtomMapUpdate atomMapUpdate, Atom atom, Exprs idx, Expr val) {
+  public void see(
+      AtomMapUpdate atomMapUpdate, 
+      Atom atom, 
+      ImmutableList<Expr> idx, 
+      Expr val
+  ) {
     atom.eval(this);
     say("[");
     idx.eval(this);
@@ -265,11 +275,10 @@ public class PrettyPrinter extends Transformer {
   @Override
   public void see(
     Axiom axiom, 
-    Attribute attr,
+    ImmutableList<Attribute> attributes,
     String name,
-    Identifiers typeArgs, 
-    Expr expr, 
-    Declaration tail
+    ImmutableList<AtomId> typeArgs, 
+    Expr expr
   ) {
     say("axiom");
     switch (boogieVersion) {
@@ -302,8 +311,7 @@ public class PrettyPrinter extends Transformer {
     Block block, 
     String name, 
     Command cmd, 
-    Identifiers succ, 
-    Block tail
+    ImmutableList<AtomId> succ
   ) {
     say(name);
     say(":");
@@ -338,8 +346,8 @@ public class PrettyPrinter extends Transformer {
     CallCmd callCmd, 
     String procedure, 
     TupleType types, 
-    Identifiers results, 
-    Exprs args
+    ImmutableList<AtomId> results,
+    ImmutableList<Expr> args
   ) {
     say("call ");
     if (results != null) {
@@ -389,21 +397,20 @@ public class PrettyPrinter extends Transformer {
     pred.eval(this);
   }
 
-  @Override
-  public void see(Exprs exprs, Expr expr, Exprs tail) {
-    expr.eval(this);
-    if (tail != null) {
-      say(", ");
-      tail.eval(this);
+  public <T extends Ast> void printList(String sep, ImmutableList<T> list) {
+    Iterator<T> i = list.iterator();
+    if (i.hasNext()) i.next().eval(this);
+    while (i.hasNext()) {
+      say(sep);
+      i.next().eval(this);
     }
   }
 
   @Override
   public void see(
-    FunctionDecl function,
-    Attribute attr,
-    Signature sig,
-    Declaration tail
+      FunctionDecl function,
+      ImmutableList<Attribute> attributes,
+      Signature sig
   ) {
     say("function ");
     if (attr != null) {
@@ -424,28 +431,18 @@ public class PrettyPrinter extends Transformer {
   }
 
   @Override
-  public void see(HavocCmd havocCmd, Identifiers ids) {
+  public void see(HavocCmd havocCmd, ImmutableList<AtomId> ids) {
     say("havoc ");
     ids.eval(this);
     say(";");
   }
 
   @Override
-  public void see(Identifiers identifiers, AtomId id, Identifiers tail) {
-    id.eval(this);
-    if (tail != null) {
-      say(", ");
-      tail.eval(this);
-    }
-  }
-
-  @Override
   public void see(
     Implementation implementation, 
-    Attribute attr,
+    ImmutableList<Attribute> attributes,
     Signature sig, 
-    Body body, 
-    Declaration tail
+    Body body 
   ) {
     say("implementation ");
     if (attr != null) {
@@ -495,9 +492,9 @@ public class PrettyPrinter extends Transformer {
   public void see(
     Signature signature, 
     String name, 
-    Identifiers typeArgs,
-    Declaration args, 
-    Declaration results 
+    ImmutableList<AtomId> typeArgs,
+    ImmutableList<VariableDecl> args,
+    ImmutableList<VariableDecl> results
   ) {
     ++skipVar;
     say(name);
@@ -520,11 +517,10 @@ public class PrettyPrinter extends Transformer {
   @Override
   public void see(
     Specification specification, 
-    Identifiers tv, 
+    ImmutableList<AtomId> tv, 
     Specification.SpecType type, 
     Expr expr, 
-    boolean free, 
-    Specification tail
+    boolean free
   ) {
     if (free) say("free ");
     say(specRep.get(type));
@@ -553,10 +549,9 @@ public class PrettyPrinter extends Transformer {
     TypeDecl typeDecl,
     Attribute attr,
     String name,
-    Identifiers typeArgs,
+    ImmutableList<AtomId> typeArgs,
     boolean finite,
-    Type type,
-    Declaration tail
+    Type type
   ) {
     say("type ");
     if (attr != null) {
@@ -599,8 +594,7 @@ public class PrettyPrinter extends Transformer {
     Attribute attr,
     String name, 
     Type type, 
-    Identifiers typeVars, 
-    Declaration tail
+    ImmutableList<AtomId> typeVars
   ) {
     if (skipVar==0) say("var ");
     if (attr != null) {
@@ -622,7 +616,11 @@ public class PrettyPrinter extends Transformer {
   }
   
   @Override
-  public void see(Attribute trigger, String type, Exprs exprs, Attribute tail) {
+  public void see(
+      Attribute attribute, 
+      String type, 
+      ImmutableList<Expr> exprs
+  ) {
     say("{");
     say(":"); say(type);
     say(" ");
