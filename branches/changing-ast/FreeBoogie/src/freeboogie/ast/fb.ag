@@ -60,14 +60,13 @@ Type :>
   UserType, 
   MapType, 
   IndexedType, 
-  DepType, 
-  TupleType;
+  DepType;
 MapType = 
-  TupleType! idxType, 
+  [list] Type idxTypes,
   Type! elemType;
 PrimitiveType = 
   enum(Ptype: BOOL, INT, REF, NAME, ANY, BV, ERROR) ptype,
-  int bits; // bits is ignored if ptype != BV
+  int bits;
 IndexedType = 
   Type! param, 
   Type! type;
@@ -76,9 +75,7 @@ DepType =
   Expr! pred;
 UserType = 
   String! name, 
-  TupleType typeArgs;
-TupleType =   // In BoogiePL, (T) = T.
-  [list] Type types;
+  [list] Type typeArgs;
 
 // Signatures are used to represent uninterpreted functions
 Signature = 
@@ -119,7 +116,7 @@ HavocCmd =
   [list] AtomId ids;
 CallCmd = 
   String! procedure, 
-  TupleType types, 
+  [list] Type types, 
   [list] AtomId results,
   [list] Expr args;
 WhileCmd = 
@@ -162,10 +159,10 @@ AtomNum =
   BigInteger val;
 AtomId = 
   String! id, 
-  TupleType types;
+  [list] Type types;
 AtomFun = 
   String! function, 
-  TupleType types, 
+  [list] Type types, 
   [list] Expr args;
 AtomOld = 
   Expr! e;

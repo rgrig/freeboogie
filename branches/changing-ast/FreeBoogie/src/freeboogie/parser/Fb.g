@@ -26,6 +26,10 @@ grammar Fb;
   }
   
   public boolean ok = true;
+
+  private ImmutableList.Builder<Specification> specListBuilder;
+  private boolean specFree;
+  private ImmutableList.Builder<Block> blockListBuilder;
   
   @Override
   public void reportError(RecognitionException x) {
@@ -64,8 +68,8 @@ var_decl:
     'var' one_var_decl (',' one_var_decl)* ';'
 ;
 
-one_var_decl:
-    ID type_args ':' type
+one_var_decl returns [VariableDecl v]:
+    ID type_vars ':' type
 ;
 
 const_decl:
@@ -81,7 +85,7 @@ fun_decl:
 ;
 
 proc_decl:
-    'procedure' signature ';'? spec_list body?
+    'procedure' signature ';'? /*spec_list*/ body?
 ;
 
 impl_decl:
@@ -95,47 +99,82 @@ signature returns [Signature v]:
 ;
 
 spec_list returns [ImmutableList<Specification> v]:
-      { ImmutableList.Builder<Specification> builder = ImmutableList.builder(); }
-  | (spec { builder.add($spec.v); })*
+      { specListBuilder = ImmutableList.builder(); }
+    spec*
       { $v = builder.build(); }
 ;
 
-// TODO(radugrigore): continue here
-spec returns [Specification v]:
-  (f='free')? 
-  (((r='requires' | e='ensures') tv=type_vars h=expr)
-      { if(ok) $v=Specification.mk($tv.v,Specification.SpecType.REQUIRES,$h.v,$f!=null,$t.v,fileLoc($h.v)); }
-  |('modifies' ID (',' ID)*)) ';'
+spec:
+      {specFree = false;}
+    (f='free' {specFree = true;})? 
+        (((r='requires' | e='ensures') tv=type_vars h=expr)
+      { if(ok) 
+          specListBuilder.add(
+              Specification.mk(
+                $tv.v,
+                $r!=null? Specification.SpecType.REQUIRES : Specification.SpecType.ENSURES,
+                $h.v,
+                specFree,
+                fileLoc($h.v))); }
+  | ('modifies' modified_id (',' modified_id)*)) ';'
+;
+
+modified_id:
+    atom_id
+      { if (ok) 
+          specListBuidler.add(
+              Specification.mk(
+                  null,
+                  Specification.SpecType.MODIFIES,
+                  $atom_id.v,
+                  specFree,
+                  fileLoc($atom_id.v))); }
 ;
 
 body returns [Body v]:
-  '{' ('var' var_id_type_list)? b=block_list '}'
-    { if(ok) $v = Body.mk($var_id_type_list.v,$b.v,fileLoc($b.v)); }
+  '{' vl=var_decl_list b=block_list '}'
+    { if(ok) $v = Body.mk($vl.v,$b.v,fileLoc($b.v)); }
 ;
 
-block_list returns [Block v]:
-  ID ':' cl=command_list s=block_succ (t=block_list)?
-    { if(ok) {
-      String n_=$ID.text;
-      Identifiers s_=$s.v;
-      Block t_=$t.v;
-      for (int i = $cl.v.size() - 1; i > 0; --i) {
-        Command c_=$cl.v.get(i);
-        String ss_=Id.get(n_);
-        t_=Block.mk(ss_,c_,s_,t_,fileLoc(c_));
-        s_=Identifiers.mk(AtomId.mk(ss_,null),null);
+var_decl_list returns [ImmutableList<VariableDecl> v]:
+      { ImmutableList<VariableDecl> b_ = ImmutableList.builder(); }
+    'var' d=one_var_decl {if (ok) b_.add($d.v)} ((',' | ';' 'var') dd=one_var_decl {if (ok) b_.add($dd.v);})*
+      { $v=b_.build(); }
+;
+
+block_list returns [ImmutableList<Block> v]:
+      { blockListBuilder = ImmutableList.builder(); }
+    block*
+      { $v = blockListBuilder.build(); }
+;
+
+block: 
+    i=ID ':' 
+    {ArrayList<Command> cmds = Lists.newArrayList();}
+    (command {if (ok) cmds.add($command.v)})* 
+    s=block_succ
+    { if (ok) {
+      if (cmds.isEmpty()) 
+        blockListBuilder.add(Block.mk($i.text,null,$s.v,tokLoc(i)));
+      else {
+        String n = $i.text, nn;
+        for (int i = 0; i + 1 < cmds.size(); ++i) {
+          nn = Id.get("block");
+          blockListBuilder.add(Block.mk(
+            n,
+            cmd.get(i),
+            i+1==cmds.size()?$s.v:ImmutableList.of(AtomId.mk(nn,null)),
+            fileLoc(cmds.get(i))));
+          n = nn;
+        }
       }
-      $v=Block.mk(n_,$cl.v.isEmpty()?null:$cl.v.get(0),s_,t_,tokLoc($ID));
-    }}
+    }};
+
+block_succ returns [ImmutableList<AtomId> v]:
+    ('goto' s=id_list | 'return') ';' 
+      { $v = s!=null? $s.v : ImmutableList.of(); }
 ;
 
-block_succ returns [Identifiers v]:
-    a='goto' id_list ';' 
-      { if(ok) $v=$id_list.v; }
-  |  a='return' ';'
-      { if(ok) $v=null; }
-;
-	
 command	returns [Command v]:
     a=atom_id i=index_list ':=' b=expr ';' 
       { if(ok) {
@@ -148,23 +187,23 @@ command	returns [Command v]:
             rhs = AtomMapUpdate.mk(lhs.get(k).clone(), $i.v.get(k).clone(), rhs);
           $v=AssignmentCmd.mk($a.v,rhs,fileLoc($a.v));
       }}
-  | t='assert' ('<' tv=id_list '>')? expr ';'
+  | t='assert' tv=type_vars expr ';'
       { if(ok) $v=AssertAssumeCmd.mk(AssertAssumeCmd.CmdType.ASSERT,$tv.v,$expr.v,tokLoc($t)); }
-  | t='assume' ('<' tv=id_list '>')? expr ';'
+  | t='assume' tv=type_vars expr ';'
       { if(ok) $v=AssertAssumeCmd.mk(AssertAssumeCmd.CmdType.ASSUME,$tv.v,$expr.v,tokLoc($t)); }
   | t='havoc' id_list ';'
       { if(ok) $v=HavocCmd.mk($id_list.v,tokLoc($t));}
   | t='call' call_lhs
-    n=ID ('<' st=quoted_simple_type_list '>')? '(' (r=expr_list)? ')' ';'
+    n=ID st=quoted_simple_type_list '(' (r=expr_list)? ')' ';'
       { if(ok) $v=CallCmd.mk($n.text,$st.v,$call_lhs.v,$r.v,tokLoc($t)); }
 ;
 
-call_lhs returns [Identifiers v]:
+call_lhs returns [ImmutableList<AtomId> v]:
     (id_list ':=')=> il=id_list ':=' {$v=$il.v;}
   | {$v=null;}
 ;
 	
-index returns [Exprs v]:
+index returns [ImmutableList<Expr> v]:
   '[' expr_list ']' { $v = $expr_list.v; }
 ;
 
@@ -301,22 +340,30 @@ attributes returns [Attribute v]:
 
 // {{{ BEGIN list rules 
 	
-expr_list returns [Exprs v]:
-  h=expr (',' t=expr_list)? { if(ok) $v = Exprs.mk($h.v, $t.v,fileLoc($h.v)); }
+expr_list returns [ImmutableList<Expr> v]:
+    {ImmutableList.Builder<Expr> b_ = ImmutableList.builder(); }
+    e=expr {if(ok)b_.add($e.v);} (',' ee=expr {if(ok)b_.add($ee.v);})*
+    { $v = b_.build(); }
 ;
 
-id_list	returns [Identifiers v]:	
-    a=atom_id (',' r=id_list)? { if(ok) $v=Identifiers.mk($a.v,$r.v,fileLoc($a.v)); }
+id_list	returns [ImmutableList<AtomId> v]:	
+      { ImmutableList.Builder<AtomId> b_ = ImmutableList.builder(); }
+    (atom_id { if (ok) b_.add($atom_id.v); })*
+      { $v = b_.build(); }
 ;
 
-quoted_simple_type_list returns [TupleType v]:
-    '`' h=simple_type (',' t=quoted_simple_type_list)?
-  { if (ok) $v=TupleType.mk($h.v,$t.v,fileLoc($h.v)); }
+quoted_simple_type_list returns [ImmutableList<Type> v]:
+      { ImmutableList.Builder<Type> b_ = ImmutableList.builder(); }
+    ('<' '`' t=simple_type {if(ok)b_.add($t.v);} 
+        (',' '`' tt=simple_type {if(ok)b_.add($tt.v);})* '>')?
+      { $v = b_.build(); }
 ;
 
-simple_type_list returns [TupleType v]:
-    h=simple_type (',' t=simple_type_list)?
-  { if (ok) $v=TupleType.mk($h.v,$t.v,fileLoc($h.v)); }
+simple_type_list returns [ImmutableList<Type> v]:
+      { ImmutableList.Builder<Type> b_ = ImmutableList.builder(); }
+    ('<' t=simple_type {if(ok)b_.add($t.v);} 
+        (',' tt=simple_type {if(ok)b_.add($tt.v);})* '>')?
+      { $v = b_.build(); }
 ;
 
 opt_id_type_list returns [Declaration v]:
@@ -325,7 +372,7 @@ opt_id_type_list returns [Declaration v]:
 ;
 
 id_type_list returns [Declaration v]:
-  hi=ID ('<' tv=id_list '>')? ':' ht=type (',' t=id_type_list)? 
+  hi=ID tv=type_vars ':' ht=type (',' t=id_type_list)? 
     { if(ok) $v = VariableDecl.mk(null,$hi.text, $ht.v,$tv.v,$t.v,tokLoc($ID)); }
 ;
 

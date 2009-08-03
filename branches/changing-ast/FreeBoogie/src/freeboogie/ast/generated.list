@@ -43,7 +43,6 @@ Procedure.java
 Program.java
 Signature.java
 Specification.java
-TupleType.java
 Type.java
 TypeDecl.java
 UnaryOp.java
