@@ -187,4 +187,4 @@ AtomMapSelect: !idx.isEmpty()
 AtomMapUpdate: !idx.isEmpty()
 HavocCmd: !ids.isEmpty()
 PrimitiveType: ptype == Ptype.BV || bits == -1
-Specification: type != Type.MODIFIES || (expr instanceof AtomId)
+Specification: type != SpecType.MODIFIES || (expr instanceof AtomId)

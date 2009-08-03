@@ -1,6 +1,9 @@
 package freeboogie.astutil;
 
 import java.util.*;
+
+import com.google.common.collect.ImmutableList;
+
 import freeboogie.ast.*;
 import freeboogie.tc.SymbolTable;
 
@@ -35,8 +38,8 @@ public class VarCollector extends Transformer {
 
 
   @Override
-  public void see(AtomId atomId, String id, TupleType types) { 
-    assert types == null; // TODO
+  public void see(AtomId atomId, String id, ImmutableList<Type> types) {
+    assert types.isEmpty(); // TODO
     rv.add(st.ids.def(atomId)); 
   }
 

@@ -2,6 +2,8 @@ package freeboogie.tc;
 
 import java.util.*;
 
+import com.google.common.collect.ImmutableList;
+
 import freeboogie.ast.*;
 
 /**
@@ -151,15 +153,13 @@ public class GlobalsCollector extends Transformer {
   @Override
   public void see(
     TypeDecl typeDecl,
-    Attribute attr,
+    ImmutableList<Attribute> attr,
     String name,
-    Identifiers typeArgs,
+    ImmutableList<AtomId> typeArgs,
     boolean finite,
-    Type type,
-    Declaration tail
+    Type type
   ) {
     addTypeDef(name, typeDecl);
-    if (tail != null) tail.eval(this);
   }
 
   @Override
@@ -192,11 +192,9 @@ public class GlobalsCollector extends Transformer {
     Attribute attr,
     String name,
     Type type,
-    Identifiers typeArgs,
-    Declaration tail
+    ImmutableList<AtomId> typeArgs
   ) {
     addVarDef(name, variableDecl);
-    if (tail != null) tail.eval(this);
   }
 
   @Override
@@ -216,13 +214,11 @@ public class GlobalsCollector extends Transformer {
   @Override
   public void see(
     Axiom axiom,
-    Attribute attr,
+    ImmutableList<Attribute> attr,
     String name,
-    Identifiers typeVars,
-    Expr expr,
-    Declaration tail
+    ImmutableList<AtomId> typeVars,
+    Expr expr
   ) {
-    if (tail != null) tail.eval(this);
   }
 
   @Override

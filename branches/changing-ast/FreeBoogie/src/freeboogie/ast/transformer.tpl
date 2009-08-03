@@ -1,6 +1,7 @@
 vim:filetype=java:
 
-\def{mt}{\if_tagged{list}{ImmutableList<}{}\if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}\if_tagged{list}{>}{}}
+\def{smt}{\if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}}
+\def{mt}{\if_tagged{list}{ImmutableList<}{}\smt\if_tagged{list}{>}{}}
 \def{mtn}{\mt \memberName}
 \def{mtn_list}{\members[,]{\mtn}}
 
@@ -47,13 +48,19 @@ public class Transformer extends Evaluator<Ast> {
   \classes{\if_terminal{
     public void see(\ClassName \className,\mtn_list) {
       Preconditions.checkNotNull(\className);
-      boolean sameChildren= true;
+      boolean sameChildren = true;
       \members{
-        \mt new\MemberName = 
-          \if_primitive{\memberName}{
-            \memberName == null ? null :(\MemberType)\memberName.eval(this)
-          };
-        \if_primitive{}{sameChildren &= new\MemberName == \memberName;}
+        \mt new\MemberName;
+        \if_primitive{
+          new\MemberName = \memberName;
+        }{
+          \if_tagged{list}{
+            new\MemberName = evalListOf\MemberType(\memberName);
+          }{
+            new\MemberName = \memberName == null ? null :(\MemberType)\memberName.eval(this);
+          }
+          sameChildren &= new\MemberName == \memberName;
+        }
       }
 
       if (!sameChildren) {
@@ -73,6 +80,19 @@ public class Transformer extends Evaluator<Ast> {
       return r == NULL ? null : r;
     }
   }{}}
+
+  \classes{
+    public ImmutableList<\ClassName> evalListOf\ClassName(ImmutableList<\ClassName> l_) {
+      boolean same_ = true;
+      ImmutableList.Builder<\ClassName> builder_ = ImmutableList.builder();
+      for (\ClassName c_ : l_) {
+        \ClassName cc_ = (\ClassName) c_.eval(this);
+        builder_.add(cc_);
+        same_ &= cc_ == c_;
+      }
+      return same_? l_ : builder_.build();
+    }
+  }
 }
 
 \file{visitor.skeleton}

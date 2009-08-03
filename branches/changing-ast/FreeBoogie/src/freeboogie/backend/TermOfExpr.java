@@ -3,6 +3,7 @@ package freeboogie.backend;
 import java.math.BigInteger;
 import java.util.*;
 
+import com.google.common.collect.ImmutableList;
 import genericutils.Err;
 
 import freeboogie.ast.*;
@@ -128,7 +129,12 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   @Override
-  public T eval(AtomFun atomFun, String function, TupleType types, Exprs args) {
+  public T eval(
+      AtomFun atomFun,
+      String function,
+      ImmutableList<Type> types,
+      ImmutableList<Expr> args
+  ) {
     String prefix = "funT_";
     if (TypeUtils.isInt(typeOf.get(atomFun)))
       prefix = "funI_";
@@ -138,14 +144,14 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   @Override
-  public T eval(AtomId atomId, String id, TupleType types) {
+  public T eval(AtomId atomId, String id, ImmutableList<Type> types) {
     Declaration d = st.ids.def(atomId);
     Type t = null;
     if (d instanceof VariableDecl) {
-      t = ((VariableDecl)d).getType();
+      t = ((VariableDecl)d).type();
     } else if (d instanceof ConstDecl) {
       // TODO I might want to keep track of constness
-      t = ((ConstDecl)d).getType();
+      t = ((ConstDecl)d).type();
     } else Err.internal("Unknown id declaration type for " + atomId + ": " + d);
     if (TypeUtils.isInt(t)) {
       // this prefix is needed for z3, but not simplify
@@ -181,7 +187,11 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   @Override
-  public T eval(AtomMapSelect atomMapSelect, Atom atom, Exprs idx) {
+  public T eval(
+      AtomMapSelect atomMapSelect,
+      Atom atom, 
+      ImmutableList<Expr> idx
+  ) {
     Type t = typeOf.get(atomMapSelect);
     String termId = "map_select";
     if (TypeUtils.isInt(t)) termId = "map_select_int";
@@ -190,7 +200,12 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   @Override
-  public T eval(AtomMapUpdate atomMapUpdate, Atom atom, Exprs idx, Expr val) {
+  public T eval(
+      AtomMapUpdate atomMapUpdate,
+      Atom atom,
+      ImmutableList<Expr> idx,
+      Expr val
+  ) {
     return term.mk(
       "map_update", 
       new Term[] {
@@ -284,12 +299,9 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   // === helpers ===
-  private ArrayList<T> tuple(Exprs e) {
+  private ArrayList<T> tuple(ImmutableList<Expr> es) {
     ArrayList<T> r = new ArrayList<T>(23);
-    while (e != null) {
-      r.add(e.getExpr().eval(this));
-      e = e.getTail();
-    }
+    for (Expr e : es) r.add(e.expr().eval(this));
     return r;
   }
 

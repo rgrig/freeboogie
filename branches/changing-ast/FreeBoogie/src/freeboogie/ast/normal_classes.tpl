@@ -1,7 +1,8 @@
 vim:ft=java:
 This template generates java classes for the normal classes.
 
-\def{mt}{\if_tagged{list}{ImmutableList<}{}\if_primitive{\Membertype}{\MemberType}\if_tagged{list}{>}{}}
+\def{smt}{\if_primitive{\Membertype}{\MemberType}}
+\def{mt}{\if_tagged{list}{ImmutableList<}{}\smt\if_tagged{list}{>}{}}
 \def{mtn}{\mt \memberName}
 \def{mtn_list}{\members[,]{\mtn}}
 
@@ -28,7 +29,7 @@ public final class \ClassName extends \BaseName {
     this.location = location;
     \members{
       \if_tagged{list}{
-        this.\memberName = ImmutableList.builder().addAll(\memberName).build();
+        this.\memberName = ImmutableList.<\smt>builder().addAll(\memberName).build();
       }{
         this.\memberName = \memberName;
       }
@@ -83,9 +84,7 @@ public final class \ClassName extends \BaseName {
         \mt new\MemberName = this.\memberName;
       }{
         \if_tagged{list}{
-          ImmutableList.Builder<\MemberType> builderFor\MemberName = ImmutableList.builder();
-          for (\MemberType x : this.\memberName) builder.add(x.clone());
-          \mt new\MemberName = builder.build();
+          \mt new\MemberName = ImmutableList.copyOf(this.\memberName);
         }{
           \mt new\MemberName = this.\memberName == null? 
               null : this.\memberName.clone();

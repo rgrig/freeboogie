@@ -2,6 +2,7 @@ package freeboogie.backend;
 
 import java.util.Map;
 
+import com.google.common.collect.ImmutableList;
 import genericutils.Err;
 
 import freeboogie.ast.*;
@@ -53,12 +54,17 @@ public class FormulaOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   @Override
-  public T eval(AtomFun atomFun, String function, TupleType types, Exprs args) {
+  public T eval(
+      AtomFun atomFun,
+      String function, 
+      ImmutableList<Type> types, 
+      ImmutableList<Expr> args
+  ) {
     return formulaOfTerm(atomFun.eval(termOfExpr));
   }
 
   @Override
-  public T eval(AtomId atomId, String id, TupleType types) {
+  public T eval(AtomId atomId, String id, ImmutableList<Type> types) {
     // TODO check that atomId's boogie type is bool
     return term.mk("var_formula", id);
   }
@@ -77,7 +83,11 @@ public class FormulaOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   @Override
-  public T eval(AtomMapSelect atomMapSelect, Atom atom, Exprs idx) {
+  public T eval(
+      AtomMapSelect atomMapSelect, 
+      Atom atom, 
+      ImmutableList<Expr> idx
+  ) {
     return formulaOfTerm(atomMapSelect.eval(termOfExpr));
   }
 

@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.google.common.collect.ImmutableList;
 import genericutils.Err;
 import genericutils.SimpleGraph;
 
@@ -123,17 +124,21 @@ public class BlockFlowGraphs extends Transformer {
   }
   
   @Override
-  public void see(Block block, String name, Command cmd, Identifiers succ, Block tail) {
+  public void see(
+      Block block,
+      String name, 
+      Command cmd, 
+      ImmutableList<AtomId> succ
+  ) {
     currentBlock = block;
-    if (succ != null) succ.eval(this);
+    for (AtomId s : succ) s.eval(this);
     currentBlock = null;
-    if (tail != null) tail.eval(this);
   }
   
   @Override
-  public void see(AtomId atomId, String id, TupleType types) {
+  public void see(AtomId atomId, String id, ImmutableList<Type> types) {
     if (currentBlock == null) return;
-    assert types == null;
+    assert types.isEmpty();
     Block target = blocksByName.get(id);
     if (target == null)
       errors.add(new FbError(FbError.Type.MISSING_BLOCK, atomId, id));

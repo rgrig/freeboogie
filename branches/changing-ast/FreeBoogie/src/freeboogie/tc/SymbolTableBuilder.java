@@ -2,6 +2,7 @@ package freeboogie.tc;
 
 import java.util.*;
 
+import com.google.common.collect.ImmutableList;
 import genericutils.StackedHashMap;
 
 import freeboogie.ast.*;
@@ -87,15 +88,16 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
     return check(r, s, l);
   }
 
-  private void collectTypeVars(Map<String, AtomId> tv, Identifiers ids) {
-    if (ids == null) return;
-    AtomId a = ids.getId();
-    String n = a.getId();
-    if (tv.get(n) != null)
-      errors.add(new FbError(FbError.Type.TV_ALREADY_DEF, a, a.getId()));
-    symbolTable.typeVars.seenDef(ids.getId());
-    typeVarDecl.put(n, a);
-    collectTypeVars(tv, ids.getTail());
+  private void collectTypeVars(
+      Map<String, AtomId> tv, 
+      ImmutableList<AtomId> ids
+  ) {
+    for (AtomId ai : ids) {
+      if (tv.get(ai.id()) != null)
+        errors.add(new FbError(FbError.Type.TV_ALREADY_DEF, a, a.id()));
+      symbolTable.typeVars.seenDef(ai);
+      typeVarDecl.put(ai.id(), ai);
+    }
   }
   
   // === visit methods ===

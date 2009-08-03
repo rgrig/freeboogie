@@ -3,6 +3,8 @@ package freeboogie.tc;
 import java.util.logging.Logger;
 import java.util.*;
 
+import com.google.common.collect.ImmutableList;
+
 import freeboogie.ast.*;
 
 // DBG import java.io.PrintWriter;
@@ -111,7 +113,11 @@ public class ForgivingStb extends Transformer implements StbInterface {
 
   // === identify problematic places ===
   @Override
-  public void see(UserType userType, String name, TupleType typeArgs) {
+  public void see(
+      UserType userType,
+      String name, 
+      ImmutableList<Type> typeArgs
+  ) {
     if (!undeclIds.contains(userType)) return;
     assert name != null;
     if (!toIntroduce.isEmpty()) {
@@ -124,38 +130,28 @@ public class ForgivingStb extends Transformer implements StbInterface {
   @Override
   public VariableDecl eval(
     VariableDecl variableDecl,
-    Attribute attr,
+    ImmutableList<Attribute> attr,
     String name,
     Type type,
-    Identifiers typeArgs,
-    Declaration tail
+    ImmutableList<AtomId> typeArgs
   ) {
     toIntroduce.addFirst(new HashSet<String>());
     type = (Type)type.eval(this);
-    for (String ti : toIntroduce.removeFirst()) {
-      typeArgs = Identifiers.mk(AtomId.mk(ti, null), typeArgs);
-      log.fine("Introducing " + ti + " as a generic on var " + name);
-    }
-    if (tail != null) tail = (Declaration)tail.eval(this);
+    typeArgs = introduceGenerics(typeArgs, "var", variableDecl.loc());
     return VariableDecl.mk(null, name, type, typeArgs, tail, variableDecl.loc());
   }
 
   @Override
   public Axiom eval(
     Axiom axiom,
-    Attribute attr,
+    ImmutableList<Attribute> attr,
     String name,
-    Identifiers typeArgs,
-    Expr expr,
-    Declaration tail
+    ImmutableList<AtomId> typeArgs,
+    Expr expr
   ) {
     toIntroduce.addFirst(new HashSet<String>());
     expr = (Expr)expr.eval(this);
-    for (String ti : toIntroduce.removeFirst()) {
-      typeArgs = Identifiers.mk(AtomId.mk(ti, null), typeArgs);
-      log.fine("Introducing " + ti + " as a generic on axiom at " + axiom.loc());
-    }
-    if (tail != null) tail = (Declaration)tail.eval(this);
+    typeArgs = introduceGenerics(typeArgs, "axiom", axiom.loc());
     return Axiom.mk(null, name, typeArgs, expr, tail, axiom.loc());
   }
 
@@ -163,41 +159,61 @@ public class ForgivingStb extends Transformer implements StbInterface {
   public Signature eval(
     Signature signature,
     String name,
-    Identifiers typeArgs,
-    Declaration args,
-    Declaration results
+    ImmutableList<AtomId> typeArgs,
+    ImmutableList<VariableDecl> args,
+    ImmutableList<VariableDecl> results
   ) {
     toIntroduce.addFirst(new HashSet<String>());
-    if (args != null) args = (Declaration)args.eval(this);
-    if (results != null) results = (Declaration)results.eval(this);
-    for (String ti : toIntroduce.removeFirst()) {
-      typeArgs = Identifiers.mk(AtomId.mk(ti, null), typeArgs);
-      log.fine("Introducing " + ti + " as a generic on sig " + name);
-    }
+    args = evalList(args);
+    results = evalList(results);
+    typeArgs = introduceGenerics(typeArgs, "sig", signature.loc());
     return Signature.mk(name, typeArgs, args, results, signature.loc());
   }
 
   @Override
-  public Specification eval(Specification specification, Identifiers typeArgs, Specification.SpecType type, Expr expr, boolean free, Specification tail) {
+  public Specification eval(
+      Specification specification,
+      ImmutableList<AtomId> typeArgs, 
+      Specification.SpecType type,
+      Expr expr, 
+      boolean free
+  ) {
     toIntroduce.addFirst(new HashSet<String>());
     expr = (Expr)expr.eval(this);
-    for (String ti : toIntroduce.removeFirst()) {
-      typeArgs = Identifiers.mk(AtomId.mk(ti, null), typeArgs);
-      log.fine("Introducing " + ti + " as a generic to spec at " + specification.loc());
-    }
-    if (tail != null) tail = (Specification)tail.eval(this);
+    typeArgs = introduceGenerics(typeArgs, "spec", specification.loc());
     return Specification.mk(typeArgs, type, expr, free, tail, specification.loc());
   }
 
   @Override
-  public AssertAssumeCmd eval(AssertAssumeCmd assertAssumeCmd, AssertAssumeCmd.CmdType type, Identifiers typeArgs, Expr expr) {
+  public AssertAssumeCmd eval(
+      AssertAssumeCmd assertAssumeCmd,
+      AssertAssumeCmd.CmdType type,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
+  ) {
     toIntroduce.addFirst(new HashSet<String>());
     expr = (Expr)expr.eval(this);
-    for (String ti : toIntroduce.removeFirst()) {
-      typeArgs = Identifiers.mk(AtomId.mk(ti, null), typeArgs);
-      log.fine("Introducing " + ti + " as a generic on assert/assume at " + assertAssumeCmd.loc());
-    }
+    typeArgs = introduceGenerics(
+        typeArgs, 
+        "assert/assume", 
+        assertAssumeCmd.loc());
     return AssertAssumeCmd.mk(type, typeArgs, expr, assertAssumeCmd.loc());
+  }
+
+  private ImmutableList<AtomId> introduceGenerics(
+      ImmutableList<AtomId> tv,
+      String m,
+      FileLocation loc
+  ) {
+    Set<String> tis = toIntroduce.removeFirst();
+    if (tis.isEmpty()) return tv;
+    ImmutableList.Builder<AtomId> builder = ImmutableList.builder();
+    builder.addAll(tv);
+    for (String ti : tis) {
+      builder.add(AtomId.mk(ti, null));
+      log.fine("Introducing " + ti + " as a generic on " + m + " at " + loc);
+    }
+    return builder.build();
   }
 
 }
