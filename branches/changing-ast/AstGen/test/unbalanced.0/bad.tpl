@@ -1,0 +1,13 @@
+\file{/dev/stdout}
+\classes{\members{
+  \if_primitive{
+    primitive
+  }{
+    non-primitive
+    \if_tagged{list}{
+      list
+    }}{
+      non-list
+    }
+  }
+}}
