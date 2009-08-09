@@ -13,17 +13,17 @@ Program =
 
 // Provide a common class for AST nodes that can act as a
 // definition for an AtomId.
-GlobalDecl :> 
+IdDecl :> 
   ConstDecl, 
   VariableDecl;
-GlobalDecl =
+IdDecl =
   String! name;
 
 // Group all elements that can have attributes.
 Declaration :> 
   TypeDecl, 
   Axiom, 
-  GlobalDecl, 
+  IdDecl, 
   FunctionDecl, 
   Procedure, 
   Implementation;

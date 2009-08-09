@@ -1,13 +1,13 @@
 vim:ft=java:
-This template generates java classes for the normal classes.
+
+This template generates code for AST classes.
 
 \def{smt}{\if_primitive{\Membertype}{\MemberType}}
 \def{mt}{\if_tagged{list}{ImmutableList<}{}\smt\if_tagged{list}{>}{}}
 \def{mtn}{\mt \memberName}
 \def{mtn_list}{\members[,]{\mtn}}
 
-\classes{\if_terminal{
-\file{\ClassName.java}
+\classes{\file{\ClassName.java}
 /** Do NOT edit. See normal_classes.tpl instead. */
 package freeboogie.ast;
 
@@ -16,9 +16,10 @@ import java.math.BigInteger; // for AtomNum
 import com.google.common.collect.ImmutableList;
 
 /** @author rgrig */
-public final class \ClassName extends \BaseName {
+public \if_terminal{final}{abstract} class \ClassName extends \BaseName {
   \enums{public static enum \EnumName {\values[,]{\VALUE_NAME}}}
-  \members{private final \mtn;}
+\if_terminal{
+  \members{protected final \mtn;}
 
   // === construction ===
   private \ClassName(\mtn_list) {
@@ -52,10 +53,16 @@ public final class \ClassName extends \BaseName {
     }
     \invariants{assert \inv;}
   }
+}{}
 
   // === accessors ===
-  \members{public \mtn() { return \memberName; }}
+  \if_terminal{
+    \members{public \mtn() { return \memberName; }}
+  }{
+    \selfmembers{public abstract \mtn();}
+  }
 
+\if_terminal{
   @Override public ImmutableList<Ast> children() {
     if (children != null) return children;
     ImmutableList.Builder<Ast> builder_ = ImmutableList.builder();
@@ -69,16 +76,19 @@ public final class \ClassName extends \BaseName {
     children = builder_.build();
     return children;
   }
+}{}
 
+\if_terminal{
   // === the Visitor pattern ===
   @Override
   public <R> R eval(Evaluator<R> evaluator) { 
     return evaluator.eval(this, \members[,]{\memberName}); 
   }
+}{}
 
   // === others ===
-  @Override
-  public \ClassName clone() {
+\if_terminal{
+  @Override public \ClassName clone() {
     \members{
       \if_primitive{
         \mt new\MemberName = this.\memberName;
@@ -93,9 +103,12 @@ public final class \ClassName extends \BaseName {
     }
     return \ClassName.mk(\members[, ]{new\MemberName}, location);
   }
+}{
+  @Override public abstract \ClassName clone();
+}
 
+\if_terminal{
   public String toString() {
     return "[\ClassName " + \members[ + " " + ]{\memberName} + "]";
   }
-}}{}}
-
+}{}}

@@ -2,6 +2,10 @@ package freeboogie.vcgen;
 
 import java.util.*;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import genericutils.*;
 
 import freeboogie.ast.*;
@@ -21,26 +25,28 @@ public class HavocMaker extends Transformer {
    * 2. replace each entry point e by
    *      havoc C(B(e)); goto old_e
    *
-   * The first step can be done with the Kosaraju algo for scc.
-   * If we do the ordering with normal edges and the tagging
-   * with reversed edges then, while we do the tagging we also
-   * see the entry points as nodes from which you can reach
-   * (backwards) nodes that are already in another scc.
+   * The first step can be done with Kosaraju's algo for scc. If
+   * we do the ordering with normal edges and the tagging with
+   * reversed edges then, while we do the tagging we also see the
+   * entry points as nodes from which you can reach (backwards)
+   * nodes that are already in another scc.
    */
-  private HashSet<Block> seen = new HashSet<Block>();
-  private HashMap<Block, Integer> scc = new HashMap<Block, Integer>();
-  private HashMap<Block, Integer> sccOfEntryPoint = new HashMap<Block, Integer>();
-  private ArrayList<HashSet<String>> assignedVars = new ArrayList<HashSet<String>>();
-  private ArrayList<Integer> sccSize = new ArrayList<Integer>();
+  private HashSet<Block> seen = Sets.newHashSet();
+  private HashMap<Block, Integer> scc = Maps.newHashMap(); 
+  private HashMap<Block, Integer> sccOfEntryPoint = Maps.newHashMap();
+  private ArrayList<HashSet<String>> assignedVars = Lists.newArrayList();
+  private ArrayList<Integer> sccSize = Lists.newArrayList();
 
   private int sccIndex; // the index of the scc being built
   private HashSet<String> sccAssignedVars; 
     // variables assigned in the scc being processed
-  private ArrayList<Block> dfs2order = new ArrayList<Block>();
+  private ArrayList<Block> dfs2order = Lists.newArrayLists();
 
   private SimpleGraph<Block> flowGraph;
 
   private ReadWriteSetFinder rw;
+
+  private Block localNewBlock; // block possibly introduced by eval(Blocck...)
 
   @Override
   public Declaration process(Declaration ast, TcInterface tc) {
@@ -54,13 +60,10 @@ public class HavocMaker extends Transformer {
   @Override
   public Implementation eval(
     Implementation implementation,
-    Attribute attr,
+    ImmutableList<Attribute> attr,
     Signature sig,
-    Body body,
-    Declaration tail
+    Body body
   ) {
-    Declaration newTail = tail == null? null : (Declaration)tail.eval(this);
-
     flowGraph = tc.getFlowGraph(implementation);
     seen.clear(); seen.add(null); dfs2order.clear();
     dfs1(body.getBlocks());
@@ -78,14 +81,35 @@ public class HavocMaker extends Transformer {
     }
 
     Body newBody = (Body)body.eval(this);
-    if (newTail != tail || newBody != body)
-      implementation = Implementation.mk(attr, sig, newBody, newTail);
+    if (newBody != body)
+      implementation = Implementation.mk(attr, sig, newBody);
     return implementation;
   }
 
+  @Override public Body eval(
+      Body body, 
+      ImmutableList<VariableDecl> vars,
+      ImmutableList<Block> blocks
+  ) {
+    boolean same = true;
+    ImmutableList.Builder<Block> newBlocks = ImmutableList.builder();
+    for (Block b : blocks) {
+      localNewBlock = null;
+      Block nb = (Block) b.eval(this);
+      same &= localNewBlock == null && nb == b;
+      newBlocks.addAll(localNewBlocks).add(nb);
+    }
+    if (!same) body = Body.mk(vars, newBlocks.build());
+    return body;
+  }
+
   @Override
-  public Block eval(Block block, String name, Command cmd, Identifiers succ, Block tail) {
-    Block newTail = tail == null? null : (Block)tail.eval(this);
+  public Block eval(
+      Block block, 
+      String name, 
+      Command cmd, 
+      ImmutableList<AtomId> succ
+  ) {
     Integer blockScc = sccOfEntryPoint.get(block);
 //System.out.println("process " + name);
     if (blockScc != null 
@@ -93,15 +117,11 @@ public class HavocMaker extends Transformer {
         && !assignedVars.get(blockScc).isEmpty()) {
 //System.out.println("change " + name);
       String tmpName = Id.get("loop_entry");
-      block = Block.mk(tmpName, cmd, succ, newTail);
-      block = Block.mk(
+      block = Block.mk(tmpName, cmd, succ);
+      localNewBlock = Block.mk(
         name,
         HavocCmd.mk(idsFromStrings(assignedVars.get(blockScc))),
-        Identifiers.mk(AtomId.mk(tmpName, null), null),
-        block);
-    } else if (newTail != tail) {
-//System.out.println("don't change " + name);
-      block = Block.mk(name, cmd, succ, newTail);
+        Identifiers.mk(AtomId.mk(tmpName, null), null));
     }
     return block;
   }
@@ -121,11 +141,11 @@ public class HavocMaker extends Transformer {
     sccSize.set(sccIndex, 1 + sccSize.get(sccIndex));
 //System.out.println("dfs2 " + b.getName() + ", idx " + sccIndex);
 
-    Command cmd = b.getCmd();
+    Command cmd = b.cmd();
     if (cmd != null) {
       Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> rwVars = cmd.eval(rw);
       for (VariableDecl vd : rwVars.second)
-        sccAssignedVars.add(vd.getName());
+        sccAssignedVars.add(vd.name());
     }
 
     for (Block c : flowGraph.from(b)) {
@@ -139,9 +159,9 @@ public class HavocMaker extends Transformer {
 
   // === helpers ===
 
-  private Identifiers idsFromStrings(Iterable<String> sl) {
-    Identifiers r = null;
-    for (String s : sl) r = Identifiers.mk(AtomId.mk(s, null), r);
-    return r;
+  private ImmutableList<AtomId> idsFromStrings(Iterable<String> sl) {
+    ImmutableList.Builder<AtomId> b = ImmutableList.builder();
+    for (String s : sl) b.add(AtomId.mk(s, null));
+    return b.build();
   }
 }

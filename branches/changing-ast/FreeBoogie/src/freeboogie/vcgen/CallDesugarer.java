@@ -4,6 +4,7 @@ import java.io.PrintWriter;
 import java.util.*;
 import java.util.logging.Logger;
 
+import com.google.common.collect.ImmutableList;
 import genericutils.Err;
 import genericutils.Id;
 
@@ -46,61 +47,75 @@ import freeboogie.tc.TcInterface;
 public class CallDesugarer extends Transformer {
   private static final Logger log = Logger.getLogger("freeboogie.vcgen");
 
-  private HashMap<VariableDecl, Expr> toSubstitute;
-  private ArrayList<Expr> preconditions;
-  private ArrayList<Expr> postconditions;
-  private ArrayList<Identifiers> havocs;
-  private ArrayList<Command> equivCmds;
-
-  public CallDesugarer() {
-    toSubstitute = new HashMap<VariableDecl, Expr>(23);
-    preconditions = new ArrayList<Expr>(23);
-    postconditions = new ArrayList<Expr>(23);
-    havocs = new ArrayList<Identifiers>(23);
-    equivCmds = new ArrayList<Command>(23);
-  }
+  private HashMap<VariableDecl, Expr> toSubstitute = Maps.newHashMap();
+  private ArrayList<Expr> preconditions = Lists.newArrayList();
+  private ArrayList<Expr> postconditions = Lists.newArrayList();
+  private ArrayList<ImmutableList<AtomId>> havocs = Lists.newArrayList();
+  private ArrayList<Command> equivCmds = Lists.newArrayList();
 
   // === transformer methods ===
-  
-  @Override
-  public Block eval(Block block, String name, Command cmd, Identifiers succ, Block tail) {
-    Block newTail = tail == null? null : (Block)tail.eval(this);
-    equivCmds.clear();
-    Command newCmd = cmd == null? null : (Command)cmd.eval(this);
-    if (!equivCmds.isEmpty()) {
-      String crtLabel, nxtLabel;
-      block = Block.mk(nxtLabel = Id.get("call"), null, succ, newTail, block.loc());
-      for (int i = equivCmds.size() - 1; i > 0; --i) {
-        block = Block.mk(
-          crtLabel = Id.get("call"), 
-          equivCmds.get(i), 
-          Identifiers.mk(AtomId.mk(nxtLabel, null), null),
-          block,
-          block.loc());
-        nxtLabel = crtLabel;
-      }
-      block = Block.mk(
-        name, 
-        equivCmds.get(0), 
-        Identifiers.mk(AtomId.mk(nxtLabel, null), null),
-        block,
-        block.loc());
-    } else if (newTail != tail || newCmd != cmd)
-      block = Block.mk(name, newCmd, succ, newTail);
+
+  // collects new blocks
+  private Deque<Block> extraBlocks = new ArrayDeque<Block>();
+  @Override public Body eval(
+      Body body,
+      ImmutableList<VariableDecl> vars,
+      ImmutableList<Block> blocks
+  ) {
+    boolean same = true;
+    ImmutableList.Builder<Block> newBlocks = ImmutableList.builder();
+    for (Block b : blocks) {
+      extraBlocks.clear();
+      Block nb = (Block) b.eval(this);
+      same &= extraBlocks.isEmpty() && nb == b;
+      newBlocks.addAll(extraBlocks).add(nb);
+    }
+    if (!same) block = Block.mk(vars, newBlocks.build());
     return block;
   }
 
   @Override
-  public Command eval(CallCmd callCmd, String procedure, TupleType types, Identifiers results, Exprs args) {
+  public Block eval(
+      Block block, 
+      String name, 
+      Command cmd, 
+      ImmutableList<AtomId> succ
+  ) {
+    equivCmds.clear();
+    Command newCmd = cmd == null? null : (Command) cmd.eval(this);
+    if (!equivCmds.isEmpty()) {
+      String crtLabel, nxtLabel;
+      block = Block.mk(nxtLabel = Id.get("call"), null, succ, block.loc());
+      for (int i = equivCmds.size() - 1; i > 0; --i) {
+        extraBlocks.addFirst(Block.mk(
+          i == 0 ? name :crtLabel = Id.get("call"), 
+          equivCmds.get(i),
+          ImmutableList.of(AtomId.mk(nxtLabel, null)),
+          block.loc()));
+        nxtLabel = crtLabel;
+      }
+    } else if (newCmd != cmd)
+      block = Block.mk(name, newCmd, succ, block.loc());
+    return block;
+  }
+
+  @Override
+  public Command eval(
+      CallCmd callCmd, 
+      String procedure, 
+      ImmutableList<Type> types, 
+      ImmutableList<AtomId> results, 
+      ImmutableList<Expr> args
+  ) {
     toSubstitute.clear();
     preconditions.clear();
     postconditions.clear();
     havocs.clear();
     equivCmds.clear();
-    Procedure p = tc.getST().procs.def(callCmd);
-    Signature sig = p.getSig();
-    VariableDecl rv = (VariableDecl)sig.getResults();
-    if (results != null) havocs.add(results.clone());
+    Procedure p = tc.st().procs.def(callCmd);
+    Signature sig = p.sig();
+    VariableDecl rv = (VariableDecl) sig.results();
+    if (!results.isEmpty()) havocs.add(results.clone());
     while (rv != null) {
       toSubstitute.put(rv, results.getId());
       rv = (VariableDecl)rv.getTail();
@@ -157,10 +172,8 @@ public class CallDesugarer extends Transformer {
   }
   
   @Override
-  public Expr eval(AtomId atomId, String id, TupleType types) {
-    Expr e = toSubstitute.get(tc.getST().ids.def(atomId));
+  public Expr eval(AtomId atomId, String id, ImmutableList<Type> types) {
+    Expr e = toSubstitute.get(tc.st().ids.def(atomId));
     return e == null? atomId : e;
   }
-
-  
 }

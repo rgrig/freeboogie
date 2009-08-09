@@ -3,6 +3,9 @@ package freeboogie.vcgen;
 import java.util.HashSet;
 import java.util.logging.Logger;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Sets;
+
 import freeboogie.ast.*;
 import freeboogie.tc.TcInterface;
 import freeboogie.tc.TypeUtils;
@@ -13,37 +16,44 @@ import freeboogie.tc.TypeUtils;
  */
 public class MapRemover extends Transformer {
   private static final Logger log = Logger.getLogger("freeboogie.vcgen");
-  private HashSet<Integer> arities = new HashSet<Integer>(7);
+  private HashSet<Integer> arities = Sets.newHashSet();
 
   @Override
-  public Declaration process(Declaration ast, TcInterface tc) {
+  public Program process(Program p, TcInterface tc) {
     arities.clear();
-    ast = (Declaration)ast.eval(this);
+    p = (Program) p.eval(this);
+    if (arities.isEmpty()) return p;
+
+    ImmutableList.Builder<FunctionDecl> functions = ImmutableList.builder();
+    ImmutableList.Builder<Axiom> axioms = ImmutableList.builder();
+    functions.addAll(p.functions());
+    axioms.addAll(p.axioms());
+
     for (Integer n : arities) {
       // add "function $$selectN<TV, T1, ..., TN>
       //        (map : [T1, ..., TN]TV, x1 : T1, ..., xN : TN)
       //        returns (result : TV);"
-      ast = FunctionDecl.mk(
-        null,
+      functions.add(FunctionDecl.mk(
+        ImmutableList.of(),
         Signature.mk(
           "$$select" + n,
-          Identifiers.mk(AtomId.mk("TV", null), nIdentifiers("T", n)),
-          VariableDecl.mk(
-            null,
-            "map",
-            MapType.mk(
-              nTypes(n),
-              UserType.mk("TV", null)
-            ),
-            null,
-            nVarDecl("x", n, null)),
-          VariableDecl.mk(
-            null,
-            "result",
-            UserType.mk("TV", null),
-            null,
-            null)),
-        ast);
+          ImmutableList.builder()
+              .add(AtomId.mk("TV", ImmutableList.ok()))
+              .addAll(nIdentifiers("T", n)).build(),
+          ImmutableList.builder()
+              .add(VariableDecl.mk(
+                  ImmutableList.of(),
+                  "map",
+                  MapType.mk(
+                      nTypes(n),
+                      UserType.mk("TV", ImmutableList.of())),
+                  ImmutableList.of()))
+              .addAll(nVarDecl("x", n)),
+          ImmutableList.of(VariableDecl(
+              ImmutableList.of(),
+              "result",
+              UserType.mk("TV", ImmutableList.of()),
+              ImmutableList.of())))));
 
       // add "function $$updateN<TV, T1, ..., TN>
       //        (val : TV, map : [T1, ..., TN]TV, x1 : T1, ..., xN : TN)
@@ -173,7 +183,7 @@ public class MapRemover extends Transformer {
       } // for i
     } // for arities
 
-    return TypeUtils.internalTypecheck(ast, tc);
+    return TypeUtils.internalTypecheck(p, tc);
   }
 
   @Override

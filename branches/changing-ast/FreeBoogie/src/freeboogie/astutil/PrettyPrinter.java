@@ -522,9 +522,9 @@ public class PrettyPrinter extends Transformer {
   public void see(
     TypeDecl typeDecl,
     ImmutableList<Attribute> attr,
+    boolean finite,
     String name,
     ImmutableList<AtomId> typeArgs,
-    boolean finite,
     Type type
   ) {
     say("type ");
@@ -592,8 +592,7 @@ public class PrettyPrinter extends Transformer {
     say("{");
     say(":"); say(type);
     say(" ");
-    if (exprs != null) exprs.eval(this);
+    printList(" ", exprs);
     say("} ");
-    if (tail != null) tail.eval(this);
   }
 }
