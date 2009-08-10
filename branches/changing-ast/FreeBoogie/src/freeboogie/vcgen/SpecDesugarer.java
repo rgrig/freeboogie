@@ -117,7 +117,7 @@ public class SpecDesugarer extends Transformer {
   }
 
   @Override
-  public AtomId eval(AtomId atomId, String id, ImmuableList<Type> types) {
+  public AtomId eval(AtomId atomId, String id, ImmutableList<Type> types) {
     IdDecl d = tc.st().ids.def(atomId);
     AtomId s = toSubstitute.get(d);
     return s == null? atomId : s.clone();
