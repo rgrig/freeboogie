@@ -67,6 +67,7 @@ public class SpecDesugarer extends Transformer {
     this.tc = tc; 
     implProc = tc.getImplProc();
     paramMap = tc.getParamMap();
+    ast = (Declaration) ast.eval(this);
     return TypeUtils.internalTypecheck(ast, tc);
   }
 
