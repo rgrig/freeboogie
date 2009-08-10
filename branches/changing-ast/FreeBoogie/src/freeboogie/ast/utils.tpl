@@ -13,6 +13,12 @@ import com.google.common.collect.ImmutableList;
 public class AstUtils {
   private AstUtils() { /* prevent instantiation and subclassing */ }
 
+  public static ImmutableList<AtomId> ids(String... ss) {
+    ImmutableList.Builder<AtomId> r = ImmutableList.builder();
+    for (String s : ss) r.add(AtomId.mk(s, ImmutableList.<Type>of()));
+    return r.build();
+  }
+
 \classes{\if_terminal{
   public static <T> \ClassName eval(\ClassName c, Evaluator<T> e) {
     return c == null ? null : (\ClassName) c.eval(e);
