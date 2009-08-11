@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import genericutils.Err;
 import genericutils.SimpleGraph;
 
@@ -43,7 +45,7 @@ public class BlockFlowGraphs extends Transformer {
    * @param ast the AST for which to build flow graphs
    * @return the detected problems 
    */
-  public List<FbError> process(Declaration ast) {
+  public List<FbError> process(Program ast) {
     currentBlock = null;
     errors = new ArrayList<FbError>();
     flowGraphs = new HashMap<Body, SimpleGraph<Block>>();
@@ -60,8 +62,8 @@ public class BlockFlowGraphs extends Transformer {
    * @deprecated replaced by {@link #getFlowGraph(Body)}
    */
   @Deprecated
-  public SimpleGraph<Block> getFlowGraph(Implementation impl) {
-    return flowGraphs.get(impl.getBody());
+  public SimpleGraph<Block> flowGraph(Implementation impl) {
+    return flowGraphs.get(impl.body());
   }
   
   /**
@@ -69,7 +71,7 @@ public class BlockFlowGraphs extends Transformer {
    * @param bdy the body
    * @return the flow graph from {@code bdy}
    */
-  public SimpleGraph<Block> getFlowGraph(Body bdy) {
+  public SimpleGraph<Block> flowGraph(Body bdy) {
     return flowGraphs.get(bdy);
   }
   
@@ -88,39 +90,32 @@ public class BlockFlowGraphs extends Transformer {
   @Override
   public void see(
     Implementation implementation,
-    Attribute attr,
+    ImmutableList<Attribute> attr,
     Signature sig,
-    Body body,
-    Declaration tail
+    Body body
   ) {
     // initialize graph
     currentFlowGraph = new SimpleGraph<Block>();
-    flowGraphs.put(implementation.getBody(), currentFlowGraph);
+    flowGraphs.put(body, currentFlowGraph);
     
     // get blocks by name
-    blocksByName = new HashMap<String, Block>();
-    Block b = body.getBlocks();
-    while (b != null) {
-      blocksByName.put(b.getName(), b);
+    blocksByName = Maps.newHashMap();
+    for (Block b : body.blocks()) {
+      blocksByName.put(b.name(), b);
       currentFlowGraph.node(b);
-      b = b.getTail();
     }
     
     // build graph
     body.eval(this);
     
     // check for reachability
-    seenBlocks = new HashSet<Block>();
-    b = body.getBlocks();
-    if (b == null) return;
-    dfs(b);
-    while (b != null) {
+    seenBlocks = Sets.newHashSet();
+    if (body.blocks().isEmpty()) return;
+    dfs(body.blocks().get(0));
+    for (Block b : body.blocks()) {
       if (!seenBlocks.contains(b)) 
-        Err.warning("" + b.loc() + ": Block " + b.getName() + " is unreachable.");
-      b = b.getTail();
+        Err.warning("" + b.loc() + ": Block " + b.name() + " is unreachable.");
     }
-    
-    if (tail != null) tail.eval(this);
   }
   
   @Override

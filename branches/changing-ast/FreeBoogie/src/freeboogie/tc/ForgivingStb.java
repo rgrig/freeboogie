@@ -4,6 +4,8 @@ import java.util.logging.Logger;
 import java.util.*;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import freeboogie.ast.*;
 
@@ -32,34 +34,22 @@ public class ForgivingStb extends Transformer implements StbInterface {
     EnumSet.of(FbError.Type.UNDECL_ID);
   
   // does the real work
-  private StbInterface stb;
+  private StbInterface stb = new SymbolTableBuilder();
 
   private Set<UserType> undeclIds;
 
   // used to collect the local undeclared ids; usde as a stack
   private Deque<Set<String>> toIntroduce;
 
-  /**
-   * Constructs a forgiving symbol table builder.
-   */
-  public ForgivingStb() {
-    stb = new SymbolTableBuilder();
-  }
+  @Override public GlobalsCollector gc() { return stb.gc(); }
+  @Override public SymbolTable st() { return stb.st(); }
+  @Override public Program ast() { return stb.ast(); }
 
   @Override
-  public GlobalsCollector getGC() { return stb.getGC(); }
-
-  @Override
-  public SymbolTable getST() { return stb.getST(); }
-
-  @Override
-  public Declaration getAST() { return stb.getAST(); }
-
-  @Override
-  public List<FbError> process(Declaration ast) {
+  public List<FbError> process(Program ast) {
     boolean unfixable;
     int oldErrCnt = Integer.MAX_VALUE;
-    List<FbError> errors, filteredErrors = new ArrayList<FbError>();
+    List<FbError> errors, filteredErrors = Lists.newArrayList();
     while (true) {
       errors = stb.process(ast);
 
@@ -85,8 +75,8 @@ public class ForgivingStb extends Transformer implements StbInterface {
    * This relies on FbError UNDECL_ID to point to AtomId as
    * the location of the error.
    */
-  private Declaration fix(Declaration ast, List<FbError> errors) {
-    undeclIds = new HashSet<UserType>();
+  private Program fix(Program ast, List<FbError> errors) {
+    undeclIds = Sets.newHashSet();
     for (FbError e : errors) {
       switch (e.type()) {
       case UNDECL_ID:
@@ -98,7 +88,7 @@ public class ForgivingStb extends Transformer implements StbInterface {
       }
     }
     toIntroduce = new ArrayDeque<Set<String>>();
-    ast = (Declaration)ast.eval(this);
+    ast = (Program) ast.eval(this);
 
     /* DBG 
     System.out.println("=== RESULT OF INTRODUCING GENERICS ===");
@@ -129,16 +119,21 @@ public class ForgivingStb extends Transformer implements StbInterface {
   // === do corrections, if needed ===
   @Override
   public VariableDecl eval(
-    VariableDecl variableDecl,
-    ImmutableList<Attribute> attr,
-    String name,
-    Type type,
-    ImmutableList<AtomId> typeArgs
+      VariableDecl variableDecl,
+      ImmutableList<Attribute> attr,
+      String name,
+      Type type,
+      ImmutableList<AtomId> typeArgs
   ) {
     toIntroduce.addFirst(new HashSet<String>());
-    type = (Type)type.eval(this);
+    type = (Type) type.eval(this);
     typeArgs = introduceGenerics(typeArgs, "var", variableDecl.loc());
-    return VariableDecl.mk(null, name, type, typeArgs, tail, variableDecl.loc());
+    return VariableDecl.mk(
+        ImmutableList.<Attribute>of(), 
+        name, 
+        type, 
+        typeArgs, 
+        variableDecl.loc());
   }
 
   @Override
@@ -152,20 +147,25 @@ public class ForgivingStb extends Transformer implements StbInterface {
     toIntroduce.addFirst(new HashSet<String>());
     expr = (Expr)expr.eval(this);
     typeArgs = introduceGenerics(typeArgs, "axiom", axiom.loc());
-    return Axiom.mk(null, name, typeArgs, expr, tail, axiom.loc());
+    return Axiom.mk(
+        ImmutableList.<Attribute>of(), 
+        name, 
+        typeArgs, 
+        expr, 
+        axiom.loc());
   }
 
   @Override
   public Signature eval(
-    Signature signature,
-    String name,
-    ImmutableList<AtomId> typeArgs,
-    ImmutableList<VariableDecl> args,
-    ImmutableList<VariableDecl> results
+      Signature signature,
+      String name,
+      ImmutableList<AtomId> typeArgs,
+      ImmutableList<VariableDecl> args,
+      ImmutableList<VariableDecl> results
   ) {
     toIntroduce.addFirst(new HashSet<String>());
-    args = evalList(args);
-    results = evalList(results);
+    args = AstUtils.evalListOfVariableDecl(args, this);
+    results = AstUtils.evalListOfVariableDecl(results, this);
     typeArgs = introduceGenerics(typeArgs, "sig", signature.loc());
     return Signature.mk(name, typeArgs, args, results, signature.loc());
   }
@@ -179,9 +179,9 @@ public class ForgivingStb extends Transformer implements StbInterface {
       boolean free
   ) {
     toIntroduce.addFirst(new HashSet<String>());
-    expr = (Expr)expr.eval(this);
+    expr = (Expr) expr.eval(this);
     typeArgs = introduceGenerics(typeArgs, "spec", specification.loc());
-    return Specification.mk(typeArgs, type, expr, free, tail, specification.loc());
+    return Specification.mk(typeArgs, type, expr, free, specification.loc());
   }
 
   @Override
@@ -192,7 +192,7 @@ public class ForgivingStb extends Transformer implements StbInterface {
       Expr expr
   ) {
     toIntroduce.addFirst(new HashSet<String>());
-    expr = (Expr)expr.eval(this);
+    expr = (Expr) expr.eval(this);
     typeArgs = introduceGenerics(
         typeArgs, 
         "assert/assume", 

@@ -88,7 +88,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   private boolean acceptOld;
 
   // records the last processed AST
-  private Declaration ast;
+  private Program ast;
 
   private int tvLevel; // DBG
   
@@ -101,7 +101,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     this.acceptOld = acceptOld;
   }
 
-  @Override public Declaration getAST() { return ast; }
+  @Override public Program ast() { return ast; }
 
   /** 
    * Returns implicit specializations deduced/used by the typechecker
@@ -109,19 +109,12 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
    * specialization performed for an ID then you should find the
    * mappings of type variables stored for ALL parents of the ID.
    */
-  public Map<Ast, Map<AtomId, Type>> getImplicitSpec() {
+  public Map<Ast, Map<AtomId, Type>> implicitSpec() {
     return implicitSpec;
   }
   
-  // TODO: This appears verbatim in ForgivingTc.
-  @Override public Program process(Program p) throws ErrorsFoundException {
-    List<FbError> errors = process(p.ast);
-    if (!errors.isEmpty()) throw new ErrorsFoundException(errors);
-    return new Program(getAST(), p.fileName);
-  }
-
   @Override
-  public List<FbError> process(Declaration ast) {
+  public List<FbError> process(Program ast) {
     assert new TreeChecker().isTree(ast);
 
     tvLevel = 0; // DBG
@@ -139,9 +132,9 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     StbInterface stb = acceptOld ? new ForgivingStb() : new SymbolTableBuilder();
     errors = stb.process(ast);
     if (!errors.isEmpty()) return errors;
-    ast = stb.getAST();
-    st = stb.getST();
-    gc = stb.getGC();
+    ast = stb.ast();
+    st = stb.st();
+    gc = stb.gc();
     
     // check implementations
     ImplementationChecker ic = new ImplementationChecker();
@@ -162,31 +155,31 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
 
   @Override
-  public SimpleGraph<Block> getFlowGraph(Implementation impl) {
+  public SimpleGraph<Block> flowGraph(Implementation impl) {
     return flowGraphs.getFlowGraph(impl.getBody());
   }
   @Override
-  public SimpleGraph<Block> getFlowGraph(Body bdy) {
+  public SimpleGraph<Block> flowGraph(Body bdy) {
     return flowGraphs.getFlowGraph(bdy);
   }
   
   @Override
-  public Map<Expr, Type> getTypes() {
+  public Map<Expr, Type> types() {
     return typeOf;
   }
   
   @Override
-  public UsageToDefMap<Implementation, Procedure> getImplProc() {
+  public UsageToDefMap<Implementation, Procedure> implProc() {
     return implProc;
   }
   
   @Override
-  public UsageToDefMap<VariableDecl, VariableDecl> getParamMap() {
+  public UsageToDefMap<VariableDecl, VariableDecl> paramMap() {
     return paramMap;
   }
   
   @Override
-  public SymbolTable getST() {
+  public SymbolTable st() {
     return st;
   }
   

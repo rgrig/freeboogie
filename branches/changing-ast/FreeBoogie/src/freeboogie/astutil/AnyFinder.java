@@ -1,15 +1,14 @@
 package freeboogie.astutil;
 
+import com.google.common.collect.ImmutableList;
 import genericutils.AssociativeOperator;
 
 import freeboogie.ast.*;
 
 /** 
-  A helper class for {@code Boogie2Printer}. It (almost) tags each
-  node with whether there is an "any" below, not hidden by a quantifier.
-  Because of tails the notion of "below" is somewhat strange, but the
-  results should be as expected for function definitions and for the
-  {@code vars} of a quantifier.
+  A helper class for {@code Boogie2Printer}. It tags each
+  node with whether there is an "any" below, not hidden by a
+  quantifier.
  */
 public class AnyFinder extends AssociativeEvaluator<Boolean> {
   private static class Or implements AssociativeOperator<Boolean> {
@@ -25,24 +24,13 @@ public class AnyFinder extends AssociativeEvaluator<Boolean> {
   public Boolean eval(
     AtomQuant atomQuant, 
     AtomQuant.QuantType quant, 
-    Declaration vars, 
-    Attribute attr, 
+    ImmutableList<VariableDecl> vars, 
+    ImmutableList<Attribute> attr, 
     Expr e
   ) {
-    if (vars != null) vars.eval(this);
+    AstUtils.evalListOfVariableDecl(vars, this);
     e.eval(this);
     return memo(atomQuant, false);
-  }
-
-  @Override
-  public Boolean eval(
-    FunctionDecl function,
-    Attribute attr,
-    Signature sig,
-    Declaration tail
-  ) {
-    if (tail != null) tail.eval(this);
-    return memo(function, sig.eval(this));
   }
 
   @Override

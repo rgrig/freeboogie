@@ -94,7 +94,7 @@ public \if_terminal{final}{abstract} class \ClassName extends \BaseName {
         \mt new\MemberName = this.\memberName;
       }{
         \if_tagged{list}{
-          \mt new\MemberName = ImmutableList.copyOf(this.\memberName);
+          \mt new\MemberName = AstUtils.cloneListOf\MemberType(\memberName);
         }{
           \mt new\MemberName = this.\memberName == null? 
               null : this.\memberName.clone();

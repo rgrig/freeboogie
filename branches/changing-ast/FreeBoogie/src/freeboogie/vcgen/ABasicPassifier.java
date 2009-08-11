@@ -20,28 +20,19 @@ import freeboogie.tc.TypeUtils;
  */
 public abstract class ABasicPassifier extends Transformer {
 
-  private TcInterface fTypeChecker;
-
   /**
    * Returns the variable declaration corresponding to the given id.
    * @param id the id to check for
    * @return a valid variable declaration or null
    */
   VariableDecl getDeclaration(AtomId id) {
-    Declaration decl = getTypeChecker().getST().ids.def(id);
+    Declaration decl = tc.st().ids.def(id);
     if (decl instanceof VariableDecl) {
       return (VariableDecl) decl;
     }
     return null;
   }
-  public TcInterface getTypeChecker() {
-    return fTypeChecker;
-  }  
-
-  public void setTypeChecker(TcInterface tc) {
-    fTypeChecker = tc;
-  }
-  
+ 
   public static AssertAssumeCmd mkAssumeEQ(Expr left, Expr right) {
     return AssertAssumeCmd.mk(AssertAssumeCmd.CmdType.ASSUME, null,
       BinaryOp.mk(BinaryOp.Op.EQ, left, right));

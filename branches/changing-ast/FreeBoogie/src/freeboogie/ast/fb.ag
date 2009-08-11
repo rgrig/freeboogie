@@ -17,7 +17,8 @@ IdDecl :>
   ConstDecl, 
   VariableDecl;
 IdDecl =
-  String! name;
+  String! name,
+  Type! type;
 
 // Group all elements that can have attributes.
 Declaration :> 
@@ -40,10 +41,8 @@ Axiom =
   [list] AtomId typeArgs,
   Expr! expr;
 VariableDecl =
-  Type! type, 
   [list] AtomId typeArgs;
 ConstDecl = 
-  Type! type,
   boolean uniq;
 FunctionDecl = 
   Signature! sig;

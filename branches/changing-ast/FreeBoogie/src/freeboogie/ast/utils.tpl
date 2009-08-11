@@ -19,7 +19,7 @@ public class AstUtils {
     return r.build();
   }
 
-\classes{\if_terminal{
+\classes{
   public static <T> \ClassName eval(\ClassName c, Evaluator<T> e) {
     return c == null ? null : (\ClassName) c.eval(e);
   }
@@ -40,6 +40,6 @@ public class AstUtils {
     for (\ClassName c : l) builder.add(c.clone());
     return builder.build();
   }
-}{}}
+}
 
 }

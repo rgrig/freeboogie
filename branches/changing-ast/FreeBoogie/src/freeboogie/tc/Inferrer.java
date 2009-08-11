@@ -3,6 +3,7 @@ package freeboogie.tc;
 import java.util.*;
 import java.util.logging.Logger;
 
+import com.google.common.collect.Maps;
 import genericutils.Id;
 
 import freeboogie.ast.*;
@@ -58,10 +59,10 @@ public class Inferrer extends Transformer {
   // === public interface ===
   
   /** See the class description. */
-  public void process(Declaration ast, Map<Expr, Type> typeOf) {
+  public void process(Program ast, Map<Expr, Type> typeOf) {
     this.typeOf = typeOf;
-    probableTypeOf = new HashMap<Expr, Type>();
-    parent = new HashMap<UserType, Type>();
+    probableTypeOf = Maps.newHashMap();
+    parent = Maps.newHashMap();
     ast.eval(this);
   }
 

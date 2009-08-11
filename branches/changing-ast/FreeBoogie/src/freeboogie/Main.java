@@ -181,23 +181,18 @@ public class Main {
       CommonTokenStream tokens = new CommonTokenStream(lexer);
       FbParser parser = new FbParser(tokens);
       parser.fileName = f.getName();
-      boogie = new Program(parser.program(), parser.fileName);
+      boogie = parser.program();
     } catch (IOException e) {
       normal("Can't read " + f.getName() + ": " + e.getMessage());
-      boogie = new Program(null, null);
+      boogie = null;
     } catch (RecognitionException e) {
       verbose("Can't parse " + f.getName() + ": " + e.getMessage());
-      boogie = new Program(null, null);
+      boogie = null;
     }
   }
 
   private boolean typecheck() {
-    try {
-      boogie = tc.process(boogie);
-    } catch (ErrorsFoundException e) {
-      e.report();
-      return false;
-    }
+    if (FbError.reportAll(tc.process(boogie))) return false;
     return true;
   }
 
@@ -212,7 +207,7 @@ public class Main {
 
     // dump boogie
     try {
-      PrintWriter bw = new PrintWriter(new File(dir, boogie.fileName));
+      PrintWriter bw = new PrintWriter(new File(dir, boogie.fileName()));
       prettyPrinter.writer(bw);
       prettyPrinter.process(boogie, tc);
       bw.flush();

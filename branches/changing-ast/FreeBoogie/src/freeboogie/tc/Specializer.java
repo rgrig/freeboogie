@@ -64,7 +64,7 @@ public class Specializer extends Transformer {
    * @param implicit contains the type parameters identified by
    *            {@code TypeChecker}
    */
-  public Declaration process(
+  public Program process(
     Program ast, 
     SymbolTable st,
     Map<Expr, AtomId> errors,

@@ -42,6 +42,7 @@ public class Transformer extends Evaluator<Ast> {
   }
 
   public Program process(Program p, TcInterface tc) {
+    this.tc = tc;
     return TypeUtils.internalTypecheck((Program)p.eval(this), tc);
   }
 

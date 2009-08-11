@@ -3,7 +3,9 @@ package freeboogie.astutil;
 import java.io.PrintWriter;
 import java.util.HashSet;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 import freeboogie.ast.*;
@@ -67,22 +69,28 @@ public class Boogie2Printer extends PrettyPrinter {
   public void see(
     AtomQuant atomQuant, 
     AtomQuant.QuantType quant, 
-    Declaration vars, 
-    Attribute attr, 
+    ImmutableList<VariableDecl> vars, 
+    ImmutableList<Attribute> attr, 
     Expr e
   ) {
     ++skipVar;
     say("(");
     if (quant == AtomQuant.QuantType.FORALL) {
       say("forall");
-      if (anyFinder.get(vars)) {
+      boolean addAny = Iterables.any(
+          vars, 
+          new Predicate<VariableDecl>() {
+            @Override public boolean apply(VariableDecl vd) {
+              return anyFinder.get(vd);
+          }});
+      if (addAny) {
         say("<"); say("any"); say(">");
       }
     } else say("exists");
     say(" ");
-    vars.eval(this);
+    printList(", ", vars);
     say(" :: ");
-    if (attr != null) attr.eval(this);
+    printList(" ", attr);
     e.eval(this);
     say(")");
     --skipVar;
@@ -96,7 +104,7 @@ public class Boogie2Printer extends PrettyPrinter {
   @Override
   public void see(
     Axiom axiom, 
-    Attribute attr,
+    ImmutableList<Attribute> attr,
     String name,
     ImmutableList<AtomId> typeVars, 
     Expr expr
@@ -130,11 +138,11 @@ public class Boogie2Printer extends PrettyPrinter {
       say("<"); say("any"); say(">");
     }
     say("(");
-    if (args != null) args.eval(this);
+    printList(", ", args);
     say(")");
     if (results != null) {
       say(" returns (");
-      results.eval(this);
+      printList(", ", results);
       say(")");
     }
     --skipVar;

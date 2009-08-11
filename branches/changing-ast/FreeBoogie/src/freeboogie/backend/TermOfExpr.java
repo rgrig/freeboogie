@@ -114,8 +114,8 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
 
   public void setTypeChecker(TcInterface tc) {
     this.tc = tc;
-    this.st = tc.getST();
-    this.typeOf = tc.getTypes();
+    this.st = tc.st();
+    this.typeOf = tc.types();
   }
 
   @Override
@@ -145,14 +145,7 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
 
   @Override
   public T eval(AtomId atomId, String id, ImmutableList<Type> types) {
-    Declaration d = st.ids.def(atomId);
-    Type t = null;
-    if (d instanceof VariableDecl) {
-      t = ((VariableDecl)d).type();
-    } else if (d instanceof ConstDecl) {
-      // TODO I might want to keep track of constness
-      t = ((ConstDecl)d).type();
-    } else Err.internal("Unknown id declaration type for " + atomId + ": " + d);
+    Type t = st.ids.def(atomId).type();
     if (TypeUtils.isInt(t)) {
       // this prefix is needed for z3, but not simplify
       return mk("var_int", "term$$" + id);
@@ -223,8 +216,8 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   public T eval(
     AtomQuant atomQuant, 
     AtomQuant.QuantType quant, 
-    Declaration vars, 
-    Attribute attr, 
+    ImmutableList<VariableDecl> vars, 
+    ImmutableList<Attribute> attr, 
     Expr e
   ) {
     // TODO can this be done without HOL?
@@ -301,7 +294,7 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   // === helpers ===
   private ArrayList<T> tuple(ImmutableList<Expr> es) {
     ArrayList<T> r = new ArrayList<T>(23);
-    for (Expr e : es) r.add(e.expr().eval(this));
+    for (Expr e : es) r.add(e.eval(this));
     return r;
   }
 

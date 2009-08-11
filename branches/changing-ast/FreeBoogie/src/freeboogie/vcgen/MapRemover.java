@@ -34,14 +34,14 @@ public class MapRemover extends Transformer {
       // add "function $$selectN<TV, T1, ..., TN>
       //        (map : [T1, ..., TN]TV, x1 : T1, ..., xN : TN)
       //        returns (result : TV);"
-      functions.add(mkFunctionDecl("$$select" + n, e(), mkTV()));
+      functions.add(mkFunctionDecl("$$select" + n, e(), mkType("TV")));
 
       // add "function $$updateN<TV, T1, ..., TN>
       //        (val : TV, map : [T1, ..., TN]TV, x1 : T1, ..., xN : TN)
       //        returns (result : [T1, ..., TN]TV);"
       functions.add(mkFunctionDecl(
           "$$update" + n, 
-          a(mkVarDecl("val", mkTV())).e(),
+          a(mkVarDecl("val", mkType("TV"))).e(),
           mkMapType(n)));
 
       // add "axiom<TV, T1, ..., TN>
@@ -50,7 +50,7 @@ public class MapRemover extends Transformer {
       //        );
       axioms.add(mkAxiom(
           a(mkMapDecl("m", n)).
-          a(mkVarDecl("v", mkTV())).
+          a(mkVarDecl("v", mkType("TV"))).
           a(nVarDecl("x", n)).e(),
           mkEq(
               mkFun(
@@ -72,7 +72,7 @@ public class MapRemover extends Transformer {
         //        $$selectN(m, y1, ..., yN));
         axioms.add(mkAxiom(
             a(mkMapDecl("m", n)).
-            a(mkVarDecl("v", mkTV())).
+            a(mkVarDecl("v", mkType("TV"))).
             a(nVarDecl("x", n)).
             a(nVarDecl("y", n)).E(),
             mkImplies(
@@ -85,7 +85,7 @@ public class MapRemover extends Transformer {
                             a(mkId("v")).
                             a(mkId("m")).
                             a(nIds("x", n)).e())).
-                        a(nIds("y", n)).e())
+                        a(nIds("y", n)).e()),
                     mkFun(
                         "$$select" + n,
                         a(mkId("m")).
@@ -97,25 +97,30 @@ public class MapRemover extends Transformer {
 
   @Override
   public AtomFun eval(
-      AtomMapSelect atomMapSelect, Atom atom, Exprs idx) {
-    atom = (Atom)atom.eval(this);
-    idx = (Exprs)idx.eval(this);
-    int n = size(idx);
+      AtomMapSelect atomMapSelect,
+      Atom atom,
+      ImmutableList<Expr> idx
+  ) {
+    atom = (Atom) atom.eval(this);
+    idx = AstUtils.evalListOfExpr(idx, this);
+    int n = idx.size();
     arities.add(n);
-    return AtomFun.mk("$$select" + n, null, Exprs.mk(atom, idx));
+    return mkFun("$$select" + n, a(atom).a(idx).e());
   }
 
   @Override
-  public AtomFun eval(AtomMapUpdate atomMapUpdate, Atom atom, Exprs idx, Expr val) {
+  public AtomFun eval(
+      AtomMapUpdate atomMapUpdate,
+      Atom atom,
+      ImmutableList<Expr> idx,
+      Expr val
+  ) {
     atom = (Atom)atom.eval(this);
-    idx = (Exprs)idx.eval(this);
+    idx = AstUtils.evalListOfExpr(idx, this);
     val = (Expr)val.eval(this);
-    int n = size(idx);
+    int n = idx.size();
     arities.add(n);
-    return AtomFun.mk(
-      "$$update" + n,
-      null,
-      Exprs.mk(val, Exprs.mk(atom, idx)));
+    return AtomFun.mk("$$update" + n, a(val).a(atom).a(idx).e());
   }
 
   // === helpers ===
@@ -134,7 +139,7 @@ public class MapRemover extends Transformer {
       return this; 
     }
 
-    public GrowingList<T> a(Iterable<T> es) {
+    public BuilderWrapper<T> a(Iterable<T> es) {
       b.addAll(es);
       return this;
     }
@@ -156,11 +161,6 @@ public class MapRemover extends Transformer {
     return BuilderWrapper.n().a(es);
   }
 
-  private int size(Exprs exprs) {
-    if (exprs == null) return 0;
-    return 1 + size(exprs.getTail());
-  }
-
   // returns "function NAME<TV, T1, ..., TN>
   //            (ARGS, map : [T1,...,TN]TV, x1:T1,.., xN:TN)
   //            returns (result : RESULTYPE)
@@ -175,8 +175,8 @@ public class MapRemover extends Transformer {
         Signature.mk(
             name,
             ImmutableList.builder()
-                .addAll(AstUtils.ids("TV")),
-                .addAll(nIdentifiers("T", n)).build(),
+                .addAll(AstUtils.ids("TV"))
+                .addAll(nIds("T", n)).build(),
             ImmutableList.builder()
                 .addAll(args)
                 .add(mkMapDecl("map", n))
@@ -199,48 +199,50 @@ public class MapRemover extends Transformer {
 
   // returns "[T1,...,TN]TV"
   private MapType mkMapType(int n) {
-    return MapType.mk(nTypes(n), mkTV());
+    return MapType.mk(nTypes(n), mkType("TV"));
   }
 
-  // return "TV"
-  private UserType mkTV() {
-    return UserType.mk("TV", ImmutableList.of());
-  }
-
-  // returns "p1, ..., pN"
-  private Identifiers nIdentifiers(String prefix, int n) {
-    Identifiers result;
-    for (result = null; n > 0; --n)
-      result = Identifiers.mk(AtomId.mk(prefix + n, null), result);
-    return result;
+  // returns "NAME" (as a user type)
+  private UserType mkType(String name) {
+    return UserType.mk(name, ImmutableList.of());
   }
 
   // returns "p1, ..., pN"
-  private Exprs nExprs(String prefix, int n) {
-    Exprs result;
-    for (result = null; n > 0; --n)
-      result = Exprs.mk(AtomId.mk(prefix + n, null), result);
-    return result;
+  private <T> ImmutableList<T> nIds(String prefix, int n) {
+    ImmutableList.Builder<T> ids = ImmutableList.builder();
+    for (int i = 1; i <= n; ++i) ids.add(mkId(prefix + i));
+    return ids.build();
   }
 
   // return "T1, ..., TN"
-  private TupleType nTypes(int n) {
-    TupleType result;
-    for (result = null; n > 0; --n)
-      result = TupleType.mk(UserType.mk("T" + n, null), result);
-    return result;
+  private ImmutableList<Type> nTypes(int n) {
+    ImmutableList.Builder<Type> types = ImmutableList.builder();
+    for (int i = 1; i <= n; ++i) types.add(mkType("T" + i));
+    return types.build();
   }
 
   // returns "x1 : T1, ...., xN : TN"
-  private VariableDecl nVarDecl(String prefix, int n, VariableDecl tail) {
-    for (; n > 0; --n) {
-      tail = VariableDecl.mk(
-        null,
-        prefix + n,
-        UserType.mk("T" + n, null),
-        null,
-        tail);
-    }
-    return tail;
+  private ImmutableList<VariableDecl> nVarDecl(String prefix, int n) {
+    ImmutableList.Builder<VariableDecl> decls = ImmutableList.builder();
+    for (int i = 1; i <= n; ++i) 
+      decls.add(mkVarDecl("prefix" + n, mkType("T" + n)));
+    return decls.build();
+  }
+
+  // returns "NAME(ARGS)" (as a function application)
+  private AtomFun mkFun(String name, Iterable<Expr> args) {
+    return AtomFun.mk(name, e(), a(args).e());
+  }
+
+  private AtomId mkId(String name) {
+    return AtomId.mk(name, e());
+  }
+
+  private BinaryOp mkEq(Expr lhs, Expr rhs) {
+    return BinaryOp.mk(BinaryOp.Type.EQ, lhs, rhs);
+  }
+
+  private BinaryOp mkImplies(Expr lhs, Expr rhs) {
+    return BinaryOp.mk(BinaryOp.Type.IMPLIES, lhs, rhs);
   }
 }

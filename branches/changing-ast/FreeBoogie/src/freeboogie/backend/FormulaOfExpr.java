@@ -95,18 +95,13 @@ public class FormulaOfExpr<T extends Term<T>> extends Evaluator<T> {
   public T eval(
     AtomQuant atomQuant,
     AtomQuant.QuantType quant,
-    Declaration vars,
-    Attribute attr,
+    ImmutableList<VariableDecl> vars,
+    ImmutableList<Attribute> attr,
     Expr e
   ) {
     T result = e.eval(this);
-    while (vars != null) {
-      VariableDecl vd = (VariableDecl) vars;      
-      result = term.mk("forall", 
-        term.mk("var", "term$$" + vd.getName()),
-        result);
-      vars = vd.getTail();
-    }
+    for (VariableDecl vd : vars)
+      result = term.mk("forall", term.mk("var", "term$$" + vd.name()), result);
     return result;
   }
 
