@@ -200,7 +200,7 @@ public class GlobalsCollector extends Transformer {
     Procedure procedure,
     ImmutableList<Attribute> attr,
     Signature sig,
-    Specification spec
+    ImmutableList<Specification> spec
   ) {
     addProcDef(sig.name(), procedure);
   }

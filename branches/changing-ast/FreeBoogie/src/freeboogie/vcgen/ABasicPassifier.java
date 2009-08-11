@@ -39,7 +39,7 @@ public abstract class ABasicPassifier extends Transformer {
   }
   
   public static AtomId mkVar(VariableDecl decl, int idx) {
-    String name = decl.getName();
+    String name = decl.name();
     if (idx != 0) {
       name += "$$" + idx;
     }
@@ -47,7 +47,7 @@ public abstract class ABasicPassifier extends Transformer {
   }
   
   public static AtomId mkVar(AtomId id, int idx) {
-    String name = id.getId();
+    String name = id.id();
     if (idx != 0) {
       name += "$$" + idx;
     }

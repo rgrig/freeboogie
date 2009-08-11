@@ -56,7 +56,7 @@ public class Transformer extends Evaluator<Ast> {
           new\MemberName = \memberName;
         }{
           \if_tagged{list}{
-            new\MemberName = evalListOf\MemberType(\memberName);
+            new\MemberName = AstUtils.evalListOf\MemberType(\memberName, this);
           }{
             new\MemberName = \memberName == null ? null :(\MemberType)\memberName.eval(this);
           }
@@ -81,19 +81,6 @@ public class Transformer extends Evaluator<Ast> {
       return r == NULL ? null : r;
     }
   }{}}
-
-  \classes{
-    public ImmutableList<\ClassName> evalListOf\ClassName(ImmutableList<\ClassName> l_) {
-      boolean same_ = true;
-      ImmutableList.Builder<\ClassName> builder_ = ImmutableList.builder();
-      for (\ClassName c_ : l_) {
-        \ClassName cc_ = (\ClassName) c_.eval(this);
-        builder_.add(cc_);
-        same_ &= cc_ == c_;
-      }
-      return same_? l_ : builder_.build();
-    }
-  }
 }
 
 \file{visitor.skeleton}

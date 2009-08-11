@@ -39,8 +39,8 @@ public class FormulaOfExpr<T extends Term<T>> extends Evaluator<T> {
 
   public void setTypeChecker(TcInterface tc) {
     this.tc = tc;
-    this.st = tc.getST();
-    this.typeOf = tc.getTypes();
+    this.st = tc.st();
+    this.typeOf = tc.types();
     termOfExpr.setTypeChecker(tc);
   }
 

@@ -130,7 +130,7 @@ public class Specializer extends Transformer {
       ImmutableList<Type> types, 
       ImmutableList<Expr> args
   ) {
-    args = evalListOfExpr(args);
+    args = AstUtils.evalListOfExpr(args, this);
     Signature sig = st.funcs.def(atomFun).sig();
     types = prepareTypeList(sig.typeArgs());
     return AtomFun.mk(function, types, args, atomFun.loc());
@@ -144,8 +144,8 @@ public class Specializer extends Transformer {
       ImmutableList<AtomId> results, 
       ImmutableList<Expr> args
   ) {
-    results = evalListOfAtomId(results);
-    args = evalListOfExpr(args);
+    results = AstUtils.evalListOfAtomId(results, this);
+    args = AstUtils.evalListOfExpr(args, this);
     Signature sig = st.procs.def(callCmd).sig();
     types = prepareTypeList(sig.typeArgs());
     return CallCmd.mk(procedure, types, results, args);

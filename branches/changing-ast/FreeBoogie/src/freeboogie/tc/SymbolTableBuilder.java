@@ -44,7 +44,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
     gc = new GlobalsCollector();
     lookInLocalScopes = true;
     errors = gc.process(p);
-    this.p = p.eval(this);
+    this.p = (Program) p.eval(this);
     return errors;
   }
 
@@ -73,7 +73,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   ) {
     for (AtomId ai : ids) {
       if (tv.get(ai.id()) != null)
-        errors.add(new FbError(FbError.Type.TV_ALREADY_DEF, a, a.id()));
+        errors.add(new FbError(FbError.Type.TV_ALREADY_DEF, ai, ai.id()));
       symbolTable.typeVars.seenDef(ai);
       typeVarDecl.put(ai.id(), ai);
     }
@@ -103,9 +103,9 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
       ImmutableList<Expr> args
   ) {
     symbolTable.procs.put(callCmd, check(gc.procDef(p), p, callCmd));
-    evalLisfOfType(types);
-    evalListOfAtomId(results);
-    evalListOfExpr(args);
+    AstUtils.evalListOfType(types, this);
+    AstUtils.evalListOfAtomId(results, this);
+    AstUtils.evalListOfExpr(args, this);
   }
 
   @Override
@@ -116,14 +116,14 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
       ImmutableList<Expr> args
   ) {
     symbolTable.funcs.put(atomFun, check(gc.funDef(f), f, atomFun));
-    evalListOfType(types);
-    evalListOfExpr(args);
+    AstUtils.evalListOfType(types, this);
+    AstUtils.evalListOfExpr(args, this);
   }
 
   @Override
   public void see(AtomId atomId, String id, ImmutableList<Type> types) {
     symbolTable.ids.put(atomId, lookup(id, atomId));
-    evalListofType(types);
+    AstUtils.evalListOfType(types, this);
   }
 
   // === collect info from local scopes ===
@@ -172,8 +172,8 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
     ImmutableList<VariableDecl> results
   ) {
     collectTypeVars(typeVarDecl.peek(), typeArgs);
-    evalListOfVariableDecl(args);
-    evalListOfVariableDecl(results);
+    AstUtils.evalListOfVariableDecl(args, this);
+    AstUtils.evalListOfVariableDecl(results, this);
   }
 
   
@@ -189,7 +189,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
     localVarDecl.push();
     typeVarDecl.push();
     sig.eval(this);
-    evalListOfSpecification(specs);
+    AstUtils.evalListOfSpecification(specs, this);
     typeVarDecl.pop();
     localVarDecl.pop();
   }
@@ -230,8 +230,8 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
     Expr e
   ) {
     localVarDecl.push();
-    evalListofVariableDecl(vars);
-    evallistOfAttribute(attr);
+    AstUtils.evalListOfVariableDecl(vars, this);
+    AstUtils.evalListOfAttribute(attr, this);
     e.eval(this);
     localVarDecl.pop();
   }

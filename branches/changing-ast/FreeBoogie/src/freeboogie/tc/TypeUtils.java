@@ -167,12 +167,27 @@ public final class TypeUtils {
    * @return the string representation of {@code t}
    */
   public static String typeToString(Type t) {
-    if (t == null) return "()";
     StringWriter sw = new StringWriter();
     PrettyPrinter pp = new PrettyPrinter();
     pp.writer(sw);
     t.eval(pp);
     return sw.toString();
+  }
+
+  public static String typeToString(ImmutableList<Type> ts) {
+    StringWriter sw = new StringWriter();
+    PrettyPrinter pp = new PrettyPrinter();
+    pp.writer(sw);
+    sw.write("(");
+    boolean first = true; // yuck
+    for (Type t : ts) {
+      t.eval(pp);
+      if (!first) sw.write(", ");
+      first = false;
+    }
+    sw.write(")");
+    return sw.toString();
+
   }
   
   public static boolean isInt(Type t) {
@@ -207,6 +222,6 @@ public final class TypeUtils {
       pw.flush();
       Err.internal("Invalid Boogie produced.");
     }
-    return tc.getAST();
+    return tc.ast();
   }
 }

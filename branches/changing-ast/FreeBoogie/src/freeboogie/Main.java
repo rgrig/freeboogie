@@ -217,7 +217,7 @@ public class Main {
 
     // dump symbol table
     try {
-      SymbolTable st = tc.getST();
+      SymbolTable st = tc.st();
       PrintWriter stw = new PrintWriter(new File(dir, "symbols.txt"));
       printSymbols(stw, "function", st.funcs, nameOfFunctionDecl);
       printSymbols(stw, "identifier", st.ids, nameOfVar);

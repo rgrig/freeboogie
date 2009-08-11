@@ -52,9 +52,9 @@ public class Inferrer extends Transformer {
   private final Random rand = new Random(123);
 
   private static final PrimitiveType intType = 
-    PrimitiveType.mk(PrimitiveType.Ptype.INT, -1);
+      PrimitiveType.mk(PrimitiveType.Ptype.INT, -1);
   private static final PrimitiveType boolType = 
-    PrimitiveType.mk(PrimitiveType.Ptype.BOOL, -1);
+      PrimitiveType.mk(PrimitiveType.Ptype.BOOL, -1);
 
   // === public interface ===
   
@@ -97,7 +97,7 @@ public class Inferrer extends Transformer {
     UserType tv = freshTv();
     probableTypeOf.put(e, tv);
     parent.put(tv, tv);
-    log.finer("introduce type variable " + tv.getName() + " at " +
+    log.finer("introduce type variable " + tv.name() + " at " +
       n.loc());
   }
   
@@ -150,7 +150,7 @@ public class Inferrer extends Transformer {
     Type t = typeOf.get(e);
     if (!(t instanceof PrimitiveType)) return false;
     PrimitiveType pt = (PrimitiveType)t;
-    return pt.getPtype() == PrimitiveType.Ptype.ERROR;
+    return pt.ptype() == PrimitiveType.Ptype.ERROR;
   }
  
   private UserType freshTv() {
