@@ -28,6 +28,10 @@ public final class TypeUtils {
       eq(a.idxTypes(), b.idxTypes());
   }
 
+  private static boolean eq(TupleType a, TupleType b) {
+    return eq(a.types(), b.types());
+  }
+
   private static <T extends Type> boolean eq(
       ImmutableList<T> tla, 
       ImmutableList<T> tlb
@@ -57,10 +61,13 @@ public final class TypeUtils {
    * @return the type {@code a} striped of predicates
    */
   public static Type stripDep(Type a) {
-    if (a instanceof MapType) {
+    if (a instanceof TupleType) {
+      TupleType sa = (TupleType) a;
+      return TupleType.mk(stripDep(sa.types()), sa.loc());
+    } else if (a instanceof MapType) {
       MapType sa = (MapType)a;
       return MapType.mk(
-        stripDepTypes(sa.idxTypes()), 
+        stripDep(sa.idxTypes()), 
         stripDep(sa.elemType()));
     } else if (a instanceof IndexedType) {
       IndexedType sa = (IndexedType)a;
@@ -70,7 +77,7 @@ public final class TypeUtils {
   }
 
   // map stripDep
-  public static ImmutableList<Type> stripDepTypes(ImmutableList<Type> tl) {
+  public static ImmutableList<Type> stripDep(ImmutableList<Type> tl) {
     ImmutableList.Builder<Type> b = ImmutableList.builder();
     for (Type t : tl) b.add(stripDep(t));
     return b.build();
@@ -126,15 +133,10 @@ public final class TypeUtils {
       return eq((IndexedType)a, (IndexedType)b);
     else if (a instanceof UserType && b instanceof UserType)
       return eq((UserType)a, (UserType)b);
+    else if (a instanceof TupleType && b instanceof TupleType)
+      return eq((TupleType) a, (TupleType) b);
     else
       return false;
-  }
-
-  public static boolean eq(ImmutableList<Type> a, Type b) {
-    return a.size() == 1 && eq(a.get(0), b);
-  }
-  public static boolean eq(Type a, ImmutableList<Type> b) {
-    return eq(b, a);
   }
 
   /**

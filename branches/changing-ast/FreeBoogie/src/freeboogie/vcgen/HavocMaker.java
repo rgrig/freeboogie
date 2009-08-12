@@ -40,7 +40,7 @@ public class HavocMaker extends Transformer {
   private int sccIndex; // the index of the scc being built
   private HashSet<String> sccAssignedVars; 
     // variables assigned in the scc being processed
-  private ArrayList<Block> dfs2order = Lists.newArrayLists();
+  private ArrayList<Block> dfs2order = Lists.newArrayList();
 
   private SimpleGraph<Block> flowGraph;
 
@@ -51,7 +51,7 @@ public class HavocMaker extends Transformer {
   @Override
   public Declaration process(Declaration ast, TcInterface tc) {
     this.tc = tc;
-    rw = new ReadWriteSetFinder(tc.getST());
+    rw = new ReadWriteSetFinder(tc.st());
     ast = (Declaration)ast.eval(this);
     ast = TypeUtils.internalTypecheck(ast, tc);
     return ast;

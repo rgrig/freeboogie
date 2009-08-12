@@ -48,30 +48,35 @@ FunctionDecl =
   Signature! sig;
 Procedure =
   Signature! sig,
-  [list] Specification specs;
+  [list] PreSpec preconditions,
+  [list] PostSpec postconditions,
+  [list] ModifiesSpec modifies;
 Implementation =
   Signature! sig,
   Body! body;
 
 // Types and constants
 Type :> 
-  PrimitiveType, 
-  UserType, 
-  MapType, 
+  DepType,
   IndexedType, 
-  DepType;
+  MapType, 
+  PrimitiveType, 
+  TupleType,
+  UserType;
+DepType = 
+  Type! type, 
+  Expr! pred;
+IndexedType = 
+  Type! param, 
+  Type! type;
 MapType = 
   [list] Type idxTypes,
   Type! elemType;
 PrimitiveType = 
   enum(Ptype: BOOL, INT, REF, NAME, ANY, BV, ERROR) ptype,
   int bits;
-IndexedType = 
-  Type! param, 
-  Type! type;
-DepType = 
-  Type! type, 
-  Expr! pred;
+TupleType =
+  [list] Type types;
 UserType = 
   String! name, 
   [list] Type typeArgs;
@@ -84,11 +89,19 @@ Signature =
   [list] VariableDecl results;
 
 // Procedures and implementations
-Specification = 
-  [list] AtomId typeArgs,
-  enum(SpecType: REQUIRES, MODIFIES, ENSURES) type,
-  Expr! expr, 
+Specification :> 
+  PrePostSpec,
+  ModifiesSpec;
+Specification =
   boolean free;
+PrePostSpec :>
+  PreSpec,
+  PostSpec;
+PrePostSpec =
+  [list] AtomId typeArgs,
+  Expr! expr;
+ModifiesSpec =
+  [list] AtomId ids;
 Body = 
   [list] VariableDecl vars,
   [list] Block blocks;

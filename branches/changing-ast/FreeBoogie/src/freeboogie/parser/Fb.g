@@ -30,7 +30,9 @@ grammar Fb;
   
   public boolean ok = true;
 
-  private ImmutableList.Builder<Specification> specListBuilder;
+  private ImmutableList.Builder<PreSpec> preconditionsBuilder;
+  private ImmutableList.Builder<PostSpec> postconditionsBuilder;
+  private ImmutableList.Builder<ModifiesSpec> modifiesBuilder;
   private boolean specFree;
   private ImmutableList.Builder<Block> blockListBuilder;
   
@@ -88,7 +90,7 @@ fun_decl:
 ;
 
 proc_decl:
-    'procedure' signature ';'? /*spec_list*/ body?
+    'procedure' signature ';'? spec_list body?
 ;
 
 impl_decl:
@@ -101,37 +103,24 @@ signature returns [Signature v]:
     { if(ok) $v = Signature.mk($ID.text,$tv.v,$a.v,$b.v,tokLoc($ID)); }
 ;
 
-spec_list returns [ImmutableList<Specification> v]:
-      { specListBuilder = ImmutableList.builder(); }
+spec_list:
+      { preconditionsBuilder = ImmutableList.builder(); 
+        postconditionsBuilder = ImmutableList.builder(); 
+        modifiesBuilder = ImmutableList.builder(); }
     spec*
-      { $v = specListBuilder.build(); }
 ;
 
 spec:
       {specFree = false;}
     (f='free' {specFree = true;})? 
-        (((r='requires' | e='ensures') tv=type_vars h=expr)
-      { if(ok) 
-          specListBuilder.add(
-              Specification.mk(
-                $tv.v,
-                $r!=null? Specification.SpecType.REQUIRES : Specification.SpecType.ENSURES,
-                $h.v,
-                specFree,
-                fileLoc($h.v))); }
-  | ('modifies' modified_id (',' modified_id)*)) ';'
-;
-
-modified_id:
-    atom_id
-      { if (ok) 
-          specListBuilder.add(
-              Specification.mk(
-                  null,
-                  Specification.SpecType.MODIFIES,
-                  $atom_id.v,
-                  specFree,
-                  fileLoc($atom_id.v))); }
+        (((r='requires' | e='ensures') tv=type_vars h=expr
+      { if(ok) {
+        if ($r == null)
+          preconditionsBuilder.add(PreSpec.mk(specFree, $tv.v, $h.v, fileLoc($h.v)));
+        else
+          postconditionsBuilder.add(PostSpec.mk(specFree, $tv.v, $h.v, fileLoc($h.v))); }})
+    | (m='modifies' id_list { if (ok) modifiesBuilder.add(
+        ModifiesSpec.mk(specFree, $id_list.v, tokLoc($m))); } ))
 ;
 
 body returns [Body v]:
@@ -379,7 +368,8 @@ scope {
 }
 :	
       { $id_list::b_ = ImmutableList.builder(); }
-    (atom_id { if (ok) $id_list::b_.add($atom_id.v); })*
+    h=atom_id {if (ok) $id_list::b_.add($h.v); }
+    (',' t=atom_id { if (ok) $id_list::b_.add($t.v); })*
       { $v = $id_list::b_.build(); }
 ;
 

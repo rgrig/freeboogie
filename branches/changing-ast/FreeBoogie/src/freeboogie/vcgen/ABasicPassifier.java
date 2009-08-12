@@ -1,17 +1,13 @@
 package freeboogie.vcgen;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 
-import freeboogie.ast.AssertAssumeCmd;
-import freeboogie.ast.AtomId;
-import freeboogie.ast.BinaryOp;
-import freeboogie.ast.Declaration;
-import freeboogie.ast.Expr;
-import freeboogie.ast.Transformer;
-import freeboogie.ast.VariableDecl;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
+
+import freeboogie.ast.*;
 import freeboogie.tc.TcInterface;
 import freeboogie.tc.TypeUtils;
 
@@ -32,6 +28,9 @@ public abstract class ABasicPassifier extends Transformer {
     }
     return null;
   }
+
+  // TODO (rgrig): consider moving some of these in AstUtils
+  //    See also the stuff in AxiomSender.
  
   public static AssertAssumeCmd mkAssumeEQ(Expr left, Expr right) {
     return AssertAssumeCmd.mk(AssertAssumeCmd.CmdType.ASSUME, null,
@@ -51,20 +50,19 @@ public abstract class ABasicPassifier extends Transformer {
     if (idx != 0) {
       name += "$$" + idx;
     }
-    return  AtomId.mk(name, id.getTypes(), id.loc());
+    return  AtomId.mk(name, id.types(), id.loc());
   }
   
-  public static VariableDecl mkDecl(VariableDecl old, int idx, Declaration next) {
-    String name = old.getName();
+  public static VariableDecl mkDecl(VariableDecl old, int idx) {
+    String name = old.name();
     if (idx != 0) {
       name += "$$" + idx;
     }
     return VariableDecl.mk(
-      null,
-      name,
-      TypeUtils.stripDep(old.getType()).clone(),
-      old.getTypeArgs() == null? null : old.getTypeArgs().clone(),
-      next);
+        ImmutableList.<Attribute>of(),
+        name,
+        TypeUtils.stripDep(old.type()).clone(),
+        AstUtils.cloneListOfAtomId(old.typeArgs()));
   }
 
   /**
@@ -76,21 +74,18 @@ public abstract class ABasicPassifier extends Transformer {
    */
   public static class Environment {
     /** global variable list. */
-    private final Map<VariableDecl, Integer> global = 
-      new LinkedHashMap<VariableDecl, Integer>() ;
+    private final Map<VariableDecl, Integer> global = Maps.newHashMap();
     /** local variable list. */
-    private final Map<VariableDecl, Integer> local = 
-      new LinkedHashMap<VariableDecl, Integer>();
+    private final Map<VariableDecl, Integer> local = Maps.newHashMap();
     /** for efficiency. */
-    private final Map<VariableDecl, Integer> all = 
-      new LinkedHashMap<VariableDecl, Integer>();
+    private final Map<VariableDecl, Integer> all = Maps.newHashMap();
     private String currentLocation;
    
     /**
      * Build an environment.
      * @param fileName  */
     public Environment(String fileName) {
-     this.currentLocation = fileName;
+      this.currentLocation = fileName;
     }
     
     /**
@@ -240,7 +235,7 @@ public abstract class ABasicPassifier extends Transformer {
         if (versions == 0) continue;
         sb.append(vd.loc());
         sb.append(" ");
-        sb.append(vd.getName());
+        sb.append(vd.name());
         sb.append(" ");
         sb.append(versions);
         sb.append("\n");
@@ -257,7 +252,7 @@ public abstract class ABasicPassifier extends Transformer {
       StringBuilder blder = new StringBuilder(); 
       for (Entry<VariableDecl, Integer> ent: all.entrySet()) {
         if (ent.getValue() != 0)
-          blder.append(", " + ent.getKey().getName() + " " + ent.getValue());
+          blder.append(", " + ent.getKey().name() + " " + ent.getValue());
       }
       if (blder.length() == 0) 
         return "";

@@ -170,18 +170,31 @@ public class ForgivingStb extends Transformer implements StbInterface {
     return Signature.mk(name, typeArgs, args, results, signature.loc());
   }
 
-  @Override
-  public Specification eval(
-      Specification specification,
-      ImmutableList<AtomId> typeArgs, 
-      Specification.SpecType type,
-      Expr expr, 
-      boolean free
+  // TODO(rgrig): I don't like the duplication here. Perhaps
+  // PreSpec and PostSpec should be *one* class with an enum,
+  // after all?
+  @Override public PostSpec eval(
+      PostSpec postSpec, 
+      boolean free,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
   ) {
     toIntroduce.addFirst(new HashSet<String>());
     expr = (Expr) expr.eval(this);
-    typeArgs = introduceGenerics(typeArgs, "spec", specification.loc());
-    return Specification.mk(typeArgs, type, expr, free, specification.loc());
+    typeArgs = introduceGenerics(typeArgs, "post", postSpec.loc());
+    return PostSpec.mk(free, typeArgs, expr, postSpec.loc());
+  }
+
+  @Override public PreSpec eval(
+      PreSpec preSpec, 
+      boolean free,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
+  ) {
+    toIntroduce.addFirst(new HashSet<String>());
+    expr = (Expr) expr.eval(this);
+    typeArgs = introduceGenerics(typeArgs, "pre", preSpec.loc());
+    return PreSpec.mk(free, typeArgs, expr, preSpec.loc());
   }
 
   @Override

@@ -150,14 +150,38 @@ public class Boogie2Printer extends PrettyPrinter {
 
   @Override
   public void see(
-    Specification specification, 
-    ImmutableList<AtomId> tv, 
-    Specification.SpecType type, 
-    Expr expr, 
-    boolean free
+      ModifiesSpec modifiesSpec, 
+      boolean free,
+      ImmutableList<AtomId> ids
   ) {
     if (free) say("free ");
-    say(specRep.get(type));
+    say("modifies ");
+    printList(", ", ids);
+    semi();
+  }
+
+  @Override
+  public void see(
+      PostSpec postSpec, 
+      boolean free,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
+  ) {
+    if (free) say("free ");
+    say("ensures ");
+    expr.eval(this);
+    semi();
+  }
+
+  @Override
+  public void see(
+      PreSpec preSpec, 
+      boolean free,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
+  ) {
+    if (free) say("free ");
+    say("requires ");
     expr.eval(this);
     semi();
   }

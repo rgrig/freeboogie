@@ -183,13 +183,17 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
     Procedure procedure,
     ImmutableList<Attribute> attr,
     Signature sig,
-    ImmutableList<Specification> specs
+    ImmutableList<PreSpec> pre,
+    ImmutableList<PostSpec> post,
+    ImmutableList<ModifiesSpec> modifies
   ) {
     symbolTable.procs.seenDef(procedure);
     localVarDecl.push();
     typeVarDecl.push();
     sig.eval(this);
-    AstUtils.evalListOfSpecification(specs, this);
+    AstUtils.evalListOfPreSpec(pre, this);
+    AstUtils.evalListOfPostSpec(post, this);
+    AstUtils.evalListOfModifiesSpec(modifies, this);
     typeVarDecl.pop();
     localVarDecl.pop();
   }
@@ -265,26 +269,41 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   
   // === remember if we are below a modifies spec ===
   
-  @Override
-  public void see(
-      Specification specification, 
-      ImmutableList<AtomId> tv, 
-      Specification.SpecType type, 
-      Expr expr, 
-      boolean free
+  @Override public void see(
+      ModifiesSpec modifiesSpec, 
+      boolean free,
+      ImmutableList<AtomId> ids
+  ) {
+    assert lookInLocalScopes; // no nesting;
+    lookInLocalScopes = true;
+    AstUtils.evalListOfAtomId(ids, this);
+    lookInLocalScopes = false;
+  }
+
+  @Override public void see(
+      PostSpec postSpec, 
+      boolean free,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
   ) {
     typeVarDecl.push();
-    collectTypeVars(typeVarDecl.peek(), tv);
-    if (type == Specification.SpecType.MODIFIES) {
-      assert lookInLocalScopes; // no nesting
-      lookInLocalScopes = false;
-    }
+    collectTypeVars(typeVarDecl.peek(), typeArgs);
     expr.eval(this);
-    lookInLocalScopes = true;
     typeVarDecl.pop();
   }
-  
-  
+
+  @Override public void see(
+      PreSpec preSpec, 
+      boolean free,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
+  ) {
+    typeVarDecl.push();
+    collectTypeVars(typeVarDecl.peek(), typeArgs);
+    expr.eval(this);
+    typeVarDecl.pop();
+  }
+ 
   // === do not look at goto-s ===
   @Override
   public void see(

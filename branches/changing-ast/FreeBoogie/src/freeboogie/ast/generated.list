@@ -39,11 +39,16 @@ Implementation.java
 IndexedType.java
 LoopInvariant.java
 MapType.java
+ModifiesSpec.java
+PostSpec.java
+PrePostSpec.java
+PreSpec.java
 PrimitiveType.java
 Procedure.java
 Program.java
 Signature.java
 Specification.java
+TupleType.java
 Type.java
 TypeDecl.java
 UnaryOp.java

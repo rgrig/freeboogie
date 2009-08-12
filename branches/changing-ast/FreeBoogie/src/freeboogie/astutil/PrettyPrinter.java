@@ -43,7 +43,6 @@ public class PrettyPrinter extends Transformer {
   protected HashMap<AtomQuant.QuantType,String> quantRep;
   protected HashMap<BinaryOp.Op,String> binRep;
   protected HashMap<PrimitiveType.Ptype,String> typeRep;
-  protected HashMap<Specification.SpecType,String> specRep;
   protected HashMap<UnaryOp.Op,String> unRep;
 
   protected BoogieVersionOpt boogieVersion;
@@ -54,7 +53,6 @@ public class PrettyPrinter extends Transformer {
     quantRep = Maps.newHashMap();
     binRep = Maps.newHashMap();
     typeRep = Maps.newHashMap();
-    specRep = Maps.newHashMap();
     unRep = Maps.newHashMap();
 
     cmdRep.put(AssertAssumeCmd.CmdType.ASSERT, "assert ");
@@ -86,9 +84,6 @@ public class PrettyPrinter extends Transformer {
     typeRep.put(PrimitiveType.Ptype.NAME, "name");
     typeRep.put(PrimitiveType.Ptype.REF, "ref");
     typeRep.put(PrimitiveType.Ptype.ERROR, "?");
-    specRep.put(Specification.SpecType.ENSURES, "ensures ");
-    specRep.put(Specification.SpecType.MODIFIES, "modifies ");
-    specRep.put(Specification.SpecType.REQUIRES, "requires ");
     unRep.put(UnaryOp.Op.MINUS, "-");
     unRep.put(UnaryOp.Op.NOT, "!");
   }
@@ -456,21 +451,31 @@ public class PrettyPrinter extends Transformer {
 
   @Override
   public void see(
-    Procedure procedure, 
-    ImmutableList<Attribute> attr,
-    Signature sig, 
-    ImmutableList<Specification> spec
+      Procedure procedure, 
+      ImmutableList<Attribute> attr,
+      Signature sig, 
+      ImmutableList<PreSpec> preconditions,
+      ImmutableList<PostSpec> postconditions,
+      ImmutableList<ModifiesSpec> modifies
   ) {
     say("procedure ");
     printList(" ", attr);
     sig.eval(this);
     say(";");
-    for (Specification s : spec) {
-      ++indentLevel; nl();
-      s.eval(this);
-      --indentLevel; nl();
-    }
+    printSpecs(preconditions);
+    printSpecs(modifies);
+    printSpecs(postconditions);
     nl();
+  }
+
+  private void printSpecs(ImmutableList<? extends Specification> specs) {
+    for (Specification s : specs) {
+      ++indentLevel; 
+      nl();
+      s.eval(this);
+      --indentLevel;
+      nl();
+    }
   }
 
   @Override
@@ -501,22 +506,54 @@ public class PrettyPrinter extends Transformer {
 
   @Override
   public void see(
-    Specification specification, 
-    ImmutableList<AtomId> tv, 
-    Specification.SpecType type, 
-    Expr expr, 
-    boolean free
+      ModifiesSpec modifiesSpec, 
+      boolean free,
+      ImmutableList<AtomId> ids
   ) {
     if (free) say("free ");
-    say(specRep.get(type));
-    if (tv != null) {
+    say("modifies ");
+    printList(", ", ids);
+    semi();
+  }
+
+  @Override
+  public void see(
+      PostSpec postSpec, 
+      boolean free,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
+  ) {
+    if (free) say("free ");
+    say("ensures");
+    if (!typeArgs.isEmpty()) {
       say("<");
-      printList(", ", tv);
+      printList(", ", typeArgs);
       say(">");
     }
+    say(" ");
     expr.eval(this);
     semi();
   }
+
+  @Override
+  public void see(
+      PreSpec preSpec, 
+      boolean free,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
+  ) {
+    if (free) say("free ");
+    say("requires");
+    if (!typeArgs.isEmpty()) {
+      say("<");
+      printList(", ", typeArgs);
+      say(">");
+    }
+    say(" ");
+    expr.eval(this);
+    semi();
+  }
+
 
   @Override
   public void see(

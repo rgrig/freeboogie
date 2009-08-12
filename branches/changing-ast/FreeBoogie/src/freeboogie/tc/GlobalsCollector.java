@@ -184,8 +184,7 @@ public class GlobalsCollector extends Transformer {
     addFunDef(sig.name(), function);
   }
 
-  @Override
-  public void see(
+  @Override public void see(
     VariableDecl variableDecl,
     ImmutableList<Attribute> attr,
     String name,
@@ -200,7 +199,9 @@ public class GlobalsCollector extends Transformer {
     Procedure procedure,
     ImmutableList<Attribute> attr,
     Signature sig,
-    ImmutableList<Specification> spec
+    ImmutableList<PreSpec> pre,
+    ImmutableList<PostSpec> post,
+    ImmutableList<ModifiesSpec> modifies
   ) {
     addProcDef(sig.name(), procedure);
   }
