@@ -30,7 +30,9 @@ public \if_terminal{final}{abstract} class \ClassName extends \BaseName {
     this.location = location;
     \members{
       \if_tagged{list}{
-        this.\memberName = ImmutableList.<\smt>builder().addAll(\memberName).build();
+        this.\memberName = \memberName == null? 
+            ImmutableList.<\smt>of() : 
+            \memberName;
       }{
         this.\memberName = \memberName;
       }

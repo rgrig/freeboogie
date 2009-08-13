@@ -109,7 +109,7 @@
         sourcepath="src" 
         destdir="classes" 
         optimize="yes" 
-        debug="no">
+        debug="yes">
       <classpath refid="classpath" /> 
       <compilerarg value="-Xmaxerrs" /><compilerarg value="10" />
       <compilerarg value="-Xmaxwarns" /><compilerarg value="10" />
