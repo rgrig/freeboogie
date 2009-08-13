@@ -35,12 +35,12 @@ public class LoopCutter extends Transformer {
     Signature sig,
     Body body
   ) {
-    currentFG = tc.getFlowGraph(implementation);
+    currentFG = tc.flowGraph(implementation);
     seen.clear(); done.clear(); toRemove.clear();
-    dfs(body.blocks());
+    dfs(body.blocks().get(0));
     hasStuck = false;
     stuckName = Id.get("stuck");
-    Body newBody = (Body)body.eval(this);
+    Body newBody = (Body) body.eval(this);
     if (newBody != body)
       implementation = Implementation.mk(attr, sig, newBody);
     return implementation;
@@ -66,11 +66,11 @@ public class LoopCutter extends Transformer {
           stuckName,
           AssertAssumeCmd.mk(
             AssertAssumeCmd.CmdType.ASSUME,
-            null,
+            ImmutableList.<AtomId>of(),
             AtomLit.mk(AtomLit.AtomType.FALSE)),
-          ImmutableList.of()));
+          ImmutableList.<AtomId>of()));
     }
-    if (!same) body = Body.mk(vars, newBlocks.builder(), body.loc());
+    if (!same) body = Body.mk(vars, newBlocks.build(), body.loc());
     return body;
   }
 
@@ -87,7 +87,7 @@ public class LoopCutter extends Transformer {
     for (AtomId s : succ) {
       pair.second = s.id();
       if (!toRemove.contains(pair)) {
-        newSucc.add(AtomId.mk(s));
+        newSucc.add(s);
         ++newSuccSize;
       }
     }
@@ -103,12 +103,11 @@ public class LoopCutter extends Transformer {
   // === depth first search for back edges ===
 
   private void dfs(Block b) {
-    if (b == null) return;
     seen.add(b);
     for (Block c : currentFG.to(b)) {
       if (done.contains(c)) continue;
       if (seen.contains(c))
-        toRemove.add(Pair.of(b, c.getName()));
+        toRemove.add(Pair.of(b, c.name()));
       else
         dfs(c);
     }

@@ -67,18 +67,18 @@ import com.google.common.collect.Maps;
 import genericutils.AssociativeOperator;
 
 public class AssociativeEvaluator<R> extends Evaluator<R> {
-  protected AssociativeOperator<R> assocOp_;
-  public AssociativeEvaluator(AssociativeOperator<R> assocOp_) {
-    this.assocOp_ = assocOp_;
+  protected AssociativeOperator<R> assocOp;
+  public AssociativeEvaluator(AssociativeOperator<R> assocOp) {
+    this.assocOp = assocOp;
   }
   \classes{\if_terminal{
     @Override public R eval(\ClassName \className,\mtn_list) {
       R result_ = evalCache.get(\className);
       if (result_ != null) return result_;
-      result_ = assocOp_.zero();
+      result_ = assocOp.zero();
       enterNode(\className);
       for (Ast child_ : \className.children())
-        result_ = assocOp_.plus(result_,child_.eval(this));
+        result_ = assocOp.plus(result_,child_.eval(this));
       exitNode(\className);
       return memo(\className, result_);
     }

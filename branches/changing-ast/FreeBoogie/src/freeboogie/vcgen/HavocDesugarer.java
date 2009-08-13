@@ -47,7 +47,7 @@ import freeboogie.tc.TypeUtils;
 public class HavocDesugarer extends Transformer {
   private static final Logger log = Logger.getLogger("freeboogie.vcgen");
 
-  private ArrayList<Command> equivCmds = Lists.newArraylist();
+  private ArrayList<Command> equivCmds = Lists.newArrayList();
   private HashMap<VariableDecl, AtomId> toSubstitute = Maps.newHashMap();
   private ImmutableList.Builder<VariableDecl> newVars;
 
@@ -67,7 +67,7 @@ public class HavocDesugarer extends Transformer {
       Block nb = (Block) b.eval(this);
       same &= extraBlocks.isEmpty() && nb == b;
     }
-    return  Body.mk(newVars.addAll(vars), newBlocks, body.loc());
+    return Body.mk(newVars.addAll(vars).build(), newBlocks.build(), body.loc());
   }
 
   @Override
@@ -78,13 +78,13 @@ public class HavocDesugarer extends Transformer {
       ImmutableList<AtomId> succ
   ) {
     equivCmds.clear();
-    Command newCmd = AstUtil.eval(cmd, this);
+    Command newCmd = AstUtils.eval(cmd, this);
     if (!equivCmds.isEmpty()) {
       String crtLabel, nxtLabel;
       block = Block.mk(nxtLabel = Id.get("havoc"), null, succ, block.loc());
       for (int i = equivCmds.size() - 1; i >= 0; --i) {
         extraBlocks.addFirst(Block.mk(
-          i == 0 ? name : crtLabel = Id.get("havoc"),
+          crtLabel = i == 0 ? name : Id.get("havoc"),
           equivCmds.get(i),
           ImmutableList.of(AtomId.mk(nxtLabel, null)),
           block.loc()));
@@ -101,12 +101,12 @@ public class HavocDesugarer extends Transformer {
     Expr e = AtomLit.mk(AtomLit.AtomType.TRUE, havocCmd.loc());
     for (AtomId id : ids) {
       VariableDecl vd = (VariableDecl)tc.st().ids.def(id);
-      VariableDecl vd2 = tc.getParamMap().def(vd);
+      VariableDecl vd2 = tc.paramMap().def(vd);
       if (vd2 != null) vd = vd2;
       AtomId fresh = AtomId.mk(Id.get("fresh"), null, id.loc());
       toSubstitute.put(vd, fresh);
       equivCmds.add(AssignmentCmd.mk(id, fresh, havocCmd.loc()));
-      if (vd.getType() instanceof DepType) {
+      if (vd.type() instanceof DepType) {
         Expr p = ((DepType)vd.type()).pred();
         e = BinaryOp.mk(
             BinaryOp.Op.AND, 
@@ -115,10 +115,10 @@ public class HavocDesugarer extends Transformer {
             p.loc());
       }
       newVars.add(VariableDecl.mk(
-        ImmutableList.of(),
+        ImmutableList.<Attribute>of(),
         fresh.id(),
         TypeUtils.stripDep(vd.type()).clone(),
-        vd.typeArgs() == null? null : vd.getTypeArgs().clone()));
+        AstUtils.cloneListOfAtomId(vd.typeArgs())));
     }
     equivCmds.add(AssertAssumeCmd.mk(
       AssertAssumeCmd.CmdType.ASSUME,

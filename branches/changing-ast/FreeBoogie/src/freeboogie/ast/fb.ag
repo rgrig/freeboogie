@@ -200,3 +200,5 @@ AtomMapUpdate: !idx.isEmpty()
 HavocCmd: !ids.isEmpty()
 PrimitiveType: ptype == Ptype.BV || bits == -1
 Specification: type != SpecType.MODIFIES || (expr instanceof AtomId)
+Body: !blocks.isEmpty()
+

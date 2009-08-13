@@ -2,10 +2,7 @@ package freeboogie.vcgen;
 
 import java.util.*;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import com.google.common.collect.*;
 import genericutils.*;
 
 import freeboogie.ast.*;
@@ -49,12 +46,11 @@ public class HavocMaker extends Transformer {
   private Block localNewBlock; // block possibly introduced by eval(Blocck...)
 
   @Override
-  public Declaration process(Declaration ast, TcInterface tc) {
+  public Program process(Program ast, TcInterface tc) {
     this.tc = tc;
     rw = new ReadWriteSetFinder(tc.st());
-    ast = (Declaration)ast.eval(this);
-    ast = TypeUtils.internalTypecheck(ast, tc);
-    return ast;
+    ast = (Program) ast.eval(this);
+    return TypeUtils.internalTypecheck(ast, tc);
   }
 
   @Override
@@ -64,9 +60,9 @@ public class HavocMaker extends Transformer {
     Signature sig,
     Body body
   ) {
-    flowGraph = tc.getFlowGraph(implementation);
+    flowGraph = tc.flowGraph(implementation);
     seen.clear(); seen.add(null); dfs2order.clear();
-    dfs1(body.getBlocks());
+    dfs1(body.blocks().get(0));
     Collections.reverse(dfs2order);
 
     scc.clear(); sccOfEntryPoint.clear(); 
@@ -80,7 +76,7 @@ public class HavocMaker extends Transformer {
       dfs2(b);
     }
 
-    Body newBody = (Body)body.eval(this);
+    Body newBody = (Body) body.eval(this);
     if (newBody != body)
       implementation = Implementation.mk(attr, sig, newBody);
     return implementation;
@@ -97,7 +93,8 @@ public class HavocMaker extends Transformer {
       localNewBlock = null;
       Block nb = (Block) b.eval(this);
       same &= localNewBlock == null && nb == b;
-      newBlocks.addAll(localNewBlocks).add(nb);
+      if (localNewBlock != null) newBlocks.add(localNewBlock);
+      newBlocks.add(nb);
     }
     if (!same) body = Body.mk(vars, newBlocks.build());
     return body;
@@ -121,7 +118,7 @@ public class HavocMaker extends Transformer {
       localNewBlock = Block.mk(
         name,
         HavocCmd.mk(idsFromStrings(assignedVars.get(blockScc))),
-        Identifiers.mk(AtomId.mk(tmpName, null), null));
+        AstUtils.ids(tmpName));
     }
     return block;
   }

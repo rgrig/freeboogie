@@ -5,6 +5,7 @@ import java.util.logging.Logger;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
+import genericutils.Id;
 
 import freeboogie.ast.*;
 import freeboogie.tc.TcInterface;
@@ -34,14 +35,19 @@ public class MapRemover extends Transformer {
       // add "function $$selectN<TV, T1, ..., TN>
       //        (map : [T1, ..., TN]TV, x1 : T1, ..., xN : TN)
       //        returns (result : TV);"
-      functions.add(mkFunctionDecl("$$select" + n, e(), mkType("TV")));
+      functions.add(mkFunctionDecl(
+          "$$select", 
+          n, 
+          ImmutableList.<VariableDecl>of(), 
+          mkType("TV")));
 
       // add "function $$updateN<TV, T1, ..., TN>
       //        (val : TV, map : [T1, ..., TN]TV, x1 : T1, ..., xN : TN)
       //        returns (result : [T1, ..., TN]TV);"
       functions.add(mkFunctionDecl(
-          "$$update" + n, 
-          a(mkVarDecl("val", mkType("TV"))).e(),
+          "$$update",
+          n, 
+          ImmutableList.of(mkVarDecl("val", mkType("TV"))),
           mkMapType(n)));
 
       // add "axiom<TV, T1, ..., TN>
@@ -49,18 +55,24 @@ public class MapRemover extends Transformer {
       //          $$selectN($$updateN(v, m, x1, ..., xN), x1, ..., xN) == v
       //        );
       axioms.add(mkAxiom(
-          a(mkMapDecl("m", n)).
-          a(mkVarDecl("v", mkType("TV"))).
-          a(nVarDecl("x", n)).e(),
+          ImmutableList.<AtomId>builder()
+              .add(mkId("TV"))
+              .addAll(nIds("T", n)).build(),
+          ImmutableList.<VariableDecl>builder()
+              .add(mkMapDecl("m", n))
+              .add(mkVarDecl("v", mkType("TV")))
+              .addAll(nVarDecl("x", n)).build(),
           mkEq(
               mkFun(
                   "$$select" + n,
-                  a(mkFun(
-                      "$$update" + n,
-                      a(mkId("v")).
-                      a(mkId("m")).
-                      a(nIds("x", n)).e())).
-                  a(nIds("x", n)).e()),
+                  ImmutableList.<Expr>builder()
+                      .add(mkFun(
+                          "$$update" + n,
+                          ImmutableList.<Expr>builder()
+                              .add(mkId("v"))
+                              .add(mkId("m"))
+                              .addAll(nExprs("x", n)).build()))
+                      .addAll(nExprs("x", n)).build()),
               mkId("v"))));
 
       for (int i = n; i > 0; --i) {
@@ -71,25 +83,32 @@ public class MapRemover extends Transformer {
         //      $$selectN($$updateN(v, m, x1, ..., xN), y1, ..., yN) ==
         //        $$selectN(m, y1, ..., yN));
         axioms.add(mkAxiom(
-            a(mkMapDecl("m", n)).
-            a(mkVarDecl("v", mkType("TV"))).
-            a(nVarDecl("x", n)).
-            a(nVarDecl("y", n)).E(),
+          ImmutableList.<AtomId>builder()
+              .add(mkId("TV"))
+              .addAll(nIds("T", n)).build(),
+            ImmutableList.<VariableDecl>builder()
+                .add(mkMapDecl("m", n))
+                .add(mkVarDecl("v", mkType("TV")))
+                .addAll(nVarDecl("x", n))
+                .addAll(nVarDecl("y", n)).build(),
             mkImplies(
                 mkNotEq(mkId("x" + i), mkId("y" + i)),
                 mkEq(
                     mkFun(
                         "$$select" + n,
-                        a(mkFun(
-                            "$$update" + n,
-                            a(mkId("v")).
-                            a(mkId("m")).
-                            a(nIds("x", n)).e())).
-                        a(nIds("y", n)).e()),
+                        ImmutableList.<Expr>builder()
+                            .add(mkFun(
+                                "$$update" + n,
+                                ImmutableList.<Expr>builder()
+                                    .add(mkId("v"))
+                                    .add(mkId("m"))
+                                    .addAll(nExprs("x", n)).build()))
+                            .addAll(nIds("y", n)).build()),
                     mkFun(
                         "$$select" + n,
-                        a(mkId("m")).
-                        a(nIds("y", n)).e())))));
+                        ImmutableList.<Expr>builder()
+                          .add(mkId("m"))
+                          .addAll(nIds("y", n)).build())))));
       } // for i
     } // for n
     return TypeUtils.internalTypecheck(p, tc);
@@ -105,7 +124,9 @@ public class MapRemover extends Transformer {
     idx = AstUtils.evalListOfExpr(idx, this);
     int n = idx.size();
     arities.add(n);
-    return mkFun("$$select" + n, a(atom).a(idx).e());
+    return mkFun(
+        "$$select" + n, 
+        ImmutableList.<Expr>builder().add(atom).addAll(idx).build());
   }
 
   @Override
@@ -120,46 +141,12 @@ public class MapRemover extends Transformer {
     val = (Expr)val.eval(this);
     int n = idx.size();
     arities.add(n);
-    return AtomFun.mk("$$update" + n, a(val).a(atom).a(idx).e());
+    return mkFun(
+        "$$update" + n, 
+        ImmutableList.<Expr>builder().add(val).add(atom).addAll(idx).build());
   }
 
   // === helpers ===
-
-  // Used to concisely build an immutable list by saying
-  //   a(element).a(list).a(element).e()
-  private static class BuilderWrapper<T> {
-    private ImmutableList.Builder<T> b = ImmutableList.builder();
-
-    public static <T> BuilderWrapper<T> n() { 
-      return new BuilderWrapper<T>();
-    }
-
-    public BuilderWrapper<T> a(T e) { 
-      b.add(e); 
-      return this; 
-    }
-
-    public BuilderWrapper<T> a(Iterable<T> es) {
-      b.addAll(es);
-      return this;
-    }
-
-    public ImmutableList<T> e() { 
-      return b.build(); 
-    }
-  }
-
-  private static <T> ImmutableList<T> e() {
-    return ImmutableList.of(); 
-  }
-
-  private static <T> BuilderWrapper<T> a(T e) { 
-    return BuilderWrapper.n().a(e); 
-  }
-
-  private static <T> BuilderWrapper<T> a(Iterable<T> es) {
-    return BuilderWrapper.n().a(es);
-  }
 
   // returns "function NAME<TV, T1, ..., TN>
   //            (ARGS, map : [T1,...,TN]TV, x1:T1,.., xN:TN)
@@ -171,25 +158,45 @@ public class MapRemover extends Transformer {
       Type resultType
   ) {
     return FunctionDecl.mk(
-        ImmutableList.of(),
+        ImmutableList.<Attribute>of(),
         Signature.mk(
-            name,
-            ImmutableList.builder()
+            name + n,
+            ImmutableList.<AtomId>builder()
                 .addAll(AstUtils.ids("TV"))
                 .addAll(nIds("T", n)).build(),
-            ImmutableList.builder()
+            ImmutableList.<VariableDecl>builder()
                 .addAll(args)
                 .add(mkMapDecl("map", n))
                 .addAll(nVarDecl("x", n)).build(),
             ImmutableList.of(VariableDecl.mk(
-                ImmutableList.of(),
+                ImmutableList.<Attribute>of(),
                 "result",
                 resultType,
-                ImmutableList.of))));
+                ImmutableList.<AtomId>of()))));
+  }
+
+  private Axiom mkAxiom(
+      ImmutableList<AtomId> typeArgs,
+      ImmutableList<VariableDecl> vars,
+      Expr expr
+  ) {
+    return Axiom.mk(
+        ImmutableList.<Attribute>of(),
+        Id.get("map"),
+        typeArgs,
+        AtomQuant.mk(
+            AtomQuant.QuantType.FORALL,
+            vars,
+            ImmutableList.<Attribute>of(),
+            expr));
   }
 
   private VariableDecl mkVarDecl(String name, Type type) {
-    return VariableDecl.mk(ImmutableList.of(), name, type);
+    return VariableDecl.mk(
+        ImmutableList.<Attribute>of(), 
+        name, 
+        type, 
+        ImmutableList.<AtomId>of());
   }
 
   // returns "NAME : [T1,...,TN]TV"
@@ -204,21 +211,27 @@ public class MapRemover extends Transformer {
 
   // returns "NAME" (as a user type)
   private UserType mkType(String name) {
-    return UserType.mk(name, ImmutableList.of());
+    return UserType.mk(name, ImmutableList.<Type>of());
   }
 
+  // TODO(rgrig): Is it really not possible to extract a MAP function??
   // returns "p1, ..., pN"
-  private <T> ImmutableList<T> nIds(String prefix, int n) {
-    ImmutableList.Builder<T> ids = ImmutableList.builder();
-    for (int i = 1; i <= n; ++i) ids.add(mkId(prefix + i));
-    return ids.build();
-  }
-
-  // return "T1, ..., TN"
   private ImmutableList<Type> nTypes(int n) {
     ImmutableList.Builder<Type> types = ImmutableList.builder();
     for (int i = 1; i <= n; ++i) types.add(mkType("T" + i));
     return types.build();
+  }
+  private ImmutableList<AtomId> nIds(String prefix, int n) {
+    ImmutableList.Builder<AtomId> ids = ImmutableList.builder();
+    for (int i = 1; i <= n; ++i) ids.add(mkId(prefix + i));
+    return ids.build();
+  }
+
+  // "safe" because all methods of ImmutableList<T> that take a T
+  // argument already throw exceptions anyway.
+  @SuppressWarnings("unchecked") 
+  private ImmutableList<Expr> nExprs(String prefix, int n) {
+    return (ImmutableList) nIds(prefix, n);
   }
 
   // returns "x1 : T1, ...., xN : TN"
@@ -231,18 +244,25 @@ public class MapRemover extends Transformer {
 
   // returns "NAME(ARGS)" (as a function application)
   private AtomFun mkFun(String name, Iterable<Expr> args) {
-    return AtomFun.mk(name, e(), a(args).e());
+    return AtomFun.mk(
+        name, 
+        ImmutableList.<Type>of(), 
+        ImmutableList.<Expr>builder().addAll(args).build());
   }
 
   private AtomId mkId(String name) {
-    return AtomId.mk(name, e());
+    return AtomId.mk(name, ImmutableList.<Type>of());
+  }
+
+  private BinaryOp mkNotEq(Expr lhs, Expr rhs) {
+    return BinaryOp.mk(BinaryOp.Op.NEQ, lhs, rhs);
   }
 
   private BinaryOp mkEq(Expr lhs, Expr rhs) {
-    return BinaryOp.mk(BinaryOp.Type.EQ, lhs, rhs);
+    return BinaryOp.mk(BinaryOp.Op.EQ, lhs, rhs);
   }
 
   private BinaryOp mkImplies(Expr lhs, Expr rhs) {
-    return BinaryOp.mk(BinaryOp.Type.IMPLIES, lhs, rhs);
+    return BinaryOp.mk(BinaryOp.Op.IMPLIES, lhs, rhs);
   }
 }
