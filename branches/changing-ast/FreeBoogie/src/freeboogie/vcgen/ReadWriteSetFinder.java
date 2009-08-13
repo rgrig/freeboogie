@@ -66,7 +66,6 @@ extends AssociativeEvaluator<Pair<CSeq<VariableDecl>,CSeq<VariableDecl>>> {
     Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> r = assocOp.zero();
     context.addFirst(true);
     for (AtomId id : results) r = assocOp.plus(r, id.eval(this));
-    r = assocOp.plus(r, results.eval(this));
     context.removeFirst();
     for (Expr e : args) r = assocOp.plus(r, e.eval(this));
     return memo(callCmd, r);

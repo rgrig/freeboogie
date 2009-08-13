@@ -2,6 +2,7 @@ package freeboogie.vcgen;
 
 import java.util.Set;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import genericutils.Logger;
 
@@ -114,41 +115,40 @@ public class VcGenerator extends Transformer {
 
     // register function name symbols with the builder
     builder.popDef();
-    functionRegisterer.process(p.ast, tc);
+    functionRegisterer.process(p, tc);
     builder.pushDef();
 
     // send global axioms
     try {
       prover.pop();
-      axiomSender.process(p.ast);
+      axiomSender.process(p);
       prover.push();
     } catch (ProverException e) {
       out.say(
           ReportOn.MAIN,
           ReportLevel.NORMAL,
-          "The prover can't handle " + p.fileName + ". Skipping.");
+          "The prover can't handle " + p.fileName() + ". Skipping.");
       prover.terminate();
       reinitialize();
       return p;
     }
-    log("Sent global axioms for file " + p.fileName + ".");
+    log("Sent global axioms for file " + p.fileName() + ".");
 
     // do the verification
-    Ast x = p.ast.eval(this);
-    assert x == p.ast;
-    log("Finished checking file " + p.fileName + ".");
+    Program x = (Program) p.eval(this);
+    assert x == p;
+    log("Finished checking file " + p.fileName() + ".");
     return p;
   }
 
   @Override
   public void see(
       Implementation implementation, 
-      Attribute attr, 
+      ImmutableList<Attribute> attr, 
       Signature sig, 
-      Body body, 
-      Declaration tail
+      Body body
   ) {
-    log("Checking implementation " + sig.getName() + " at " + sig.loc());
+    log("Checking implementation " + sig.name() + " at " + sig.loc());
     vcgen.setCurrentBody(body);
     SmtTerm vc = vcgen.vc();
     lowLevelAxiomBag.clear();
@@ -164,7 +164,7 @@ public class VcGenerator extends Transformer {
       reinitialize();
     }
     sb.append(": ");
-    sb.append(sig.getName());
+    sb.append(sig.name());
     sb.append(" at ");
     sb.append(sig.loc().toString());
     out.say(ReportOn.MAIN, ReportLevel.QUIET, sb.toString());

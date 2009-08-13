@@ -14,6 +14,7 @@ import freeboogie.ast.*;
 import freeboogie.astutil.PrettyPrinter;
 import freeboogie.tc.TtspRecognizer;
 import freeboogie.tc.TcInterface;
+import freeboogie.tc.TypeUtils;
 
 /**
  * Passify option.
@@ -35,27 +36,17 @@ public class Passificator extends ABasicPassifier {
    */
   public Program process(final Program ast, final TcInterface tc) {
     this.tc = tc;
-    fEnv = new Environment(fileName);
+    fEnv = new Environment(ast.fileName());
+    for (VariableDecl vd : ast.variables()) fEnv.addGlobal(vd);
     Program passifiedAst = (Program) ast.eval(this);
     
     if (false) { // TODO log-categ
       System.out.print(fEnv.globalToString());
     }
     passifiedAst = addVariableDeclarations(passifiedAst);
-    return TypeUtils.internalTypeCheck(passifiedAst, tc);
+    return TypeUtils.internalTypecheck(passifiedAst, tc);
   }
-  
-  @Override
-  public Ast eval(
-    VariableDecl decl,
-    ImmutableList<Attribute> attr,
-    String name, 
-    Type type,
-    ImmutableList<AtomId> typeVars
-  ) {
-    fEnv.addGlobal(decl);
-  }
-  
+ 
   /**
    * Handles one implementation.
    */
@@ -67,20 +58,20 @@ public class Passificator extends ABasicPassifier {
     Body oldBody
   ) {
     SimpleGraph<Block> currentFG = tc.flowGraph(implementation);
-    TtspRecognizer<Block> recog = new TtspRecognizer<Block>(currentFG, oldBody.blocks());
+    TtspRecognizer<Block> recog = new TtspRecognizer<Block>(currentFG, oldBody.blocks().get(0));
     Body body = oldBody;
     if (!recog.check()) {
       Err.warning(this + " " + implementation.loc() + ": Implementation " + 
-        sig.getName() + " is not a series-parallel graph. I'm not passifying it.");
+        sig.name() + " is not a series-parallel graph. I'm not passifying it.");
     } else if (currentFG.hasCycle()) {
       Err.warning(this + " " + implementation.loc() + ": Implementation " + 
-        sig.getName() + " has cycles. I'm not passifying it.");
+        sig.name() + " has cycles. I'm not passifying it.");
     } else {
       if (false) { // TODO log-categ
-        System.out.println("process " + sig.getName());
+        System.out.println("process " + sig.name());
       }
       BodyPassifier bp = BodyPassifier.passify(
-        typeChecker(),
+        tc,
         fEnv, 
         oldBody,
         sig);
@@ -88,7 +79,7 @@ public class Passificator extends ABasicPassifier {
         sig.name(), 
         sig.typeArgs(), 
         sig.args(),
-        bp.result(),
+        bp.getResult(),
         sig.loc());
       body = bp.getBody();
       fEnv.updateGlobalWith(bp.getEnvironment());
@@ -105,13 +96,23 @@ public class Passificator extends ABasicPassifier {
    * @param ast the AST to transform
    * @return the AST with the added declarations
    */
-  private Declaration addVariableDeclarations(VariableDecl ast) {
+  private Program addVariableDeclarations(Program ast) {
+    ImmutableList.Builder<VariableDecl> newVariables = ImmutableList.builder();
+    newVariables.addAll(ast.variables());
     for (Map.Entry<VariableDecl, Integer> e : fEnv.getGlobalSet()) {
-      for (int i = 1; i <= e.getValue(); ++i) {
-        ast = ABasicPassifier.mkDecl(e.getKey(), i, ast); 
-      }
+      for (int i = 1; i <= e.getValue(); ++i)
+        newVariables.add(mkDecl(e.getKey(), i));
     }
-    return ast;
+    return Program.mk(
+        ast.fileName(),
+        ast.types(),
+        ast.axioms(),
+        newVariables.build(),
+        ast.constants(),
+        ast.functions(),
+        ast.procedures(),
+        ast.implementations(),
+        ast.loc());
   }
 
   
@@ -130,14 +131,14 @@ public class Passificator extends ABasicPassifier {
     private final Environment freshEnv;
 
     private final Map<Block, Environment> startBlockStatus = 
-        maps.newHashMap();
+        Maps.newHashMap();
     private final Map<Block, Environment> endBlockStatus = 
         Maps.newHashMap();
-    private final VariableDecl fResults;
+    private final ImmutableList<VariableDecl> fResults;
     private SimpleGraph<Block> fFlowGraph;
     
     private Body fBody;
-    private VariableDecl fNewResults;
+    private ImmutableList<VariableDecl> fNewResults;
     /**
      * Builds a body passifier.
      * @param typeChecker  
@@ -151,7 +152,7 @@ public class Passificator extends ABasicPassifier {
     ) {
       this.tc = typeChecker;
       freshEnv = new Environment(sig.loc() + " " + sig.name());
-      fResults = (VariableDecl) sig.results();
+      fResults = sig.results();
       freshEnv.putAll(globalEnv);
       for (VariableDecl vd : sig.args()) freshEnv.put(vd, 0);
     }
@@ -185,7 +186,7 @@ public class Passificator extends ABasicPassifier {
         int last = decl.getValue();
         VariableDecl old = decl.getKey();
         for (int i = 1; i <= last; ++i) {
-          builder.add(mkDecl(old, i));
+          newLocals.add(mkDecl(old, i));
         }
       }
     }
@@ -194,9 +195,11 @@ public class Passificator extends ABasicPassifier {
         ImmutableList<VariableDecl> old
     ) {
       ImmutableList.Builder<VariableDecl> builder = ImmutableList.builder();
-      int last = freshEnv.get(old);
-      freshEnv.remove(old);
-      for (int i = 0; i < last; ++i) builder.add(mkDecl(old, o));
+      for (VariableDecl r : old) {
+        int last = freshEnv.get(r);
+        freshEnv.remove(r);
+        for (int i = 0; i < last; ++i) builder.add(mkDecl(r, i));
+      }
       return builder.build();
     }
     
@@ -245,7 +248,7 @@ public class Passificator extends ABasicPassifier {
       // now we see if we have to add a command to be more proper :P
       Set<Block> succList = fFlowGraph.to(block);
       if (succList.size() == 1) { // TODO(rgrig): is this ok?
-        Block next = succList.get(0);
+        Block next = succList.iterator().next();
         Environment nextEnv = startBlockStatus.get(next);
         for (Entry<VariableDecl, Integer> entry: nextEnv.getAllSet()) {
           VariableDecl decl = entry.getKey();
@@ -313,7 +316,7 @@ public class Passificator extends ABasicPassifier {
      * has been computed by the algorithm.
      * @return the corresponding result variable
      */
-    public VariableDecl getResult() {
+    public ImmutableList<VariableDecl> getResult() {
       return fNewResults;
     }
     

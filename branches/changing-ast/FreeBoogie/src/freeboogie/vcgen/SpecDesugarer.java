@@ -4,9 +4,7 @@ import java.io.PrintWriter;
 import java.util.*;
 import java.util.logging.Logger;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.google.common.collect.*;
 import genericutils.*;
 
 import freeboogie.ast.*;
@@ -62,8 +60,8 @@ public class SpecDesugarer extends Transformer {
   @Override
   public Program process(Program p, TcInterface tc) {
     this.tc = tc; 
-    implProc = tc.getImplProc();
-    paramMap = tc.getParamMap();
+    implProc = tc.implProc();
+    paramMap = tc.paramMap();
     p = (Program) p.eval(this);
     return TypeUtils.internalTypecheck(p, tc);
   }
@@ -80,28 +78,21 @@ public class SpecDesugarer extends Transformer {
     for (VariableDecl ad : sig.args()) {
       toSubstitute.put(
           paramMap.def(ad), 
-          AtomId.mk(ad.name(), ImmutableList.of()));
+          AtomId.mk(ad.name(), ImmutableList.<Type>of()));
     }
     for (VariableDecl rd : sig.results()) {
       toSubstitute.put(
           paramMap.def(rd), 
-          AtomId.mk(rd.name(), ImmutableList.of()));
+          AtomId.mk(rd.name(), ImmutableList.<Type>of()));
     }
 
     // collect preconditions and postconditions
     preconditions.clear();
     postconditions.clear();
-    for (Specification spec : implProc.def(implementation).spec()) {
-      switch (spec.type()) {
-        case REQUIRES: 
-          preconditions.add(((Expr) spec.expr().eval(this)).clone());
-          break;
-        case ENSURES:
-          if (!spec.free())
-            postconditions.add(((Expr) spec.expr().eval(this)).clone());
-          break;
-      }
-    }
+    for (PreSpec pre : implProc.def(implementation).preconditions())
+      preconditions.add(pre.expr());
+    for (PostSpec post : implProc.def(implementation).postconditions())
+      if (!post.free()) postconditions.add(post.expr());
     toSubstitute.clear();
 
     // the rest
@@ -136,19 +127,19 @@ public class SpecDesugarer extends Transformer {
     newBlocks.addFirst(b = Block.mk(
         nextLabel = Id.get("exit"), 
         null, 
-        ImmutableList.of()));
+        ImmutableList.<AtomId>of()));
     for (Expr e : Iterables.reverse(postconditions)) {
       newBlocks.addFirst(b = Block.mk(
           currentLabel = Id.get("post"),
           AssertAssumeCmd.mk(
-              AssertAssumeCmd.Type.ASSERT, 
-              ImmutableList.of(), 
+              AssertAssumeCmd.CmdType.ASSERT, 
+              ImmutableList.<AtomId>of(), 
               e),
           AstUtils.ids(nextLabel)));
       nextLabel = currentLabel;
     }
     afterBody = nextLabel; // used by the eval* call on the next line
-    for (Block ob : Iterables.reverse(AstUtils.evalListOfBlock(blocks))) {
+    for (Block ob : Iterables.reverse(AstUtils.evalListOfBlock(blocks, this))) {
       newBlocks.addFirst(ob);
       nextLabel = ob.name();
     }
@@ -156,8 +147,8 @@ public class SpecDesugarer extends Transformer {
       newBlocks.addFirst(b = Block.mk(
           currentLabel = Id.get("pre"),
           AssertAssumeCmd.mk(
-              AssertAssumeCmd.Type.ASSUME,
-              ImmutableList.of(),
+              AssertAssumeCmd.CmdType.ASSUME,
+              ImmutableList.<AtomId>of(),
               e),
           AstUtils.ids(nextLabel)));
       nextLabel = currentLabel;

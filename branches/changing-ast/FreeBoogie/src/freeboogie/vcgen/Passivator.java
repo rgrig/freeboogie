@@ -4,9 +4,7 @@ import java.io.PrintWriter;
 import java.util.*;
 import java.util.logging.Logger;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import com.google.common.collect.*;
 import genericutils.*;
 
 import freeboogie.ast.*;
@@ -73,7 +71,7 @@ public class Passivator extends Transformer {
   private ImmutableList.Builder<VariableDecl> newLocals;
 
   private int belowOld;
-  private int inResults;
+  private boolean inResults;
 
   // === transformers ===
 
@@ -89,17 +87,18 @@ public class Passivator extends Transformer {
       ImmutableList<Procedure> procedures,
       ImmutableList<Implementation> implementations
   ) {
-    implementations = AstUtils.evalListOfImplementation(implementations);
+    implementations = AstUtils.evalListOfImplementation(implementations, this);
     if (!newVarsCnt.isEmpty()) {
-      ImmutableList<VariableDecl> newVariables = ImmutableList.builder();
+      ImmutableList.Builder<VariableDecl> newVariables = 
+          ImmutableList.builder();
       newVariables.addAll(variables);
       for (Map.Entry<VariableDecl, Integer> e : newVarsCnt.entrySet()) {
         for (int i = 1; i <= e.getValue(); ++i) {
           newVariables.add(VariableDecl.mk(
-              ImmutableList.of(),
+              ImmutableList.<Attribute>of(),
               e.getKey().name() + "$$" + i,
-              TypeUtils.stripDep(e.getKey().getType()).clone(), 
-              AstUtils.cloneListOfType(e.getKey().typeArgs())));
+              TypeUtils.stripDep(e.getKey().type()).clone(), 
+              AstUtils.cloneListOfAtomId(e.getKey().typeArgs())));
         }
       }
       variables = newVariables.build();
@@ -111,6 +110,7 @@ public class Passivator extends Transformer {
         variables,
         constants,
         functions,
+        procedures,
         implementations,
         program.loc());
   }
@@ -122,10 +122,10 @@ public class Passivator extends Transformer {
       Signature sig,
       Body body
   ) {
-    currentFG = tc.getFlowGraph(implementation);
+    currentFG = tc.flowGraph(implementation);
     if (currentFG.hasCycle()) {
       Err.warning("" + implementation.loc() + ": Implementation " + 
-        sig.getName() + " has cycles. I'm not passivating it.");
+        sig.name() + " has cycles. I'm not passivating it.");
       return implementation;
     }
     
@@ -155,21 +155,21 @@ public class Passivator extends Transformer {
     body = (Body) body.eval(this); // adds to newLocals
     sig = (Signature) sig.eval(this); // adds to newLocals
     newLocals.addAll(body.vars());
-    body = Body.mk(newLocals.build(), body.blocks(). body.loc());
+    body = Body.mk(newLocals.build(), body.blocks(), body.loc());
     return Implementation.mk(attr, sig, body);
   }
 
   @Override public Signature eval(
       Signature signature,
       String name,
-      ImmutableList<Type> typeArgs,
+      ImmutableList<AtomId> typeArgs,
       ImmutableList<VariableDecl> args,
       ImmutableList<VariableDecl> results
   ) {
     AstUtils.evalListOfVariableDecl(args, this);
     assert !inResults : "There shouldn't be nesting here.";
     inResults = true;
-    results = AstUtils.evalListOfVariableDecl(results);
+    results = AstUtils.evalListOfVariableDecl(results, this);
     inResults = false;
     return Signature.mk(name, typeArgs, args, results);
   }
@@ -232,7 +232,7 @@ public class Passivator extends Transformer {
   ) {
     currentBlock = block;
     // change variable occurrences in the command of this block
-    Command newCmd = AstUtils.eval(cmd);
+    Command newCmd = AstUtils.eval(cmd, this);
 
     /* Compute the successors, perhaps introducing extra blocks for
      * copy operations. */
@@ -250,21 +250,21 @@ public class Passivator extends Transformer {
             currentLabel = Id.get("copyBlock"),
             AssertAssumeCmd.mk(
               AssertAssumeCmd.CmdType.ASSUME,
-              Id.get("copyAssume"),
+              ImmutableList.<AtomId>of(),
               BinaryOp.mk(
                 BinaryOp.Op.EQ,
-                AtomId.mk(v.getName() + (ri > 0? "$$" + ri : ""), null),
-                AtomId.mk(v.getName() + (wi > 0? "$$" + wi : ""), null))),
+                AtomId.mk(v.name() + (ri > 0? "$$" + ri : ""), null),
+                AtomId.mk(v.name() + (wi > 0? "$$" + wi : ""), null))),
             AstUtils.ids(nextLabel),
             block.loc()));
         nextLabel = currentLabel;
       }
-      newSucc.add(AtomId.mk(nextLabel, ImmutableList.of(), block.loc()));
+      newSucc.add(AtomId.mk(nextLabel, ImmutableList.<Type>of(), block.loc()));
     }
     currentBlock = null;
 
     if (newCmd != cmd || changedSucc)
-      block = Block.mk(name, newCmd, newSucc, block.loc());
+      block = Block.mk(name, newCmd, newSucc.build(), block.loc());
     return block;
   }
 
@@ -279,7 +279,7 @@ public class Passivator extends Transformer {
     VariableDecl vd = (VariableDecl)tc.st().ids.def(lhs);
     return AssertAssumeCmd.mk(
         AssertAssumeCmd.CmdType.ASSUME, 
-        Id.get("asgn"),
+        ImmutableList.<AtomId>of(),
         BinaryOp.mk(BinaryOp.Op.EQ,
           AtomId.mk(
             lhs.id() + "$$" + getIdx(writeIdx, vd), 
@@ -321,7 +321,7 @@ public class Passivator extends Transformer {
     newVarsCnt.remove(variableDecl);
     if (inResults) {
       variableDecl = VariableDecl.mk(
-          ImmutableList.of(),
+          ImmutableList.<Attribute>of(),
           name + "$$" + last,
           type,
           typeArgs,
@@ -330,7 +330,7 @@ public class Passivator extends Transformer {
     if (inResults) --last;
     for (int i = 1; i <= last; ++i) {
       newLocals.add(VariableDecl.mk(
-          ImmutableList.of(),
+          ImmutableList.<Attribute>of(),
           name + "$$" + i, 
           TypeUtils.stripDep(type).clone(), 
           AstUtils.cloneListOfAtomId(typeArgs)));
