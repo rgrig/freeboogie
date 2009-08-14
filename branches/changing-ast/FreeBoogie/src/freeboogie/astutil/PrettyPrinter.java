@@ -145,7 +145,7 @@ public class PrettyPrinter extends Transformer {
     Expr expr
   ) {
     say(cmdRep.get(type));
-    if (typeVars != null) {
+    if (!typeVars.isEmpty()) {
       say("<");
       printList(", ", typeVars);
       say(">");
@@ -179,7 +179,7 @@ public class PrettyPrinter extends Transformer {
     ImmutableList<Expr> args
   ) {
     say(function);
-    if (types != null) {
+    if (!types.isEmpty()) {
       say("<");
       assert !prefixByBq;
       prefixByBq = true;
@@ -195,7 +195,7 @@ public class PrettyPrinter extends Transformer {
   @Override
   public void see(AtomId atomId, String id, ImmutableList<Type> types) {
     say(id);
-    if (types != null) {
+    if (!types.isEmpty()) {
       say("<");
       assert !prefixByBq;
       prefixByBq = true;
@@ -280,7 +280,7 @@ public class PrettyPrinter extends Transformer {
     switch (boogieVersion) {
       case TWO: say(" "); say(name); break;
     }
-    if (typeArgs != null) {
+    if (!typeArgs.isEmpty()) {
       say("<");
       printList(", ", typeArgs);
       say(">");
@@ -315,7 +315,7 @@ public class PrettyPrinter extends Transformer {
       cmd.eval(this);
     }
     say(" ");
-    if (succ == null) {
+    if (succ.isEmpty()) {
       say("return");
     } else {
       say("goto ");
@@ -348,7 +348,7 @@ public class PrettyPrinter extends Transformer {
     ImmutableList<Expr> args
   ) {
     say("call ");
-    if (results != null) {
+    if (!results.isEmpty()) {
       printList(", ", results);
       say(" := ");
     }
@@ -488,7 +488,7 @@ public class PrettyPrinter extends Transformer {
   ) {
     ++skipVar;
     say(name);
-    if (typeArgs != null) {
+    if (!typeArgs.isEmpty()) {
       say("<");
       printList(", ", typeArgs);
       say(">");
@@ -496,7 +496,7 @@ public class PrettyPrinter extends Transformer {
     say("(");
     printList(", ", args);
     say(")");
-    if (results != null) {
+    if (!results.isEmpty()) {
       say(" returns (");
       printList(", ", results);
       say(")");
@@ -610,7 +610,7 @@ public class PrettyPrinter extends Transformer {
     if (skipVar==0) say("var ");
     printList(" ", attr);
     say(name);
-    if (typeVars != null) {
+    if (!typeVars.isEmpty()) {
       say("<");
       printList(", ", typeVars);
       say(">");

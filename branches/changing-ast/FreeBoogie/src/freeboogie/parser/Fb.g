@@ -30,10 +30,6 @@ grammar Fb;
   
   public boolean ok = true;
 
-  private ImmutableList.Builder<PreSpec> preconditionsBuilder;
-  private ImmutableList.Builder<PostSpec> postconditionsBuilder;
-  private ImmutableList.Builder<ModifiesSpec> modifiesBuilder;
-  private boolean specFree;
   private ImmutableList.Builder<Block> blockListBuilder;
 
   private ImmutableList.Builder<TypeDecl> typeDeclBuilder;
@@ -150,12 +146,42 @@ fun_decl:
           $signature.v)); }}
 ;
 
-proc_decl:
-    'procedure' signature ';'? spec_list body?
+proc_decl
+scope {
+  ImmutableList.Builder<PreSpec> pre;
+  ImmutableList.Builder<PostSpec> post;
+  ImmutableList.Builder<ModifiesSpec> modifies;
+}:
+    { $proc_decl::pre = ImmutableList.builder();
+      $proc_decl::post = ImmutableList.builder();
+      $proc_decl::modifies = ImmutableList.builder(); }
+    p='procedure' signature ';'? spec_list
+    { if (ok) {
+      procedureDeclBuilder.add(Procedure.mk(
+          ImmutableList.<Attribute>of(),
+          $signature.v,
+          $proc_decl::pre.build(),
+          $proc_decl::post.build(),
+          $proc_decl::modifies.build(),
+          tokLoc($p))); }}
+    (body
+    { if (ok) {
+      implementationBuilder.add(Implementation.mk(
+          ImmutableList.<Attribute>of(),
+          $signature.v.clone(),
+          $body.v,
+          tokLoc($p))); }}
+    )?
 ;
 
 impl_decl:
-    'implementation' signature body
+    s='implementation' signature body
+    { if (ok) {
+      implementationBuilder.add(Implementation.mk(
+          ImmutableList.<Attribute>of(),
+          $signature.v,
+          $body.v,
+          tokLoc($s))); }}
 ;
 
 signature returns [Signature v]:
@@ -165,23 +191,24 @@ signature returns [Signature v]:
 ;
 
 spec_list:
-      { preconditionsBuilder = ImmutableList.builder(); 
-        postconditionsBuilder = ImmutableList.builder(); 
-        modifiesBuilder = ImmutableList.builder(); }
     spec*
 ;
 
-spec:
-      {specFree = false;}
-    (f='free' {specFree = true;})? 
+spec
+scope {
+  boolean free;
+}
+:
+      {$spec::free = false;}
+    (f='free' {$spec::free = true;})? 
         (((r='requires' | e='ensures') tv=type_vars h=expr
       { if(ok) {
-        if ($r == null)
-          preconditionsBuilder.add(PreSpec.mk(specFree, $tv.v, $h.v, fileLoc($h.v)));
+        if ($r != null)
+          $proc_decl::pre.add(PreSpec.mk($spec::free, $tv.v, $h.v, fileLoc($h.v)));
         else
-          postconditionsBuilder.add(PostSpec.mk(specFree, $tv.v, $h.v, fileLoc($h.v))); }})
-    | (m='modifies' id_list { if (ok) modifiesBuilder.add(
-        ModifiesSpec.mk(specFree, $id_list.v, tokLoc($m))); } ))
+          $proc_decl::post.add(PostSpec.mk($spec::free, $tv.v, $h.v, fileLoc($h.v))); }})
+    | (m='modifies' id_list { if (ok) $proc_decl::modifies.add(
+        ModifiesSpec.mk($spec::free, $id_list.v, tokLoc($m))); } )) ';'
 ;
 
 body returns [Body v]:
@@ -195,15 +222,15 @@ scope {
 }
 :
       { $var_decl_list::b_ = ImmutableList.builder(); }
-    'var' d=one_var_decl {if (ok) $var_decl_list::b_.add($d.v);} 
+    ('var' d=one_var_decl {if (ok) $var_decl_list::b_.add($d.v);} 
     ((',' | ';' 'var') dd=one_var_decl 
-      {if (ok) $var_decl_list::b_.add($dd.v);})* ';'
+      {if (ok) $var_decl_list::b_.add($dd.v);})* ';')?
     { $v=$var_decl_list::b_.build(); }
 ;
 
 block_list returns [ImmutableList<Block> v]:
       { blockListBuilder = ImmutableList.builder(); }
-    block*
+    block+
       { $v = blockListBuilder.build(); }
 ;
 
@@ -221,12 +248,12 @@ scope {
         blockListBuilder.add(Block.mk($id.text,null,$s.v,tokLoc(id)));
       else {
         String n = $id.text, nn;
-        for (int i = 0; i + 1 < $block::cmds.size(); ++i) {
+        for (int i = 0; i < $block::cmds.size(); ++i) {
           nn = Id.get("block");
           blockListBuilder.add(Block.mk(
             n,
             $block::cmds.get(i),
-            i+1==$block::cmds.size()?$s.v:ImmutableList.of(AtomId.mk(nn,ImmutableList.<Type>of())),
+            i+1==$block::cmds.size()?$s.v:AstUtils.ids(nn),
             fileLoc($block::cmds.get(i))));
           n = nn;
         }

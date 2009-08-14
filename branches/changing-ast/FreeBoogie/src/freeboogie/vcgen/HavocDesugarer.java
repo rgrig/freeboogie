@@ -66,6 +66,8 @@ public class HavocDesugarer extends Transformer {
       extraBlocks.clear();
       Block nb = (Block) b.eval(this);
       same &= extraBlocks.isEmpty() && nb == b;
+      for (Block bb : extraBlocks) newBlocks.add(bb);
+      newBlocks.add(nb);
     }
     return Body.mk(newVars.addAll(vars).build(), newBlocks.build(), body.loc());
   }

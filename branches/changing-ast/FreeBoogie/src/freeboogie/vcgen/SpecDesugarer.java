@@ -90,9 +90,9 @@ public class SpecDesugarer extends Transformer {
     preconditions.clear();
     postconditions.clear();
     for (PreSpec pre : implProc.def(implementation).preconditions())
-      preconditions.add(pre.expr());
+      preconditions.add(pre.expr().clone());
     for (PostSpec post : implProc.def(implementation).postconditions())
-      if (!post.free()) postconditions.add(post.expr());
+      if (!post.free()) postconditions.add(post.expr().clone());
     toSubstitute.clear();
 
     // the rest

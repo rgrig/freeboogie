@@ -43,15 +43,15 @@ public abstract class ACalculus<T extends Term<T>> {
   /** the current body which is being inspected. */
   private Body currentBody;
 
-
   private TcInterface tc;
- 
+
   public void setBuilder(TermBuilder<T> term) { 
     this.term = term; 
     trueTerm = term.mk("literal_formula", Boolean.valueOf(true));
   }
 
   public void typeChecker(TcInterface tc) {
+System.out.println("really set " + (tc != null));
     this.tc = tc;
   }
   
@@ -108,7 +108,7 @@ public abstract class ACalculus<T extends Term<T>> {
     return currentBody;
   }
 
-  public TcInterface getTypeChecker() {
+  public TcInterface typeChecker() {
     return tc;
   }
 

@@ -50,16 +50,12 @@ public class Passivator extends Transformer {
   // used mainly for debugging
   private static final Logger log = Logger.getLogger("freeboogie.vcgen");
 
-  private HashMap<VariableDecl, HashMap<Block, Integer>> readIdx = 
-      Maps.newHashMap();
-  private HashMap<VariableDecl, HashMap<Block, Integer>> writeIdx =
-      Maps.newHashMap();
-  private HashMap<VariableDecl, Integer> newVarsCnt = Maps.newHashMap();
-  private HashMap<VariableDecl, Integer> toReport = Maps.newHashMap();
-  private HashMap<Command, HashSet<VariableDecl>> commandWs =
-      Maps.newHashMap();
-  private List<Block> extraBlocks = Lists.newArrayList();
-
+  private HashMap<VariableDecl, HashMap<Block, Integer>> readIdx;
+  private HashMap<VariableDecl, HashMap<Block, Integer>> writeIdx;
+  private HashMap<VariableDecl, Integer> newVarsCnt;
+  private HashMap<VariableDecl, Integer> toReport;
+  private HashMap<Command, HashSet<VariableDecl>> commandWs;
+  private List<Block> extraBlocks;
   private ReadWriteSetFinder rwsf;
 
   private VariableDecl currentVar;
@@ -87,6 +83,13 @@ public class Passivator extends Transformer {
       ImmutableList<Procedure> procedures,
       ImmutableList<Implementation> implementations
   ) {
+    readIdx = Maps.newHashMap();
+    writeIdx = Maps.newHashMap();
+    newVarsCnt = Maps.newHashMap();
+    toReport = Maps.newHashMap();
+    commandWs = Maps.newHashMap();
+    extraBlocks = Lists.newArrayList();
+    rwsf = new ReadWriteSetFinder(tc.st());
     implementations = AstUtils.evalListOfImplementation(implementations, this);
     if (!newVarsCnt.isEmpty()) {
       ImmutableList.Builder<VariableDecl> newVariables = 

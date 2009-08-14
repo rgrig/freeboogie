@@ -29,7 +29,7 @@ public class AstUtils {
     \lb builder = ImmutableList.builder();
     for (\ClassName c : l) {
       \ClassName cc = (\ClassName) c.eval(e);
-      builder.add(cc);
+      if (cc != null) builder.add(cc);
       same &= cc == c;
     }
     return same? l : builder.build();

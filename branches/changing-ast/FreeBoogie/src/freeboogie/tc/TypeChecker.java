@@ -256,8 +256,8 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
   
   private boolean sub(MapType a, MapType b) {
-    if (!sub(b.idxTypes(), a.idxTypes())) return false;
-    return sub(a.elemType(), b.elemType());
+    if (!sub(b.idxTypes(), a.idxTypes())) return false;  // contravariant
+    return sub(a.elemType(), b.elemType()); // covariant
   }
   
   private boolean sub(UserType a, UserType b) {
@@ -290,9 +290,10 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     
     if (a == b) return true; // the common case
     if (a == errType || b == errType) return true; // don't trickle up errors
-    
-    // an empty tuple is only the same with an empty tuple
-    if (a == null ^ b == null) return false;
+
+    // (t) == t
+    a = stripTuple(a);
+    b = stripTuple(b);
     
     // check if b is ANY
     if (b instanceof PrimitiveType) {
@@ -343,6 +344,13 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       return false;
   }
 
+  private Type stripTuple(Type t) {
+    if (!(t instanceof TupleType)) return t;
+    TupleType tt = (TupleType) t;
+    if (tt.types().size() != 1) return t;
+    return tt.types().get(0);
+  }
+
   private void collectEnclosingTypeVars(ImmutableList<AtomId> ids) {
     for (AtomId i : ids) enclosingTypeVar.put(i, i);
   }
@@ -383,7 +391,10 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
    * the corresponding real types.  */
   private Type substRealType(Type t) {
     if (t == null) return null;
-    if (t instanceof MapType) {
+    if (t instanceof TupleType) {
+      TupleType tt = (TupleType) t;
+      return TupleType.mk(substRealType(tt.types()), t.loc());
+    } if (t instanceof MapType) {
       MapType at = (MapType)t;
       return MapType.mk(
           substRealType(at.idxTypes()),
@@ -555,7 +566,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       t = checkRealType(vd.type(), atomId);
       typeVarExit(atomId);
     } else if (d instanceof ConstDecl) {
-      assert types == null; // TODO
+      assert types.isEmpty(); // TODO
       t = ((ConstDecl)d).type();
     } else assert false;
     typeOf.put(atomId, t);

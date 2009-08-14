@@ -119,6 +119,7 @@ public class Main {
       parse(f);
       if (!typecheck()) continue;
       for (Transformer t : stages) {
+        debug("  Stage: " + t.name());
         boogie = t.process(boogie, tc);
         dumpState(t.name());
       }
@@ -256,6 +257,10 @@ public class Main {
 
   private void verbose(String s) {
     out.say(ReportOn.MAIN, ReportLevel.VERBOSE, s);
+  }
+
+  private void debug(String s) {
+    out.say(ReportOn.MAIN, ReportLevel.DEBUG, s);
   }
 
   public static void badUsage() {

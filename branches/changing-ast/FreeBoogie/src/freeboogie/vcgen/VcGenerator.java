@@ -105,7 +105,10 @@ public class VcGenerator extends Transformer {
 
   @Override
   public Program process(Program p, TcInterface tc) {
+    assert tc != null;
+
     // prepare for the verification of each implementation
+System.out.println("set " + (tc != null));
     vcgen.typeChecker(tc);
     builder = prover.getBuilder();
     builder.setTypeChecker(tc);
@@ -149,6 +152,7 @@ public class VcGenerator extends Transformer {
       Body body
   ) {
     log("Checking implementation " + sig.name() + " at " + sig.loc());
+System.out.println("body " + (vcgen.typeChecker() != null));
     vcgen.setCurrentBody(body);
     SmtTerm vc = vcgen.vc();
     lowLevelAxiomBag.clear();
