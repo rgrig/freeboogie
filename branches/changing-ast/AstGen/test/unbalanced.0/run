@@ -1,2 +1,0 @@
-java -ea -jar ../../dist/astgen-*.jar list.ag bad.tpl
-
