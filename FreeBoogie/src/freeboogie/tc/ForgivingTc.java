@@ -3,6 +3,8 @@ package freeboogie.tc;
 import java.util.*;
 import java.util.logging.Logger;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import genericutils.SimpleGraph;
 
 import freeboogie.ErrorsFoundException;
@@ -36,22 +38,16 @@ public class ForgivingTc extends Transformer implements TcInterface {
     tc.setAcceptOld(true);
   }
 
-  @Override public Declaration getAST() { return tc.getAST(); }
-
-  @Override public Program process(Program p) throws ErrorsFoundException {
-    List<FbError> errors = process(p.ast);
-    if (!errors.isEmpty()) throw new ErrorsFoundException(errors);
-    return new Program(getAST(), p.fileName);
-  }
+  @Override public Program ast() { return tc.ast(); }
 
   @Override
-  public List<FbError> process(Declaration ast) {
+  public List<FbError> process(Program ast) {
     boolean unfixable;
     int oldErrCnt = Integer.MAX_VALUE;
-    List<FbError> errors, filteredErrors = new ArrayList<FbError>();
+    List<FbError> errors, filteredErrors = Lists.newArrayList();
     while (true) {
       errors = tc.process(ast);
-      ast = tc.getAST();
+      ast = tc.ast();
 
       /* We stop if one of the following holds:
        * (1) There is an unfixable error.
@@ -77,42 +73,35 @@ public class ForgivingTc extends Transformer implements TcInterface {
   }
 
   @Override
-  public SimpleGraph<Block> getFlowGraph(Implementation impl) {
-    return tc.getFlowGraph(impl);
+  public SimpleGraph<Block> flowGraph(Implementation impl) {
+    return tc.flowGraph(impl);
   }  
   
   @Override
-  public SimpleGraph<Block> getFlowGraph(Body bdy) {
-    return tc.getFlowGraph(bdy);
+  public SimpleGraph<Block> flowGraph(Body bdy) {
+    return tc.flowGraph(bdy);
   }
   
+  @Override public Map<Expr, Type> types() { return tc.types(); }
 
   @Override
-  public Map<Expr, Type> getTypes() {
-    return tc.getTypes();
+  public UsageToDefMap<Implementation, Procedure> implProc() {
+    return tc.implProc();
   }
 
   @Override
-  public UsageToDefMap<Implementation, Procedure> getImplProc() {
-    return tc.getImplProc();
+  public UsageToDefMap<VariableDecl, VariableDecl> paramMap() {
+    return tc.paramMap();
   }
 
-  @Override
-  public UsageToDefMap<VariableDecl, VariableDecl> getParamMap() {
-    return tc.getParamMap();
-  }
-
-  @Override
-  public SymbolTable getST() {
-    return tc.getST();
-  }
+  @Override public SymbolTable st() { return tc.st(); }
 
   // this guy does most of the work
-  private Declaration fix(Declaration ast, List<FbError> errors) {
+  private Program fix(Program ast, List<FbError> errors) {
     Inferrer inferrer = new Inferrer();
     Specializer specializer = new Specializer();
 
-    HashMap<Expr, AtomId> filteredErrors = new HashMap<Expr, AtomId>();
+    HashMap<Expr, AtomId> filteredErrors = Maps.newHashMap();
     for (FbError e : errors) {
       switch (e.type()) {
       case REQ_SPECIALIZATION:
@@ -122,11 +111,14 @@ public class ForgivingTc extends Transformer implements TcInterface {
         // do nothing
       }
     }
-    inferrer.process(ast, tc.getTypes());
+    inferrer.process(ast, tc.types());
     Map<Expr, Type> desired = inferrer.getGoodTypes();
     ast = specializer.process(
-      ast, tc.getST(), filteredErrors, 
-      desired, tc.getImplicitSpec());
+      ast, 
+      tc.st(), 
+      filteredErrors, 
+      desired, 
+      tc.implicitSpec());
 
     /* DBG 
     System.out.println("=== RESULT OF TYPE INFERENCE ===");

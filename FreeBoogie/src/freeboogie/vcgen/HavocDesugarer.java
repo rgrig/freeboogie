@@ -1,9 +1,11 @@
 package freeboogie.vcgen;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 import java.util.logging.Logger;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import genericutils.*;
 
 import freeboogie.ast.*;
@@ -45,75 +47,80 @@ import freeboogie.tc.TypeUtils;
 public class HavocDesugarer extends Transformer {
   private static final Logger log = Logger.getLogger("freeboogie.vcgen");
 
-  private ArrayList<Command> equivCmds;
-  private HashMap<VariableDecl, AtomId> toSubstitute;
-  private Declaration newVars;
-
-  public HavocDesugarer() {
-    equivCmds = new ArrayList<Command>(23);
-    toSubstitute = new HashMap<VariableDecl, AtomId>(23);
-  }
+  private ArrayList<Command> equivCmds = Lists.newArrayList();
+  private HashMap<VariableDecl, AtomId> toSubstitute = Maps.newHashMap();
+  private ImmutableList.Builder<VariableDecl> newVars;
 
   // === transformer methods ===
+  private Deque<Block> extraBlocks = new ArrayDeque<Block>();
   @Override
-  public Body eval(Body body, Declaration vars, Block blocks) {
-    newVars = vars;
-    Block newBlocks = blocks == null? null : (Block)blocks.eval(this);
-    if (newVars != vars || newBlocks != blocks)
-      body = Body.mk(newVars, newBlocks, body.loc());
-    return body;
+  public Body eval(
+      Body body, 
+      ImmutableList<VariableDecl> vars, 
+      ImmutableList<Block> blocks
+  ) {
+    boolean same = true;
+    ImmutableList.Builder<Block> newBlocks = ImmutableList.builder();
+    newVars = ImmutableList.builder();
+    for (Block b : blocks) {
+      extraBlocks.clear();
+      Block nb = (Block) b.eval(this);
+      same &= extraBlocks.isEmpty() && nb == b;
+      for (Block bb : extraBlocks) newBlocks.add(bb);
+      newBlocks.add(nb);
+    }
+    return Body.mk(newVars.addAll(vars).build(), newBlocks.build(), body.loc());
   }
 
   @Override
-  public Block eval(Block block, String name, Command cmd, Identifiers succ, Block tail) {
-    Block newTail = tail == null? null : (Block)tail.eval(this);
+  public Block eval(
+      Block block, 
+      String name, 
+      Command cmd, 
+      ImmutableList<AtomId> succ
+  ) {
     equivCmds.clear();
-    Command newCmd = cmd == null? null : (Command)cmd.eval(this);
+    Command newCmd = AstUtils.eval(cmd, this);
     if (!equivCmds.isEmpty()) {
       String crtLabel, nxtLabel;
-      block = Block.mk(nxtLabel = Id.get("havoc"), null, succ, newTail, block.loc());
-      for (int i = equivCmds.size() - 1; i > 0; --i) {
-        block = Block.mk(
-          crtLabel = Id.get("havoc"),
+      block = Block.mk(nxtLabel = Id.get("havoc"), null, succ, block.loc());
+      for (int i = equivCmds.size() - 1; i >= 0; --i) {
+        extraBlocks.addFirst(Block.mk(
+          crtLabel = i == 0 ? name : Id.get("havoc"),
           equivCmds.get(i),
-          Identifiers.mk(AtomId.mk(nxtLabel, null), null),
-          block,
-          block.loc());
+          ImmutableList.of(AtomId.mk(nxtLabel, null)),
+          block.loc()));
         nxtLabel = crtLabel;
       }
-      block = Block.mk(
-        name,
-        equivCmds.get(0),
-        Identifiers.mk(AtomId.mk(nxtLabel, null), null),
-        block,
-        block.loc());
-    } else if (newTail != tail || newCmd != cmd)
-      block = Block.mk(name, newCmd, succ, newTail);
+    } else if (newCmd != cmd)
+      block = Block.mk(name, newCmd, succ, block.loc());
     return block;
   }
 
   @Override
-  public HavocCmd eval(HavocCmd havocCmd, Identifiers ids) {
+  public HavocCmd eval(HavocCmd havocCmd, ImmutableList<AtomId> ids) {
     toSubstitute.clear();
     Expr e = AtomLit.mk(AtomLit.AtomType.TRUE, havocCmd.loc());
-    while (ids != null) {
-      VariableDecl vd = (VariableDecl)tc.getST().ids.def(ids.getId());
-      VariableDecl vd2 = tc.getParamMap().def(vd);
+    for (AtomId id : ids) {
+      VariableDecl vd = (VariableDecl)tc.st().ids.def(id);
+      VariableDecl vd2 = tc.paramMap().def(vd);
       if (vd2 != null) vd = vd2;
-      AtomId fresh = AtomId.mk(Id.get("fresh"), null, ids.loc());
+      AtomId fresh = AtomId.mk(Id.get("fresh"), null, id.loc());
       toSubstitute.put(vd, fresh);
-      equivCmds.add(AssignmentCmd.mk(ids.getId(), fresh, havocCmd.loc()));
-      if (vd.getType() instanceof DepType) {
-        Expr p = ((DepType)vd.getType()).getPred();
-        e = BinaryOp.mk(BinaryOp.Op.AND, e, (Expr)p.eval(this).clone(), p.loc());
+      equivCmds.add(AssignmentCmd.mk(id, fresh, havocCmd.loc()));
+      if (vd.type() instanceof DepType) {
+        Expr p = ((DepType)vd.type()).pred();
+        e = BinaryOp.mk(
+            BinaryOp.Op.AND, 
+            e, 
+            (Expr)p.eval(this).clone(), 
+            p.loc());
       }
-      newVars = VariableDecl.mk(
-        null,
-        fresh.getId(),
-        TypeUtils.stripDep(vd.getType()).clone(),
-        vd.getTypeArgs() == null? null : vd.getTypeArgs().clone(),
-        newVars);
-      ids = ids.getTail();
+      newVars.add(VariableDecl.mk(
+        ImmutableList.<Attribute>of(),
+        fresh.id(),
+        TypeUtils.stripDep(vd.type()).clone(),
+        AstUtils.cloneListOfAtomId(vd.typeArgs())));
     }
     equivCmds.add(AssertAssumeCmd.mk(
       AssertAssumeCmd.CmdType.ASSUME,
@@ -125,8 +132,8 @@ public class HavocDesugarer extends Transformer {
   }
 
   @Override
-  public AtomId eval(AtomId atomId, String id, TupleType types) {
-    Declaration d = tc.getST().ids.def(atomId);
+  public AtomId eval(AtomId atomId, String id, ImmutableList<Type> types) {
+    Declaration d = tc.st().ids.def(atomId);
     AtomId r = toSubstitute.get(d);
     return r == null? atomId : r.clone();
   }

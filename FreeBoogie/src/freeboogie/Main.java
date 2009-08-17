@@ -64,30 +64,27 @@ public class Main {
   // used for dumping the symbol table
   private static Function<AtomId, String> nameOfAtomId =
     new Function<AtomId, String>() {
-      @Override public String apply(AtomId d) { return d.getId(); }
+      @Override public String apply(AtomId d) { return d.id(); }
     };
   private static Function<TypeDecl, String> nameOfType =
     new Function<TypeDecl, String>() {
-      @Override public String apply(TypeDecl d) { return d.getName(); }
+      @Override public String apply(TypeDecl d) { return d.name(); }
     };
   private static Function<FunctionDecl, String> nameOfFunctionDecl =
     new Function<FunctionDecl, String>() {
       @Override public String apply(FunctionDecl d) {
-        return d.getSig().getName();
+        return d.sig().name();
       }
     };
   private static Function<Procedure, String> nameOfProcedure =
     new Function<Procedure, String>() {
       @Override public String apply(Procedure d) {
-        return d.getSig().getName();
+        return d.sig().name();
       }
     };
-  private static Function<Declaration, String> nameOfVar =
-    new Function<Declaration, String>() {
-      @Override public String apply(Declaration d) {
-        if (d instanceof VariableDecl) return ((VariableDecl)d).getName();
-        else return ((ConstDecl)d).getId();
-      }
+  private static Function<IdDecl, String> nameOfVar =
+    new Function<IdDecl, String>() {
+      @Override public String apply(IdDecl d) { return d.name(); }
     };
 
   /** Process the command line and call {@code run()}. */
@@ -120,9 +117,9 @@ public class Main {
     for (File f : opt.getFiles()) {
       verbose("Processing " + f.getPath());
       parse(f);
-      if (boogie.ast == null || !typecheck())
-        continue; // parse error or empty input
+      if (!typecheck()) continue;
       for (Transformer t : stages) {
+        debug("  Stage: " + t.name());
         boogie = t.process(boogie, tc);
         dumpState(t.name());
       }
@@ -185,23 +182,18 @@ public class Main {
       CommonTokenStream tokens = new CommonTokenStream(lexer);
       FbParser parser = new FbParser(tokens);
       parser.fileName = f.getName();
-      boogie = new Program(parser.program(), parser.fileName);
+      boogie = parser.program();
     } catch (IOException e) {
       normal("Can't read " + f.getName() + ": " + e.getMessage());
-      boogie = new Program(null, null);
+      boogie = null;
     } catch (RecognitionException e) {
       verbose("Can't parse " + f.getName() + ": " + e.getMessage());
-      boogie = new Program(null, null);
+      boogie = null;
     }
   }
 
   private boolean typecheck() {
-    try {
-      boogie = tc.process(boogie);
-    } catch (ErrorsFoundException e) {
-      e.report();
-      return false;
-    }
+    if (FbError.reportAll(tc.process(boogie))) return false;
     return true;
   }
 
@@ -216,7 +208,7 @@ public class Main {
 
     // dump boogie
     try {
-      PrintWriter bw = new PrintWriter(new File(dir, boogie.fileName));
+      PrintWriter bw = new PrintWriter(new File(dir, boogie.fileName()));
       prettyPrinter.writer(bw);
       prettyPrinter.process(boogie, tc);
       bw.flush();
@@ -226,7 +218,7 @@ public class Main {
 
     // dump symbol table
     try {
-      SymbolTable st = tc.getST();
+      SymbolTable st = tc.st();
       PrintWriter stw = new PrintWriter(new File(dir, "symbols.txt"));
       printSymbols(stw, "function", st.funcs, nameOfFunctionDecl);
       printSymbols(stw, "identifier", st.ids, nameOfVar);
@@ -265,6 +257,10 @@ public class Main {
 
   private void verbose(String s) {
     out.say(ReportOn.MAIN, ReportLevel.VERBOSE, s);
+  }
+
+  private void debug(String s) {
+    out.say(ReportOn.MAIN, ReportLevel.DEBUG, s);
   }
 
   public static void badUsage() {

@@ -1,6 +1,7 @@
 package freeboogie.backend;
 
-import java.util.ArrayList;
+import com.google.common.collect.ImmutableList;
+
 import java.util.HashMap;
 
 /**
@@ -17,26 +18,26 @@ public class SmtTermBuilder extends TermBuilder<SmtTerm> {
   }
 
   @Override
-  protected SmtTerm reallyMk(Sort sort, String termId, ArrayList<SmtTerm> a) {
+  protected SmtTerm reallyMk(Sort sort, String termId, ImmutableList<SmtTerm> a) {
     return SmtTerm.mk(sort, termId, a);
   }
 
   @Override
-  protected SmtTerm reallyMkNary(Sort sort, String termId, ArrayList<SmtTerm> a) {
+  protected SmtTerm reallyMkNary(Sort sort, String termId, ImmutableList<SmtTerm> a) {
     if (termId.equals("and") || termId.equals("or")) {
       boolean id = termId.equals("or") ? false : true;
-      ArrayList<SmtTerm> children = new ArrayList<SmtTerm>(a.size());
+      ImmutableList.Builder<SmtTerm> children = ImmutableList.builder();
       for (SmtTerm t : a) {
         if (t.id.equals(termId))
           children.addAll(t.children);
         else if (!t.id.equals("literal_formula") || (Boolean)t.data != id)
           children.add(t);
       }
-      if (children.size() == 1)
-        return children.get(0);
-      if (children.size() == 0)
+      a = children.build();
+      if (a.size() == 1)
+        return a.get(0);
+      if (a.size() == 0)
         return mk("literal_formula", id);
-      a = children;
     }
     return SmtTerm.mk(sort, termId, a);
   }

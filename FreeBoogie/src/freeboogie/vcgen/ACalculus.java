@@ -6,10 +6,7 @@ import genericutils.Logger;
 import genericutils.SimpleGraph;
 
 import freeboogie.Main;
-import freeboogie.ast.AssertAssumeCmd;
-import freeboogie.ast.Block;
-import freeboogie.ast.Body;
-import freeboogie.ast.Command;
+import freeboogie.ast.*;
 import freeboogie.backend.Term;
 import freeboogie.backend.TermBuilder;
 import freeboogie.tc.TcInterface;
@@ -46,15 +43,15 @@ public abstract class ACalculus<T extends Term<T>> {
   /** the current body which is being inspected. */
   private Body currentBody;
 
-
   private TcInterface tc;
- 
+
   public void setBuilder(TermBuilder<T> term) { 
     this.term = term; 
     trueTerm = term.mk("literal_formula", Boolean.valueOf(true));
   }
 
   public void typeChecker(TcInterface tc) {
+//System.out.println("really set " + (tc != null));
     this.tc = tc;
   }
   
@@ -69,7 +66,7 @@ public abstract class ACalculus<T extends Term<T>> {
    * assumes that {@code flow} won't be changed.
    */
   public void setCurrentBody(Body bdy) {
-    flow = tc.getFlowGraph(bdy);
+    flow = tc.flowGraph(bdy);
     log.say(LogCategories.STATS, LogLevel.INFO, "cfg_size " + flow.nodeCount());
     currentBody = bdy;
     assert flow.isFrozen();
@@ -86,9 +83,9 @@ public abstract class ACalculus<T extends Term<T>> {
   // === helpers ===
   public static boolean is(Block b, AssertAssumeCmd.CmdType t) {
     if (b == null) return false;
-    Command c = b.getCmd();
+    Command c = b.cmd();
     if (!(c instanceof AssertAssumeCmd)) return false;
-    return ((AssertAssumeCmd)c).getType() == t;
+    return ((AssertAssumeCmd)c).type() == t;
   }
 
   public static boolean isAssume(Block b) {
@@ -101,9 +98,9 @@ public abstract class ACalculus<T extends Term<T>> {
 
   public T term(Block b) {
     if (b == null) return trueTerm;
-    Command c = b.getCmd();
+    Command c = b.cmd();
     if (!(c instanceof AssertAssumeCmd)) return trueTerm;
-    return term.of(((AssertAssumeCmd)c).getExpr());
+    return term.of(((AssertAssumeCmd)c).expr());
   }
 
 
@@ -111,7 +108,7 @@ public abstract class ACalculus<T extends Term<T>> {
     return currentBody;
   }
 
-  public TcInterface getTypeChecker() {
+  public TcInterface typeChecker() {
     return tc;
   }
 

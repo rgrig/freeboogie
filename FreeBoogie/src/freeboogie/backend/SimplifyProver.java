@@ -105,7 +105,7 @@ public class SimplifyProver extends Prover<SmtTerm> {
     }
   }
 
-  private void printArgs(ArrayList<SmtTerm> a, StringBuilder sb) {
+  private void printArgs(List<SmtTerm> a, StringBuilder sb) {
     for (SmtTerm t : a) {
       sb.append(" ");
       printTerm(t, sb);

@@ -2,6 +2,7 @@ package freeboogie.tc;
 
 import java.util.*;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -15,7 +16,6 @@ import freeboogie.ast.*;
  * of series parallel digraphs" by Valdes, Tarjan, and Lawler.
  *
  * @author rgrig
- * @author reviewed by TODO
  * @param <T> the type of the nodes of the inspected graph
  */
 public class TtspRecognizer<T> {
@@ -99,26 +99,28 @@ private static void print(HashMap<Integer,HashSet<Integer>> h) {
 }
 
   public static void check(final Program program, final TcInterface tc) {
-    program.ast.eval(new Transformer() {
+    program.eval(new Transformer() {
       @Override
       public void see(
         Implementation impl,
-        Attribute attr,
+        ImmutableList<Attribute> attr,
         Signature sig, 
-        Body body,
-        Declaration tail
+        Body body
       ) {
         System.out.print(this + " " + impl.loc() + ": Implementation " + 
-          sig.getName() + " SPG check...");
-        SimpleGraph<Block> currentFG = tc.getFlowGraph(impl);
+          sig.name() + " SPG check...");
+        if (body.blocks().isEmpty()) {
+          System.out.println("SUCCESS (empty).");
+          return;
+        }
+        SimpleGraph<Block> currentFG = tc.flowGraph(impl);
         TtspRecognizer<Block> recog = 
-          new TtspRecognizer<Block>(currentFG, body.getBlocks());
+          new TtspRecognizer<Block>(currentFG, body.blocks().get(0));
         if (!recog.check()) {
           System.out.println("FAILED.");
         } else {
           System.out.println("SUCCESS.");
         }
-        if (tail != null) tail.eval(this);
       }
     });
   }

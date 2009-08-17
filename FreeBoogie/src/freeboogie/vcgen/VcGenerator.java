@@ -2,6 +2,8 @@ package freeboogie.vcgen;
 
 import java.util.Set;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import genericutils.Logger;
 
@@ -52,6 +54,7 @@ public class VcGenerator extends Transformer {
 
   private StringBuilder sb = new StringBuilder();
   private FbCliOptionsInterface opt;
+  private Program program;
 
   public void reinitialize() { 
     log.say(
@@ -61,6 +64,7 @@ public class VcGenerator extends Transformer {
     if (prover != null) prover.terminate();
     prover = null;
     initialize(opt); 
+    prepare();
   }
 
   public void initialize(FbCliOptionsInterface opt) {
@@ -102,9 +106,7 @@ public class VcGenerator extends Transformer {
     lowLevelAxiomBag = Sets.newHashSet();
   }
 
-  @Override
-  public Program process(Program p, TcInterface tc) {
-    // prepare for the verification of each implementation
+  private void prepare() {
     vcgen.typeChecker(tc);
     builder = prover.getBuilder();
     builder.setTypeChecker(tc);
@@ -114,41 +116,51 @@ public class VcGenerator extends Transformer {
 
     // register function name symbols with the builder
     builder.popDef();
-    functionRegisterer.process(p.ast, tc);
+    functionRegisterer.process(program, tc);
     builder.pushDef();
+  }
+
+  @Override
+  public Program process(Program program, TcInterface tc) {
+    // prepare for the verification of each implementation
+    Preconditions.checkNotNull(program);
+    Preconditions.checkNotNull(tc);
+    this.tc = tc;
+    this.program = program;
+    prepare();
 
     // send global axioms
     try {
       prover.pop();
-      axiomSender.process(p.ast);
+      axiomSender.process(program);
       prover.push();
     } catch (ProverException e) {
       out.say(
           ReportOn.MAIN,
           ReportLevel.NORMAL,
-          "The prover can't handle " + p.fileName + ". Skipping.");
+          "The prover can't handle " + program.fileName() + ". Skipping.");
       prover.terminate();
       reinitialize();
-      return p;
+      return program;
     }
-    log("Sent global axioms for file " + p.fileName + ".");
+    log("Sent global axioms for file " + program.fileName() + ".");
 
     // do the verification
-    Ast x = p.ast.eval(this);
-    assert x == p.ast;
-    log("Finished checking file " + p.fileName + ".");
-    return p;
+    Program x = (Program) program.eval(this);
+    assert x == program;
+    log("Finished checking file " + program.fileName() + ".");
+    return program;
   }
 
   @Override
   public void see(
       Implementation implementation, 
-      Attribute attr, 
+      ImmutableList<Attribute> attr, 
       Signature sig, 
-      Body body, 
-      Declaration tail
+      Body body
   ) {
-    log("Checking implementation " + sig.getName() + " at " + sig.loc());
+    log("Checking implementation " + sig.name() + " at " + sig.loc());
+//System.out.println("body " + (vcgen.typeChecker() != null));
     vcgen.setCurrentBody(body);
     SmtTerm vc = vcgen.vc();
     lowLevelAxiomBag.clear();
@@ -164,7 +176,7 @@ public class VcGenerator extends Transformer {
       reinitialize();
     }
     sb.append(": ");
-    sb.append(sig.getName());
+    sb.append(sig.name());
     sb.append(" at ");
     sb.append(sig.loc().toString());
     out.say(ReportOn.MAIN, ReportLevel.QUIET, sb.toString());

@@ -3,9 +3,14 @@ package freeboogie.vcgen;
 import java.util.HashSet;
 import java.util.logging.Logger;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Sets;
+import genericutils.Id;
+
 import freeboogie.ast.*;
 import freeboogie.tc.TcInterface;
 import freeboogie.tc.TypeUtils;
+import static freeboogie.ast.AstUtils.*;
 
 /**
  * Replaces all map reads and writes by explicit calls to
@@ -13,109 +18,63 @@ import freeboogie.tc.TypeUtils;
  */
 public class MapRemover extends Transformer {
   private static final Logger log = Logger.getLogger("freeboogie.vcgen");
-  private HashSet<Integer> arities = new HashSet<Integer>(7);
+  private HashSet<Integer> arities = Sets.newHashSet();
 
+  // TODO move in eval(Program...)
   @Override
-  public Declaration process(Declaration ast, TcInterface tc) {
+  public Program process(Program p, TcInterface tc) {
     arities.clear();
-    ast = (Declaration)ast.eval(this);
+    p = (Program) p.eval(this);
+    if (arities.isEmpty()) return p;
+
+    ImmutableList.Builder<FunctionDecl> functions = ImmutableList.builder();
+    ImmutableList.Builder<Axiom> axioms = ImmutableList.builder();
+    functions.addAll(p.functions());
+    axioms.addAll(p.axioms());
+
     for (Integer n : arities) {
       // add "function $$selectN<TV, T1, ..., TN>
       //        (map : [T1, ..., TN]TV, x1 : T1, ..., xN : TN)
       //        returns (result : TV);"
-      ast = FunctionDecl.mk(
-        null,
-        Signature.mk(
-          "$$select" + n,
-          Identifiers.mk(AtomId.mk("TV", null), nIdentifiers("T", n)),
-          VariableDecl.mk(
-            null,
-            "map",
-            MapType.mk(
-              nTypes(n),
-              UserType.mk("TV", null)
-            ),
-            null,
-            nVarDecl("x", n, null)),
-          VariableDecl.mk(
-            null,
-            "result",
-            UserType.mk("TV", null),
-            null,
-            null)),
-        ast);
+      functions.add(mkFunctionDecl(
+          "$$select", 
+          n, 
+          ImmutableList.<VariableDecl>of(), 
+          mkType("TV")));
 
       // add "function $$updateN<TV, T1, ..., TN>
       //        (val : TV, map : [T1, ..., TN]TV, x1 : T1, ..., xN : TN)
       //        returns (result : [T1, ..., TN]TV);"
-      ast = FunctionDecl.mk(
-        null,
-        Signature.mk(
-          "$$update" + n,
-          Identifiers.mk(AtomId.mk("TV", null), nIdentifiers("T", n)),
-          VariableDecl.mk(
-            null,
-            "val",
-            UserType.mk("TV", null),
-            null,
-            VariableDecl.mk(
-              null,
-              "map",
-              MapType.mk(
-                nTypes(n),
-                UserType.mk("TV", null)),
-              null,
-            nVarDecl("x", n, null))),
-          VariableDecl.mk(
-            null,
-            "result",
-            MapType.mk(
-              nTypes(n),
-              UserType.mk("TV", null)),
-            null,
-            null)),
-        ast);
+      functions.add(mkFunctionDecl(
+          "$$update",
+          n, 
+          ImmutableList.of(mkVarDecl("val", mkType("TV"))),
+          mkMapType(n)));
 
       // add "axiom<TV, T1, ..., TN>
       //        (forall m : [T1, ..., TN]TV, v : TV, x1 : T1, ..., xN : TN ::
       //          $$selectN($$updateN(v, m, x1, ..., xN), x1, ..., xN) == v
       //        );
-      Expr axiomExpr;
-      axiomExpr = BinaryOp.mk(
-        BinaryOp.Op.EQ,
-        AtomId.mk("v", null),
-        AtomFun.mk(
-          "$$select" + n,
-          null,
-          Exprs.mk(
-            AtomFun.mk(
-              "$$update" + n,
-              null,
-              Exprs.mk(AtomId.mk("v", null),
-              Exprs.mk(AtomId.mk("m", null),
-              nExprs("x", n)))),
-            nExprs("x", n))));
-      axiomExpr = AtomQuant.mk(
-        AtomQuant.QuantType.FORALL,
-        VariableDecl.mk(
-          null,
-          "m",
-          MapType.mk(nTypes(n), UserType.mk("TV", null)),
-          null,
-        VariableDecl.mk(
-          null,
-          "v",
-          UserType.mk("TV", null),
-          null,
-        nVarDecl("x", n, null))),
-        null, 
-        axiomExpr);
-      ast = Axiom.mk(
-        null,
-        "select_update_" + n,
-        Identifiers.mk(AtomId.mk("TV", null), nIdentifiers("T", n)),
-        axiomExpr,
-        ast);
+      axioms.add(mkAxiom(
+          ImmutableList.<AtomId>builder()
+              .add(mkId("TV"))
+              .addAll(nIds("T", n)).build(),
+          ImmutableList.<VariableDecl>builder()
+              .add(mkMapDecl("m", n))
+              .add(mkVarDecl("v", mkType("TV")))
+              .addAll(nVarDecl("x", n)).build(),
+          mkEq(
+              mkFun(
+                  "$$select" + n,
+                  ImmutableList.<Expr>builder()
+                      .add(mkFun(
+                          "$$update" + n,
+                          ImmutableList.<Expr>builder()
+                              .add(mkId("v"))
+                              .add(mkId("m"))
+                              .addAll(nExprs("x", n)).build()))
+                      .addAll(nExprs("x", n)).build()),
+              mkId("v"))));
 
       for (int i = n; i > 0; --i) {
         // "axiom<TV, T1, ..., TN>
@@ -124,119 +83,171 @@ public class MapRemover extends Transformer {
         //      xi != yi ==>
         //      $$selectN($$updateN(v, m, x1, ..., xN), y1, ..., yN) ==
         //        $$selectN(m, y1, ..., yN));
-        axiomExpr = BinaryOp.mk(
-          BinaryOp.Op.IMPLIES,
-          BinaryOp.mk(
-            BinaryOp.Op.NEQ,
-            AtomId.mk("x" + i, null),
-            AtomId.mk("y" + i, null)),
-          BinaryOp.mk(
-            BinaryOp.Op.EQ,
-            AtomFun.mk(
-              "$$select" + n,
-              null,
-              Exprs.mk(
-                AtomFun.mk(
-                  "$$update" + n,
-                  null,
-                  Exprs.mk(AtomId.mk("v", null),
-                  Exprs.mk(AtomId.mk("m", null),
-                  nExprs("x", n)))),
-                nExprs("y", n))),
-            AtomFun.mk(
-              "$$select" + n,
-              null,
-              Exprs.mk(AtomId.mk("m", null),
-              nExprs("y", n)))));
-        axiomExpr = AtomQuant.mk(
-          AtomQuant.QuantType.FORALL,
-          VariableDecl.mk(
-            null,
-            "m",
-            MapType.mk(nTypes(n), UserType.mk("TV", null)),
-            null,
-          VariableDecl.mk(
-            null,
-            "v",
-            UserType.mk("TV", null),
-            null,
-          nVarDecl("x", n,
-          nVarDecl("y", n, null)))),
-          null,
-          axiomExpr);
-        ast = Axiom.mk(
-          null,
-          "select_update_diff_" + n,
-          Identifiers.mk(AtomId.mk("TV", null), nIdentifiers("T", n)),
-          axiomExpr,
-          ast);
+        axioms.add(mkAxiom(
+          ImmutableList.<AtomId>builder()
+              .add(mkId("TV"))
+              .addAll(nIds("T", n)).build(),
+            ImmutableList.<VariableDecl>builder()
+                .add(mkMapDecl("m", n))
+                .add(mkVarDecl("v", mkType("TV")))
+                .addAll(nVarDecl("x", n))
+                .addAll(nVarDecl("y", n)).build(),
+            mkImplies(
+                mkNotEq(mkId("x" + i), mkId("y" + i)),
+                mkEq(
+                    mkFun(
+                        "$$select" + n,
+                        ImmutableList.<Expr>builder()
+                            .add(mkFun(
+                                "$$update" + n,
+                                ImmutableList.<Expr>builder()
+                                    .add(mkId("v"))
+                                    .add(mkId("m"))
+                                    .addAll(nExprs("x", n)).build()))
+                            .addAll(nIds("y", n)).build()),
+                    mkFun(
+                        "$$select" + n,
+                        ImmutableList.<Expr>builder()
+                          .add(mkId("m"))
+                          .addAll(nIds("y", n)).build())))));
       } // for i
-    } // for arities
-
-    return TypeUtils.internalTypecheck(ast, tc);
+    } // for n
+    return TypeUtils.internalTypecheck(p, tc);
   }
 
   @Override
-  public AtomFun eval(AtomMapSelect atomMapSelect, Atom atom, Exprs idx) {
-    atom = (Atom)atom.eval(this);
-    idx = (Exprs)idx.eval(this);
-    int n = size(idx);
+  public AtomFun eval(
+      AtomMapSelect atomMapSelect,
+      Atom atom,
+      ImmutableList<Expr> idx
+  ) {
+    atom = (Atom) atom.eval(this);
+    idx = AstUtils.evalListOfExpr(idx, this);
+    int n = idx.size();
     arities.add(n);
-    return AtomFun.mk("$$select" + n, null, Exprs.mk(atom, idx));
+    return mkFun(
+        "$$select" + n, 
+        ImmutableList.<Expr>builder().add(atom).addAll(idx).build());
   }
 
   @Override
-  public AtomFun eval(AtomMapUpdate atomMapUpdate, Atom atom, Exprs idx, Expr val) {
+  public AtomFun eval(
+      AtomMapUpdate atomMapUpdate,
+      Atom atom,
+      ImmutableList<Expr> idx,
+      Expr val
+  ) {
     atom = (Atom)atom.eval(this);
-    idx = (Exprs)idx.eval(this);
+    idx = AstUtils.evalListOfExpr(idx, this);
     val = (Expr)val.eval(this);
-    int n = size(idx);
+    int n = idx.size();
     arities.add(n);
+    return mkFun(
+        "$$update" + n, 
+        ImmutableList.<Expr>builder().add(val).add(atom).addAll(idx).build());
+  }
+
+  // === helpers ===
+
+  // returns "function NAME<TV, T1, ..., TN>
+  //            (ARGS, map : [T1,...,TN]TV, x1:T1,.., xN:TN)
+  //            returns (result : RESULTYPE)
+  private FunctionDecl mkFunctionDecl(
+      String name, 
+      int n,
+      Iterable<VariableDecl> args,
+      Type resultType
+  ) {
+    return FunctionDecl.mk(
+        ImmutableList.<Attribute>of(),
+        Signature.mk(
+            name + n,
+            ImmutableList.<AtomId>builder()
+                .addAll(AstUtils.ids("TV"))
+                .addAll(nIds("T", n)).build(),
+            ImmutableList.<VariableDecl>builder()
+                .addAll(args)
+                .add(mkMapDecl("map", n))
+                .addAll(nVarDecl("x", n)).build(),
+            ImmutableList.of(VariableDecl.mk(
+                ImmutableList.<Attribute>of(),
+                "result",
+                resultType,
+                ImmutableList.<AtomId>of()))));
+  }
+
+  private Axiom mkAxiom(
+      ImmutableList<AtomId> typeArgs,
+      ImmutableList<VariableDecl> vars,
+      Expr expr
+  ) {
+    return Axiom.mk(
+        ImmutableList.<Attribute>of(),
+        Id.get("map"),
+        typeArgs,
+        AtomQuant.mk(
+            AtomQuant.QuantType.FORALL,
+            vars,
+            ImmutableList.<Attribute>of(),
+            expr));
+  }
+
+  private VariableDecl mkVarDecl(String name, Type type) {
+    return VariableDecl.mk(
+        ImmutableList.<Attribute>of(), 
+        name, 
+        type, 
+        ImmutableList.<AtomId>of());
+  }
+
+  // returns "NAME : [T1,...,TN]TV"
+  private VariableDecl mkMapDecl(String name, int n) {
+    return mkVarDecl(name, mkMapType(n));
+  }
+
+  // returns "[T1,...,TN]TV"
+  private MapType mkMapType(int n) {
+    return MapType.mk(nTypes(n), mkType("TV"));
+  }
+
+  // returns "NAME" (as a user type)
+  private UserType mkType(String name) {
+    return UserType.mk(name, ImmutableList.<Type>of());
+  }
+
+  // TODO(rgrig): Is it really not possible to extract a MAP function??
+  // returns "p1, ..., pN"
+  private ImmutableList<Type> nTypes(int n) {
+    ImmutableList.Builder<Type> types = ImmutableList.builder();
+    for (int i = 1; i <= n; ++i) types.add(mkType("T" + i));
+    return types.build();
+  }
+  private ImmutableList<AtomId> nIds(String prefix, int n) {
+    ImmutableList.Builder<AtomId> ids = ImmutableList.builder();
+    for (int i = 1; i <= n; ++i) ids.add(mkId(prefix + i));
+    return ids.build();
+  }
+
+  // "safe" because all methods of ImmutableList<T> that take a T
+  // argument already throw exceptions anyway.
+  @SuppressWarnings("unchecked") 
+  private ImmutableList<Expr> nExprs(String prefix, int n) {
+    return (ImmutableList) nIds(prefix, n);
+  }
+
+  // returns "x1 : T1, ...., xN : TN"
+  private ImmutableList<VariableDecl> nVarDecl(String prefix, int n) {
+    ImmutableList.Builder<VariableDecl> decls = ImmutableList.builder();
+    for (int i = 1; i <= n; ++i) 
+      decls.add(mkVarDecl("prefix" + n, mkType("T" + n)));
+    return decls.build();
+  }
+
+  // returns "NAME(ARGS)" (as a function application)
+  private AtomFun mkFun(String name, Iterable<Expr> args) {
     return AtomFun.mk(
-      "$$update" + n,
-      null,
-      Exprs.mk(val, Exprs.mk(atom, idx)));
-  }
-
-  private int size(Exprs exprs) {
-    if (exprs == null) return 0;
-    return 1 + size(exprs.getTail());
-  }
-
-  // returns "p1, ..., pN"
-  private Identifiers nIdentifiers(String prefix, int n) {
-    Identifiers result;
-    for (result = null; n > 0; --n)
-      result = Identifiers.mk(AtomId.mk(prefix + n, null), result);
-    return result;
-  }
-
-  // returns "p1, ..., pN"
-  private Exprs nExprs(String prefix, int n) {
-    Exprs result;
-    for (result = null; n > 0; --n)
-      result = Exprs.mk(AtomId.mk(prefix + n, null), result);
-    return result;
-  }
-
-  // return "T1, ..., TN"
-  private TupleType nTypes(int n) {
-    TupleType result;
-    for (result = null; n > 0; --n)
-      result = TupleType.mk(UserType.mk("T" + n, null), result);
-    return result;
-  }
-
-  // returns "x1 : T1, ...., xN : TN, tail"
-  private VariableDecl nVarDecl(String prefix, int n, VariableDecl tail) {
-    for (; n > 0; --n) {
-      tail = VariableDecl.mk(
-        null,
-        prefix + n,
-        UserType.mk("T" + n, null),
-        null,
-        tail);
-    }
-    return tail;
+        name, 
+        ImmutableList.<Type>of(), 
+        ImmutableList.<Expr>builder().addAll(args).build());
   }
 }

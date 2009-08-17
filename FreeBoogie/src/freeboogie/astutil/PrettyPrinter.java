@@ -4,8 +4,10 @@ import java.io.IOException;
 import java.io.Writer;
 import java.math.BigInteger;
 import java.util.HashMap;
+import java.util.Iterator;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import genericutils.Err;
 
@@ -41,7 +43,6 @@ public class PrettyPrinter extends Transformer {
   protected HashMap<AtomQuant.QuantType,String> quantRep;
   protected HashMap<BinaryOp.Op,String> binRep;
   protected HashMap<PrimitiveType.Ptype,String> typeRep;
-  protected HashMap<Specification.SpecType,String> specRep;
   protected HashMap<UnaryOp.Op,String> unRep;
 
   protected BoogieVersionOpt boogieVersion;
@@ -52,7 +53,6 @@ public class PrettyPrinter extends Transformer {
     quantRep = Maps.newHashMap();
     binRep = Maps.newHashMap();
     typeRep = Maps.newHashMap();
-    specRep = Maps.newHashMap();
     unRep = Maps.newHashMap();
 
     cmdRep.put(AssertAssumeCmd.CmdType.ASSERT, "assert ");
@@ -84,9 +84,6 @@ public class PrettyPrinter extends Transformer {
     typeRep.put(PrimitiveType.Ptype.NAME, "name");
     typeRep.put(PrimitiveType.Ptype.REF, "ref");
     typeRep.put(PrimitiveType.Ptype.ERROR, "?");
-    specRep.put(Specification.SpecType.ENSURES, "ensures ");
-    specRep.put(Specification.SpecType.MODIFIES, "modifies ");
-    specRep.put(Specification.SpecType.REQUIRES, "requires ");
     unRep.put(UnaryOp.Op.MINUS, "-");
     unRep.put(UnaryOp.Op.NOT, "!");
   }
@@ -132,10 +129,10 @@ public class PrettyPrinter extends Transformer {
   // === the visiting methods ===
   
   @Override
-  public void see(MapType arrayType, TupleType idxType, Type elemType) {
+  public void see(MapType arrayType, ImmutableList<Type> idxType, Type elemType) {
     say("[");
     assert !prefixByBq;
-    idxType.eval(this);
+    printList(", ", idxType);
     say("]");
     elemType.eval(this);
   }
@@ -144,13 +141,13 @@ public class PrettyPrinter extends Transformer {
   public void see(
     AssertAssumeCmd assertAssumeCmd, 
     AssertAssumeCmd.CmdType type, 
-    Identifiers typeVars, 
+    ImmutableList<AtomId> typeVars, 
     Expr expr
   ) {
     say(cmdRep.get(type));
-    if (typeVars != null) {
+    if (!typeVars.isEmpty()) {
       say("<");
-      typeVars.eval(this);
+      printList(", ", typeVars);
       say(">");
     }
     expr.eval(this);
@@ -178,49 +175,58 @@ public class PrettyPrinter extends Transformer {
   public void see(
     AtomFun atomFun, 
     String function, 
-    TupleType types, 
-    Exprs args
+    ImmutableList<Type> types, 
+    ImmutableList<Expr> args
   ) {
     say(function);
-    if (types != null) {
+    if (!types.isEmpty()) {
       say("<");
       assert !prefixByBq;
       prefixByBq = true;
-      types.eval(this);
+      printList(", ", types);
       prefixByBq = false;
       say(">");
     }
     say("(");
-    if (args != null) args.eval(this);
+    printList(", ", args);
     say(")");
   }
 
   @Override
-  public void see(AtomId atomId, String id, TupleType types) {
+  public void see(AtomId atomId, String id, ImmutableList<Type> types) {
     say(id);
-    if (types != null) {
+    if (!types.isEmpty()) {
       say("<");
       assert !prefixByBq;
       prefixByBq = true;
-      types.eval(this);
+      printList(", ", types);
       prefixByBq = false;
       say(">");
     }
   }
 
   @Override
-  public void see(AtomMapSelect atomMapSelect, Atom atom, Exprs idx) {
+  public void see(
+      AtomMapSelect atomMapSelect, 
+      Atom atom, 
+      ImmutableList<Expr> idx
+  ) {
     atom.eval(this);
     say("[");
-    idx.eval(this);
+    printList(", ", idx);
     say("]");
   }
 
   @Override
-  public void see(AtomMapUpdate atomMapUpdate, Atom atom, Exprs idx, Expr val) {
+  public void see(
+      AtomMapUpdate atomMapUpdate, 
+      Atom atom, 
+      ImmutableList<Expr> idx, 
+      Expr val
+  ) {
     atom.eval(this);
     say("[");
-    idx.eval(this);
+    printList(", ", idx);
     say(" := ");
     val.eval(this);
     say("]");
@@ -247,16 +253,16 @@ public class PrettyPrinter extends Transformer {
   public void see(
     AtomQuant atomQuant, 
     AtomQuant.QuantType quant, 
-    Declaration vars, 
-    Attribute attr, 
+    ImmutableList<VariableDecl> vars, 
+    ImmutableList<Attribute> attributes,
     Expr e
   ) {
     ++skipVar;
     say("(");
     say(quantRep.get(quant));
-    vars.eval(this);
+    printList(", ", vars);
     say(" :: ");
-    if (attr != null) attr.eval(this);
+    printList(" ", attributes);
     e.eval(this);
     say(")");
     --skipVar;
@@ -265,19 +271,18 @@ public class PrettyPrinter extends Transformer {
   @Override
   public void see(
     Axiom axiom, 
-    Attribute attr,
+    ImmutableList<Attribute> attributes,
     String name,
-    Identifiers typeArgs, 
-    Expr expr, 
-    Declaration tail
+    ImmutableList<AtomId> typeArgs, 
+    Expr expr
   ) {
     say("axiom");
     switch (boogieVersion) {
       case TWO: say(" "); say(name); break;
     }
-    if (typeArgs != null) {
+    if (!typeArgs.isEmpty()) {
       say("<");
-      typeArgs.eval(this);
+      printList(", ", typeArgs);
       say(">");
     }
     switch (boogieVersion) {
@@ -285,7 +290,6 @@ public class PrettyPrinter extends Transformer {
     }
     say(" ");
     expr.eval(this); semi();
-    if (tail != null) tail.eval(this);
   }
 
   @Override
@@ -302,8 +306,7 @@ public class PrettyPrinter extends Transformer {
     Block block, 
     String name, 
     Command cmd, 
-    Identifiers succ, 
-    Block tail
+    ImmutableList<AtomId> succ
   ) {
     say(name);
     say(":");
@@ -312,22 +315,25 @@ public class PrettyPrinter extends Transformer {
       cmd.eval(this);
     }
     say(" ");
-    if (succ == null) {
+    if (succ.isEmpty()) {
       say("return");
     } else {
       say("goto ");
-      succ.eval(this);
+      printList(", ", succ);
     }
     semi();
-    if (tail != null) tail.eval(this);
   }
 
   @Override
-  public void see(Body body, Declaration vars, Block blocks) {
+  public void see(
+      Body body, 
+      ImmutableList<VariableDecl> vars, 
+      ImmutableList<Block> blocks
+  ) {
     say(" {");
     ++indentLevel; nl();
-    if (vars != null) vars.eval(this);
-    if (blocks != null) blocks.eval(this);
+    printList("", vars);
+    printList("", blocks);
     --indentLevel; nl();
     say("}");
     nl();
@@ -337,49 +343,44 @@ public class PrettyPrinter extends Transformer {
   public void see(
     CallCmd callCmd, 
     String procedure, 
-    TupleType types, 
-    Identifiers results, 
-    Exprs args
+    ImmutableList<Type> types, 
+    ImmutableList<AtomId> results,
+    ImmutableList<Expr> args
   ) {
     say("call ");
-    if (results != null) {
-      results.eval(this);
+    if (!results.isEmpty()) {
+      printList(", ", results);
       say(" := ");
     }
     say(procedure);
-    if (types != null) {
+    if (!types.isEmpty()) {
       say("<");
       assert !prefixByBq;
       prefixByBq = true;
-      types.eval(this);
+      printList(", ", types);
       prefixByBq = false;
       say(">");
     }
     say("(");
-    if (args != null) args.eval(this);
+    printList(", ", args);
     say(");");
   }
 
   @Override
   public void see(
     ConstDecl constDecl, 
-    Attribute attr,
-    String id, 
+    ImmutableList<Attribute> attributes,
+    String name, 
     Type type, 
-    boolean uniq, 
-    Declaration tail
+    boolean uniq
   ) {
     say("const ");
-    if (attr != null) {
-      attr.eval(this);
-      say(" ");
-    }
+    printList(" ", attributes);
     if (uniq) say("unique ");
-    say(id);
+    say(name);
     say(" : ");
     type.eval(this);
     semi();
-    if (tail != null) tail.eval(this);
   }
 
   @Override
@@ -389,30 +390,25 @@ public class PrettyPrinter extends Transformer {
     pred.eval(this);
   }
 
-  @Override
-  public void see(Exprs exprs, Expr expr, Exprs tail) {
-    expr.eval(this);
-    if (tail != null) {
-      say(", ");
-      tail.eval(this);
+  public <T extends Ast> void printList(String sep, ImmutableList<T> list) {
+    Iterator<T> i = list.iterator();
+    if (i.hasNext()) i.next().eval(this);
+    while (i.hasNext()) {
+      say(sep);
+      i.next().eval(this);
     }
   }
 
   @Override
   public void see(
-    FunctionDecl function,
-    Attribute attr,
-    Signature sig,
-    Declaration tail
+      FunctionDecl function,
+      ImmutableList<Attribute> attributes,
+      Signature sig
   ) {
     say("function ");
-    if (attr != null) {
-      attr.eval(this);
-      say(" ");
-    }
+    printList(" ", attributes);
     sig.eval(this);
     semi();
-    if (tail != null) tail.eval(this);
   }
 
   @Override
@@ -424,38 +420,24 @@ public class PrettyPrinter extends Transformer {
   }
 
   @Override
-  public void see(HavocCmd havocCmd, Identifiers ids) {
+  public void see(HavocCmd havocCmd, ImmutableList<AtomId> ids) {
     say("havoc ");
-    ids.eval(this);
+    printList(", ", ids);
     say(";");
-  }
-
-  @Override
-  public void see(Identifiers identifiers, AtomId id, Identifiers tail) {
-    id.eval(this);
-    if (tail != null) {
-      say(", ");
-      tail.eval(this);
-    }
   }
 
   @Override
   public void see(
     Implementation implementation, 
-    Attribute attr,
+    ImmutableList<Attribute> attributes,
     Signature sig, 
-    Body body, 
-    Declaration tail
+    Body body 
   ) {
     say("implementation ");
-    if (attr != null) {
-      attr.eval(this);
-      say(" ");
-    }
+    printList(" ", attributes);
     sig.eval(this);
     body.eval(this);
     nl();
-    if (tail != null) tail.eval(this);
   }
 
   @Override
@@ -469,49 +451,54 @@ public class PrettyPrinter extends Transformer {
 
   @Override
   public void see(
-    Procedure procedure, 
-    Attribute attr,
-    Signature sig, 
-    Specification spec, 
-    Declaration tail
+      Procedure procedure, 
+      ImmutableList<Attribute> attr,
+      Signature sig, 
+      ImmutableList<PreSpec> preconditions,
+      ImmutableList<PostSpec> postconditions,
+      ImmutableList<ModifiesSpec> modifies
   ) {
     say("procedure ");
-    if (attr != null) {
-      attr.eval(this);
-      say(" ");
-    }
+    printList(" ", attr);
     sig.eval(this);
     say(";");
-    if (spec != null) {
-      ++indentLevel; nl();
-      spec.eval(this);
-      --indentLevel; nl();
-    }
+    printSpecs(preconditions);
+    printSpecs(modifies);
+    printSpecs(postconditions);
     nl();
-    if (tail != null) tail.eval(this);
+  }
+
+  private void printSpecs(ImmutableList<? extends Specification> specs) {
+    for (Specification s : specs) {
+      ++indentLevel; 
+      nl();
+      s.eval(this);
+      --indentLevel;
+      nl();
+    }
   }
 
   @Override
   public void see(
     Signature signature, 
     String name, 
-    Identifiers typeArgs,
-    Declaration args, 
-    Declaration results 
+    ImmutableList<AtomId> typeArgs,
+    ImmutableList<VariableDecl> args,
+    ImmutableList<VariableDecl> results
   ) {
     ++skipVar;
     say(name);
-    if (typeArgs != null) {
+    if (!typeArgs.isEmpty()) {
       say("<");
-      typeArgs.eval(this);
+      printList(", ", typeArgs);
       say(">");
     }
     say("(");
-    if (args != null) args.eval(this);
+    printList(", ", args);
     say(")");
-    if (results != null) {
+    if (!results.isEmpty()) {
       say(" returns (");
-      results.eval(this);
+      printList(", ", results);
       say(")");
     }
     --skipVar;
@@ -519,50 +506,66 @@ public class PrettyPrinter extends Transformer {
 
   @Override
   public void see(
-    Specification specification, 
-    Identifiers tv, 
-    Specification.SpecType type, 
-    Expr expr, 
-    boolean free, 
-    Specification tail
+      ModifiesSpec modifiesSpec, 
+      boolean free,
+      ImmutableList<AtomId> ids
   ) {
     if (free) say("free ");
-    say(specRep.get(type));
-    if (tv != null) {
-      say("<");
-      tv.eval(this);
-      say(">");
-    }
-    expr.eval(this);
+    say("modifies ");
+    printList(", ", ids);
     semi();
-    if (tail != null) tail.eval(this);
-  }
-
-  @Override
-  public void see(TupleType tupleType, Type type, TupleType tail) {
-    if (prefixByBq) say("`");
-    type.eval(this);
-    if (tail != null) {
-      say(", ");
-      tail.eval(this);
-    }
   }
 
   @Override
   public void see(
+      PostSpec postSpec, 
+      boolean free,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
+  ) {
+    if (free) say("free ");
+    say("ensures");
+    if (!typeArgs.isEmpty()) {
+      say("<");
+      printList(", ", typeArgs);
+      say(">");
+    }
+    say(" ");
+    expr.eval(this);
+    semi();
+  }
+
+  @Override
+  public void see(
+      PreSpec preSpec, 
+      boolean free,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
+  ) {
+    if (free) say("free ");
+    say("requires");
+    if (!typeArgs.isEmpty()) {
+      say("<");
+      printList(", ", typeArgs);
+      say(">");
+    }
+    say(" ");
+    expr.eval(this);
+    semi();
+  }
+
+
+  @Override
+  public void see(
     TypeDecl typeDecl,
-    Attribute attr,
-    String name,
-    Identifiers typeArgs,
+    ImmutableList<Attribute> attr,
     boolean finite,
-    Type type,
-    Declaration tail
+    String name,
+    ImmutableList<AtomId> typeArgs,
+    Type type
   ) {
     say("type ");
-    if (attr != null) {
-      attr.eval(this);
-      say(" ");
-    }
+    printList(" ", attr);
     switch (boogieVersion) {
       case TWO:
         if (finite) {
@@ -578,7 +581,6 @@ public class PrettyPrinter extends Transformer {
       type.eval(this);
     }
     semi();
-    tail.eval(this);
   }
 
   @Override
@@ -588,7 +590,11 @@ public class PrettyPrinter extends Transformer {
   }
 
   @Override
-  public void see(UserType userType, String name, TupleType typeArgs) {
+  public void see(
+      UserType userType,
+      String name,
+      ImmutableList<Type> typeArgs
+  ) {
     say(name);
     // TODO: print space-separated typeArgs
   }
@@ -596,38 +602,34 @@ public class PrettyPrinter extends Transformer {
   @Override
   public void see(
     VariableDecl variableDecl, 
-    Attribute attr,
+    ImmutableList<Attribute> attr,
     String name, 
     Type type, 
-    Identifiers typeVars, 
-    Declaration tail
+    ImmutableList<AtomId> typeVars
   ) {
     if (skipVar==0) say("var ");
-    if (attr != null) {
-      attr.eval(this);
-      say(" ");
-    }
+    printList(" ", attr);
     say(name);
-    if (typeVars != null) {
+    if (!typeVars.isEmpty()) {
       say("<");
-      typeVars.eval(this);
+      printList(", ", typeVars);
       say(">");
     }
     say(" : ");
     type.eval(this);
-    if (skipVar>0) {
-      if (tail != null) say(", ");
-    } else semi();
-    if (tail != null) tail.eval(this);
+    if (skipVar==0) semi();
   }
   
   @Override
-  public void see(Attribute trigger, String type, Exprs exprs, Attribute tail) {
+  public void see(
+      Attribute attribute, 
+      String type, 
+      ImmutableList<Expr> exprs
+  ) {
     say("{");
     say(":"); say(type);
     say(" ");
-    if (exprs != null) exprs.eval(this);
+    printList(" ", exprs);
     say("} ");
-    if (tail != null) tail.eval(this);
   }
 }

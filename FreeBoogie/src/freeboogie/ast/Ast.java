@@ -1,5 +1,7 @@
 package freeboogie.ast;
 
+import com.google.common.collect.ImmutableList;
+
 /** 
  * Base class for the AST hierarchy. 
  *
@@ -11,18 +13,12 @@ package freeboogie.ast;
  * wouldn't work with intra-version sharing. The {@code clone}
  * method should help in situations where you'd be tempted to share.
  *
- * One consequence of enforcing immutability is that the mutable
- * Java collection classes are not used. Instead, singly linked
- * lists are used. These will feel unnatural to OO programmers
- * but natural to functional programmers. Yes, Java is quite verbose
- * for the functional style but it's not terrible. Please try it.
- *
  * @author rgrig
  */
 public abstract class Ast implements Cloneable {
   /** The location of this AST node. */
   protected FileLocation location;
-  
+
   /**
    * Returns the location of this AST node. 
    * @return the location of this AST node.
@@ -30,6 +26,9 @@ public abstract class Ast implements Cloneable {
   public FileLocation loc() {
     return location;
   }
+
+  protected ImmutableList<Ast> children;
+  public abstract ImmutableList<Ast> children();
   
   /**
    * Dispatches to {@code e.eval} based on the static type of the node

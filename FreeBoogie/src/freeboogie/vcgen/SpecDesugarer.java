@@ -4,6 +4,7 @@ import java.io.PrintWriter;
 import java.util.*;
 import java.util.logging.Logger;
 
+import com.google.common.collect.*;
 import genericutils.*;
 
 import freeboogie.ast.*;
@@ -49,129 +50,123 @@ public class SpecDesugarer extends Transformer {
 
   private UsageToDefMap<Implementation, Procedure> implProc;
   private UsageToDefMap<VariableDecl, VariableDecl> paramMap;
-  private Map<VariableDecl, AtomId> toSubstitute;
-  private List<Expr> preconditions;
-  private List<Expr> postconditions;
-  private String afterBody;
-  private boolean exitPointFound;
+  private Map<VariableDecl, AtomId> toSubstitute = Maps.newLinkedHashMap();
+  private List<Expr> preconditions = Lists.newArrayList();
+  private List<Expr> postconditions = Lists.newArrayList();
 
-  public SpecDesugarer() {
-    toSubstitute = new LinkedHashMap<VariableDecl, AtomId>(23);
-    preconditions = new ArrayList<Expr>(23);
-    postconditions = new ArrayList<Expr>(23);
-  }
+  private String afterBody;
 
   /** Transforms the {@code ast} and updates the typechecker. */
   @Override
-  public Declaration process(Declaration ast, TcInterface tc) {
+  public Program process(Program p, TcInterface tc) {
     this.tc = tc; 
-    implProc = tc.getImplProc();
-    paramMap = tc.getParamMap();
-    ast = (Declaration) ast.eval(this);
-    return TypeUtils.internalTypecheck(ast, tc);
+    implProc = tc.implProc();
+    paramMap = tc.paramMap();
+    p = (Program) p.eval(this);
+    return TypeUtils.internalTypecheck(p, tc);
   }
 
   @Override
   public Implementation eval(
     Implementation implementation,
-    Attribute attr,
+    ImmutableList<Attribute> attr,
     Signature sig,
-    Body body, 
-    Declaration tail
+    Body body
   ) {
     // prepare substitutions to be applied to preconditions and postconditions
     toSubstitute.clear();
-    VariableDecl pd; // parameter declaration
-    for (pd = (VariableDecl)sig.getArgs(); pd != null; pd = (VariableDecl)pd.getTail())
-      toSubstitute.put(paramMap.def(pd), AtomId.mk(pd.getName(), null));
-    for (pd = (VariableDecl)sig.getResults(); pd != null; pd = (VariableDecl)pd.getTail())
-      toSubstitute.put(paramMap.def(pd), AtomId.mk(pd.getName(), null));
+    for (VariableDecl ad : sig.args()) {
+      toSubstitute.put(
+          paramMap.def(ad), 
+          AtomId.mk(ad.name(), ImmutableList.<Type>of()));
+    }
+    for (VariableDecl rd : sig.results()) {
+      toSubstitute.put(
+          paramMap.def(rd), 
+          AtomId.mk(rd.name(), ImmutableList.<Type>of()));
+    }
 
     // collect preconditions and postconditions
-    Specification spec = implProc.def(implementation).getSpec();
     preconditions.clear();
     postconditions.clear();
-    while (spec != null) {
-      switch (spec.getType()) {
-      case REQUIRES:
-        preconditions.add(((Expr)spec.getExpr().eval(this)).clone());
-        break;
-      case ENSURES:
-        if (!spec.getFree()) 
-          postconditions.add(((Expr)spec.getExpr().eval(this)).clone());
-        break;
-      default: // do nothing
-      }
-      spec = spec.getTail();
+    for (PreSpec pre : implProc.def(implementation).preconditions())
+      preconditions.add((Expr) pre.expr().eval(this).clone());
+    for (PostSpec post : implProc.def(implementation).postconditions()) {
+      if (!post.free()) 
+        postconditions.add((Expr) post.expr().eval(this).clone());
     }
-    toSubstitute.clear();
 
     // the rest
+    toSubstitute.clear();
     Body newBody = (Body)body.eval(this);
-    Declaration newTail = tail == null? null : (Declaration)tail.eval(this);
-    if (newBody != body || newTail != tail)
-      implementation = Implementation.mk(attr, sig, newBody, newTail, implementation.loc());
+    if (newBody != body) {
+      implementation = Implementation.mk(
+          attr, 
+          sig, 
+          newBody, 
+          implementation.loc());
+    }
     return implementation;
   }
 
   @Override
-  public AtomId eval(AtomId atomId, String id, TupleType types) {
-    Declaration d = tc.getST().ids.def(atomId);
+  public AtomId eval(AtomId atomId, String id, ImmutableList<Type> types) {
+    IdDecl d = tc.st().ids.def(atomId);
     AtomId s = toSubstitute.get(d);
-    return s == null? atomId : s;
+    return s == null? atomId : s.clone();
   }
 
   @Override
-  public Body eval(Body body, Declaration vars, Block blocks) {
-    String nxtLabel, crtLabel;
-    afterBody = postconditions.isEmpty()? null : Id.get("post");
-    String afterPre = blocks != null? blocks.getName() : afterBody;
-    Block newBlocks = blocks;
-    exitPointFound = false;
-    if (newBlocks != null && !postconditions.isEmpty())
-      newBlocks = (Block)newBlocks.eval(this);
-    if (!exitPointFound) postconditions.clear();
-    nxtLabel = null;
-    for (Expr post : postconditions) {
-      newBlocks = Block.mk(
-        crtLabel = Id.get("post"),
-        AssertAssumeCmd.mk(AssertAssumeCmd.CmdType.ASSERT, null, post),
-        succ(nxtLabel),
-        newBlocks);
-      nxtLabel = crtLabel;
+  public Body eval(
+      Body body, 
+      ImmutableList<VariableDecl> vars,
+      ImmutableList<Block> blocks
+  ) {
+    // newBlocks is built backwards
+    Deque<Block> newBlocks = new ArrayDeque<Block>();
+    String nextLabel, currentLabel;
+    Block b;
+    newBlocks.addFirst(b = Block.mk(
+        nextLabel = Id.get("exit"), 
+        null, 
+        ImmutableList.<AtomId>of()));
+    for (Expr e : Iterables.reverse(postconditions)) {
+      newBlocks.addFirst(b = Block.mk(
+          currentLabel = Id.get("post"),
+          AssertAssumeCmd.mk(
+              AssertAssumeCmd.CmdType.ASSERT, 
+              ImmutableList.<AtomId>of(), 
+              e),
+          AstUtils.ids(nextLabel)));
+      nextLabel = currentLabel;
     }
-    if (afterBody != null && exitPointFound)
-      newBlocks = Block.mk(afterBody, null, succ(nxtLabel), newBlocks);
-    nxtLabel = afterPre;
-    for (Expr pre : preconditions) {
-      newBlocks = Block.mk(
-        crtLabel = Id.get("pre"),
-        AssertAssumeCmd.mk(AssertAssumeCmd.CmdType.ASSUME, null, pre),
-        succ(nxtLabel),
-        newBlocks);
-      nxtLabel = crtLabel;
+    afterBody = nextLabel; // used by the eval* call on the next line
+    for (Block ob : Iterables.reverse(AstUtils.evalListOfBlock(blocks, this))) {
+      newBlocks.addFirst(ob);
+      nextLabel = ob.name();
     }
-    if (preconditions.isEmpty() && !postconditions.isEmpty())
-      newBlocks = Block.mk(Id.get("entry"), null, succ(afterPre), newBlocks);
-    if (newBlocks != blocks)
-      body = Body.mk(vars, newBlocks, body.loc());
-    return body;
+    for (Expr e : Iterables.reverse(preconditions)) {
+      newBlocks.addFirst(b = Block.mk(
+          currentLabel = Id.get("pre"),
+          AssertAssumeCmd.mk(
+              AssertAssumeCmd.CmdType.ASSUME,
+              ImmutableList.<AtomId>of(),
+              e),
+          AstUtils.ids(nextLabel)));
+      nextLabel = currentLabel;
+    }
+    return Body.mk(vars, ImmutableList.copyOf(newBlocks));
   }
 
   @Override
-  public Block eval(Block block, String name, Command cmd, Identifiers succ, Block tail) {
-    exitPointFound |= succ == null;
-    Block newTail = tail == null? null : (Block)tail.eval(this);
-    Identifiers newSucc = succ == null? succ(afterBody) : succ;
-    if (newSucc != succ || newTail != tail)
-      block = Block.mk(name, cmd, newSucc, newTail, block.loc());
+  public Block eval(
+      Block block, 
+      String name, 
+      Command cmd, 
+      ImmutableList<AtomId> succ
+  ) {
+    if (succ.isEmpty())
+      block = Block.mk(name, cmd, AstUtils.ids(afterBody));
     return block;
   }
-
-  // === helpers ===
-  private static Identifiers succ(String blockName) {
-    if (blockName == null) return null;
-    return Identifiers.mk(AtomId.mk(blockName, null), null);
-  }
-
 }

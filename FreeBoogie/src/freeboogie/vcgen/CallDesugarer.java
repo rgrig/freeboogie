@@ -4,6 +4,7 @@ import java.io.PrintWriter;
 import java.util.*;
 import java.util.logging.Logger;
 
+import com.google.common.collect.*;
 import genericutils.Err;
 import genericutils.Id;
 
@@ -46,121 +47,105 @@ import freeboogie.tc.TcInterface;
 public class CallDesugarer extends Transformer {
   private static final Logger log = Logger.getLogger("freeboogie.vcgen");
 
-  private HashMap<VariableDecl, Expr> toSubstitute;
-  private ArrayList<Expr> preconditions;
-  private ArrayList<Expr> postconditions;
-  private ArrayList<Identifiers> havocs;
-  private ArrayList<Command> equivCmds;
-
-  public CallDesugarer() {
-    toSubstitute = new HashMap<VariableDecl, Expr>(23);
-    preconditions = new ArrayList<Expr>(23);
-    postconditions = new ArrayList<Expr>(23);
-    havocs = new ArrayList<Identifiers>(23);
-    equivCmds = new ArrayList<Command>(23);
-  }
+  private HashMap<VariableDecl, Expr> toSubstitute = Maps.newHashMap();
+  private ArrayList<Command> equivCmds = Lists.newArrayList();
 
   // === transformer methods ===
-  
+
+  // collects new blocks
+  private Deque<Block> extraBlocks = new ArrayDeque<Block>();
+  @Override public Body eval(
+      Body body,
+      ImmutableList<VariableDecl> vars,
+      ImmutableList<Block> blocks
+  ) {
+    boolean same = true;
+    ImmutableList.Builder<Block> newBlocks = ImmutableList.builder();
+    for (Block b : blocks) {
+      extraBlocks.clear();
+      Block nb = (Block) b.eval(this);
+      same &= extraBlocks.isEmpty() && nb == b;
+      newBlocks.addAll(extraBlocks).add(nb);
+    }
+    if (!same) body = Body.mk(vars, newBlocks.build());
+    return body;
+  }
+
   @Override
-  public Block eval(Block block, String name, Command cmd, Identifiers succ, Block tail) {
-    Block newTail = tail == null? null : (Block)tail.eval(this);
+  public Block eval(
+      Block block, 
+      String name, 
+      Command cmd, 
+      ImmutableList<AtomId> succ
+  ) {
     equivCmds.clear();
-    Command newCmd = cmd == null? null : (Command)cmd.eval(this);
+    Command newCmd = AstUtils.eval(cmd, this);
     if (!equivCmds.isEmpty()) {
       String crtLabel, nxtLabel;
-      block = Block.mk(nxtLabel = Id.get("call"), null, succ, newTail, block.loc());
+      block = Block.mk(nxtLabel = Id.get("call"), null, succ, block.loc());
       for (int i = equivCmds.size() - 1; i > 0; --i) {
-        block = Block.mk(
-          crtLabel = Id.get("call"), 
-          equivCmds.get(i), 
-          Identifiers.mk(AtomId.mk(nxtLabel, null), null),
-          block,
-          block.loc());
+        extraBlocks.addFirst(Block.mk(
+          crtLabel = i == 0 ? name : Id.get("call"), 
+          equivCmds.get(i),
+          AstUtils.ids(nxtLabel),
+          block.loc()));
         nxtLabel = crtLabel;
       }
-      block = Block.mk(
-        name, 
-        equivCmds.get(0), 
-        Identifiers.mk(AtomId.mk(nxtLabel, null), null),
-        block,
-        block.loc());
-    } else if (newTail != tail || newCmd != cmd)
-      block = Block.mk(name, newCmd, succ, newTail);
+    } else if (newCmd != cmd)
+      block = Block.mk(name, newCmd, succ, block.loc());
     return block;
   }
 
-  @Override
-  public Command eval(CallCmd callCmd, String procedure, TupleType types, Identifiers results, Exprs args) {
+  @Override public Command eval(
+      CallCmd callCmd, 
+      String procedure, 
+      ImmutableList<Type> types, 
+      ImmutableList<AtomId> results, 
+      ImmutableList<Expr> args
+  ) {
     toSubstitute.clear();
-    preconditions.clear();
-    postconditions.clear();
-    havocs.clear();
     equivCmds.clear();
-    Procedure p = tc.getST().procs.def(callCmd);
-    Signature sig = p.getSig();
-    VariableDecl rv = (VariableDecl)sig.getResults();
-    if (results != null) havocs.add(results.clone());
-    while (rv != null) {
-      toSubstitute.put(rv, results.getId());
-      rv = (VariableDecl)rv.getTail();
-      results = results.getTail();
-    }
-    VariableDecl av = (VariableDecl)sig.getArgs();
-    while (av != null) {
-      toSubstitute.put(av, args.getExpr());
-      av = (VariableDecl)av.getTail();
-      args = args.getTail();
-    }
-    Specification spec = p.getSpec();
-    while (spec != null) {
-      Expr se = (Expr)spec.getExpr().eval(this).clone();
-      switch (spec.getType()) {
-      case REQUIRES:  
-        preconditions.add(se); break;
-      case ENSURES:
-        postconditions.add(se); break;
-      case MODIFIES:
-        if (!spec.getFree()) {
-          Identifiers ids = null;
-          Exprs e = (Exprs)se;
-          while (e != null) {
-            ids = Identifiers.mk((AtomId)e.getExpr(), ids, e.getExpr().loc());
-            e = e.getTail();
-          }
-          havocs.add(ids); 
-        }
-        break;
-      default:
-        assert false;
-      }
-      spec = spec.getTail();
-    }
-    for (Expr pre : preconditions) {
+    Procedure p = tc.st().procs.def(callCmd);
+    Signature sig = p.sig();
+    prepareToSubstitute(sig.results(), results);
+    prepareToSubstitute(sig.args(), args);
+
+    for (PreSpec pre : p.preconditions()) {
       equivCmds.add(AssertAssumeCmd.mk(
         AssertAssumeCmd.CmdType.ASSERT,
-        null,
-        pre,
+        ImmutableList.<AtomId>of(),
+        (Expr) pre.expr().eval(this).clone(),
         callCmd.loc()));
     }
-    for (Identifiers h : havocs)
-      equivCmds.add(HavocCmd.mk(h, callCmd.loc()));
-    for (Expr post : postconditions) {
+    for (ModifiesSpec m : p.modifies()) {
+      equivCmds.add(HavocCmd.mk(
+          AstUtils.cloneListOfAtomId(AstUtils.evalListOfAtomId(m.ids(), this)), 
+          callCmd.loc()));
+    }
+    for (PostSpec post : p.postconditions()) {
       equivCmds.add(AssertAssumeCmd.mk(
         AssertAssumeCmd.CmdType.ASSUME,
-        null,
-        post,
+        ImmutableList.<AtomId>of(),
+        (Expr) post.expr().eval(this).clone(),
         callCmd.loc()));
     }
     toSubstitute.clear();
-    return null;
+    return null; // TODO(rgrig): ?
   }
   
   @Override
-  public Expr eval(AtomId atomId, String id, TupleType types) {
-    Expr e = toSubstitute.get(tc.getST().ids.def(atomId));
+  public Expr eval(AtomId atomId, String id, ImmutableList<Type> types) {
+    Expr e = toSubstitute.get(tc.st().ids.def(atomId));
     return e == null? atomId : e;
   }
 
-  
+  // === helpers ===
+  private void prepareToSubstitute(
+      ImmutableList<VariableDecl> vars, 
+      ImmutableList<? extends Expr> exprs
+  ) {
+    UnmodifiableIterator<VariableDecl> iv = vars.iterator();
+    UnmodifiableIterator<? extends Expr> ie = exprs.iterator();
+    while (iv.hasNext()) toSubstitute.put(iv.next(), ie.next());
+  }
 }

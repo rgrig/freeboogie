@@ -1,122 +1,160 @@
 // This is the abstract grammar for FreeBoogie used to generate
 // the AST. See also the template (*.tpl) files.
 
-// The program is a (functional) list of (global) declarations
+Program =
+  String fileName,
+  [list] TypeDecl types,
+  [list] Axiom axioms,
+  [list] VariableDecl variables,
+  [list] ConstDecl constants, 
+  [list] FunctionDecl functions,
+  [list] Procedure procedures,
+  [list] Implementation implementations;
+
+// Provide a common class for AST nodes that can act as a
+// definition for an AtomId.
+IdDecl :> 
+  ConstDecl, 
+  VariableDecl;
+IdDecl =
+  String! name,
+  Type! type;
+
+// Group all elements that can have attributes.
 Declaration :> 
   TypeDecl, 
-  ConstDecl, 
-  Axiom,
+  Axiom, 
+  IdDecl, 
   FunctionDecl, 
-  VariableDecl, 
   Procedure, 
   Implementation;
+Declaration =
+  [list] Attribute attributes;
 
 TypeDecl = 
-  Attribute attr,
-  String! name,
-  Identifiers typeArgs, 
   boolean finite, 
-  Type type, // non-null when this is a type synonym
-  Declaration tail;
-ConstDecl = 
-  Attribute attr,
-  String! id,
-  Type! type,
-  boolean uniq,
-  Declaration tail;
-
-// These are declarations that may introduce type variables
+  String! name,
+  [list] AtomId typeArgs,
+  Type type; // non-null when this is a type synonym
 Axiom =
-  Attribute attr,
   String! name,
-  Identifiers typeArgs,
-  Expr! expr,
-  Declaration tail;
-FunctionDecl = Attribute attr, Signature! sig, Declaration tail;
+  [list] AtomId typeArgs,
+  Expr! expr;
 VariableDecl =
-  Attribute attr,
-  String! name,
-  Type! type, 
-  Identifiers typeArgs,
-  Declaration tail;
+  [list] AtomId typeArgs;
+ConstDecl = 
+  boolean uniq;
+FunctionDecl = 
+  Signature! sig;
 Procedure =
-  Attribute attr,
   Signature! sig,
-  Specification spec, 
-  Declaration tail;
+  [list] PreSpec preconditions,
+  [list] PostSpec postconditions,
+  [list] ModifiesSpec modifies;
 Implementation =
-  Attribute attr,
   Signature! sig,
-  Body! body, 
-  Declaration tail;
+  Body! body;
 
 // Types and constants
-Type :> PrimitiveType, UserType, MapType, IndexedType, DepType, TupleType;
-MapType = TupleType! idxType, Type! elemType;
+Type :> 
+  DepType,
+  IndexedType, 
+  MapType, 
+  PrimitiveType, 
+  TupleType,
+  UserType;
+DepType = 
+  Type! type, 
+  Expr! pred;
+IndexedType = 
+  Type! param, 
+  Type! type;
+MapType = 
+  [list] Type idxTypes,
+  Type! elemType;
 PrimitiveType = 
   enum(Ptype: BOOL, INT, REF, NAME, ANY, BV, ERROR) ptype,
-  int bits; // bits is ignored if ptype != BV
-IndexedType = Type! param, Type! type;
-DepType = Type! type, Expr! pred;
-UserType = String! name, TupleType typeArgs;
-TupleType = Type! type, TupleType tail;
-  // In BoogiePL equal(TupleType(t,null), t).
-  
+  int bits;
+TupleType =
+  [list] Type types;
+UserType = 
+  String! name, 
+  [list] Type typeArgs;
 
 // Signatures are used to represent uninterpreted functions
 Signature = 
   String! name, 
-  Identifiers typeArgs,
-  Declaration args, 
-  Declaration results;
+  [list] AtomId typeArgs,
+  [list] VariableDecl args,
+  [list] VariableDecl results;
 
 // Procedures and implementations
-Specification = 
-  Identifiers typeArgs,
-  enum(SpecType: REQUIRES, MODIFIES, ENSURES) type,
-  Expr! expr, 
-  boolean free,
-  Specification tail;
-Body = Declaration vars, Block blocks;
-Block = String! name, Command cmd, Identifiers succ, Block tail;
-  // succ == null means that we return
+Specification :> 
+  PrePostSpec,
+  ModifiesSpec;
+Specification =
+  boolean free;
+PrePostSpec :>
+  PreSpec,
+  PostSpec;
+PrePostSpec =
+  [list] AtomId typeArgs,
+  Expr! expr;
+ModifiesSpec =
+  [list] AtomId ids;
+Body = 
+  [list] VariableDecl vars,
+  [list] Block blocks;
+Block = 
+  String! name, 
+  Command cmd, 
+  [list] AtomId successors; // successors.isEmpty() means that we return
 
 // Commands
-Command :> AssignmentCmd, AssertAssumeCmd, HavocCmd, CallCmd, WhileCmd;
-AssignmentCmd = AtomId! lhs, Expr! rhs;
+Command :> 
+  AssignmentCmd, 
+  AssertAssumeCmd, 
+  HavocCmd, 
+  CallCmd, 
+  WhileCmd;
+AssignmentCmd = 
+  AtomId! lhs, 
+  Expr! rhs;
 AssertAssumeCmd = 
   enum(CmdType: ASSERT, ASSUME) type, 
-  Identifiers typeArgs, 
+  [list] AtomId typeArgs, 
   Expr! expr;
-HavocCmd = Identifiers! ids;
-CallCmd = String! procedure, TupleType types, Identifiers results, Exprs args;
-WhileCmd = Expr condition, LoopInvariant inv, Block! stmt;
-LoopInvariant = boolean free, Expr! expr, LoopInvariant tail;
-Attribute = String! type, Exprs exprs, Attribute tail;
+HavocCmd = 
+  [list] AtomId ids;
+CallCmd = 
+  String! procedure, 
+  [list] Type types, 
+  [list] AtomId results,
+  [list] Expr args;
+WhileCmd = 
+  Expr condition, 
+  [list] LoopInvariant inv, 
+  [list] Block body;
+LoopInvariant = 
+  boolean free, 
+  Expr! expr;
+
+Attribute = 
+  String! type, 
+  [list] Expr exprs;
 
 // Expressions
-Expr :> BinaryOp, UnaryOp, Atom, Exprs;
+Expr :> 
+  BinaryOp, 
+  UnaryOp, 
+  Atom;
 BinaryOp = 
-  enum(Op:
-    PLUS,
-    MINUS,
-    MUL,
-    DIV,
-    MOD,
-    EQ,
-    NEQ,
-    LT,
-    LE,
-    GE,
-    GT,
-    SUBTYPE,
-    EQUIV,
-    IMPLIES,
-    AND,
-    OR) op,
+  enum(Op:PLUS,MINUS,MUL,DIV,MOD,EQ,NEQ,LT,LE,GE,GT,SUBTYPE,EQUIV,IMPLIES,AND,OR) op,
   Expr! left, 
   Expr! right;
-UnaryOp = enum(Op: MINUS, NOT) op, Expr! e;
+UnaryOp = 
+  enum(Op: MINUS, NOT) op, 
+  Expr! e;
 Atom :> 
   AtomCast,
   AtomFun,
@@ -127,24 +165,40 @@ Atom :>
   AtomNum,
   AtomOld,
   AtomQuant;
-AtomLit = enum(AtomType: FALSE, TRUE, NULL) val;
-AtomNum = BigInteger val;
-AtomId = String! id, TupleType types;
-AtomFun = String! function, TupleType types, Exprs args;
-AtomOld = Expr! e;
-AtomCast = Expr! e, Type! type;
+AtomLit = 
+  enum(AtomType: FALSE, TRUE, NULL) val;
+AtomNum = 
+  BigInteger val;
+AtomId = 
+  String! id, 
+  [list] Type types;
+AtomFun = 
+  String! function, 
+  [list] Type types, 
+  [list] Expr args;
+AtomOld = 
+  Expr! e;
+AtomCast = 
+  Expr! e, 
+  Type! type;
 AtomQuant =
   enum(QuantType: EXISTS, FORALL) quant,
-  Declaration! vars,
-  Attribute attr,
+  [list] VariableDecl vars,
+  [list] Attribute attributes,
   Expr! e;
-AtomMapSelect = Atom! atom, Exprs! idx;
-AtomMapUpdate = Atom! atom, Exprs! idx, Expr! val;
+AtomMapSelect = 
+  Atom! atom, 
+  [list] Expr idx;
+AtomMapUpdate = 
+  Atom! atom, 
+  [list] Expr idx, 
+  Expr! val;
 
-// Some simple lists
-Identifiers = AtomId! id, Identifiers tail;
-Exprs = Expr! expr, Exprs tail;
-
-// TODO: the invariants
-Specification: type==Type.MODIFIES ==> \typeof(expr)==AtomId
+// the invariants
+AtomMapSelect: !idx.isEmpty()
+AtomMapUpdate: !idx.isEmpty()
+HavocCmd: !ids.isEmpty()
+PrimitiveType: ptype == Ptype.BV || bits == -1
+Specification: type != SpecType.MODIFIES || (expr instanceof AtomId)
+Body: !blocks.isEmpty()
 
