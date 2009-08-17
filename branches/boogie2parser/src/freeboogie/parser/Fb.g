@@ -1,8 +1,6 @@
 // vim:ft=java:
 grammar Fb;
 
-@annotate { @SuppressWarnings("all") }
-
 @header {
   package freeboogie.parser; 
 
@@ -11,9 +9,12 @@ grammar Fb;
   import com.google.common.collect.ImmutableList;
   import com.google.common.collect.Lists;
   import genericutils.Id;
+  import genericutils.Logger;
 
   import freeboogie.ast.*; 
   import freeboogie.tc.TypeUtils;
+  import static freeboogie.cli.FbCliOptionsInterface.ReportOn;
+  import static freeboogie.cli.FbCliOptionsInterface.ReportLevel;
 }
 @lexer::header {
   package freeboogie.parser;
@@ -22,15 +23,17 @@ grammar Fb;
 @parser::members {
   public String fileName = null; // the file being processed
   private FileLocation tokLoc(Token t) {
+    if (t == null) return FileLocation.unknown();
     return new FileLocation(fileName,t.getLine(),t.getCharPositionInLine()+1);
   }
   private FileLocation fileLoc(Ast a) {
     return a == null? FileLocation.unknown() : a.loc();
   }
+  private FileLocation fileLoc(ImmutableList<? extends Ast> al) {
+    return al.isEmpty()? FileLocation.unknown() : fileLoc(al.get(0));
+  }
   
   public boolean ok = true;
-
-  private ImmutableList.Builder<Block> blockListBuilder;
 
   private ImmutableList.Builder<TypeDecl> typeDeclBuilder;
   private ImmutableList.Builder<Axiom> axiomDeclBuilder;
@@ -40,11 +43,18 @@ grammar Fb;
   private ImmutableList.Builder<Procedure> procedureDeclBuilder;
   private ImmutableList.Builder<Implementation> implementationBuilder;
 
+  private Logger<ReportOn, ReportLevel> out = 
+      Logger.<ReportOn, ReportLevel>get("out");
+
   
   @Override
   public void reportError(RecognitionException x) {
     ok = false;
     super.reportError(x);
+  }
+
+  @Override public String getErrorHeader(RecognitionException e) {
+    return fileName + ":" + e.line + ":" + (e.charPositionInLine+1) + ":";
   }
 
 }
@@ -82,7 +92,22 @@ decl:
 ;
 
 type_decl:
-    'type' type_id (',' type_id)* ';';
+    start='type' attribute_list 
+    f='finite'? n=ID tv=type_vars ('=' s=type)? ';'
+    { if (ok) {
+      if ($f!=null && $s.v!=null) {
+        out.say(ReportOn.PARSER, ReportLevel.NORMAL, 
+          "I'm ignoring 'finite' on the type synonym " + $n.text + ".");
+      }
+      typeDeclBuilder.add(TypeDecl.mk(
+          $attribute_list.v,
+          $f != null,
+          $n.text,
+          $tv.v,
+          $s.v,
+          tokLoc($start))); }}
+;
+
 type_id:
     ID
     { typeDeclBuilder.add(TypeDecl.mk(
@@ -228,10 +253,15 @@ scope {
     { $v=$var_decl_list::b_.build(); }
 ;
 
-block_list returns [ImmutableList<Block> v]:
-      { blockListBuilder = ImmutableList.builder(); }
+block_list returns [ImmutableList<Block> v]
+scope {
+  ImmutableList.Builder<Block> builder;
+  String nextLabel;
+}:
+      { $block_list::builder = ImmutableList.builder(); 
+        $block_list::nextLabel = null; }
     block+
-      { $v = blockListBuilder.build(); }
+      { $v = $block_list::builder.build(); }
 ;
 
 block
@@ -239,26 +269,38 @@ scope {
   ArrayList<Command> cmds;
 }
 : 
-    id=ID ':' 
-    {$block::cmds = Lists.newArrayList();}
-    (command {if (ok) $block::cmds.add($command.v);})* 
-    s=block_succ
+    (id=ID ':')? command? (block_succ)?
     { if (ok) {
-      if ($block::cmds.isEmpty()) 
-        blockListBuilder.add(Block.mk($id.text,null,$s.v,tokLoc(id)));
-      else {
-        String n = $id.text, nn;
-        for (int i = 0; i < $block::cmds.size(); ++i) {
-          nn = Id.get("block");
-          blockListBuilder.add(Block.mk(
-            n,
-            $block::cmds.get(i),
-            i+1==$block::cmds.size()?$s.v:AstUtils.ids(nn),
-            fileLoc($block::cmds.get(i))));
-          n = nn;
+      FileLocation location = null;
+      if ($id != null) location = tokLoc($id);
+      else if ($command.v != null) location = fileLoc($command.v);
+      else location = fileLoc($block_succ.v);
+
+      String label;
+      if ($id == null) {
+        label = $block_list::nextLabel == null? 
+            Id.get("L") : 
+            $block_list::nextLabel;
+      } else {
+        if ($block_list::nextLabel != null) {
+          $block_list::builder.add(Block.mk(
+              $block_list::nextLabel,
+              null,
+              AstUtils.ids($id.text)));
         }
+        label = $id.text;
       }
-    }};
+      ImmutableList<AtomId> succ = $block_succ.v;
+      if (succ == null) {
+        $block_list::nextLabel = Id.get("L");
+        succ = AstUtils.ids($block_list::nextLabel);
+      } else $block_list::nextLabel = null;
+      $block_list::builder.add(Block.mk(
+          label,
+          $command.v,
+          succ,
+          location)); }}
+;
 
 block_succ returns [ImmutableList<AtomId> v]:
     ('goto' s=id_list | 'return') ';' 
@@ -450,6 +492,8 @@ attr returns [Attribute v]:
 
 
 // {{{ BEGIN list rules 
+
+attribute_list returns [ImmutableList<Attribute> v]: /* TODO */ ;
 	
 expr_list returns [ImmutableList<Expr> v]
 scope {

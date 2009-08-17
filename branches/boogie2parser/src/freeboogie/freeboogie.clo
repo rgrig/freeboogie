@@ -52,7 +52,7 @@ ARGS::
     :"Configure the version of the Boogie language."
 
   ReportOn :{"--report-on", "--out-categories", "-oc"} :{enum-list}
-    :[choices="MAIN,FOO",default="MAIN"]
+    :[choices="MAIN,PARSER",default="MAIN"]
     :"Configure what type of information should go to stdout.
       By default all categories are disabled. Errors go to stderr."
   ReportLevel :{"--report-level", "--out-level", "-ol"} :{enum}

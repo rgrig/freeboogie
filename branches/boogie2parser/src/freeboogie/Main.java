@@ -25,8 +25,6 @@ import freeboogie.parser.FbParser;
 import freeboogie.tc.*;
 import freeboogie.vcgen.*;
 import static freeboogie.cli.FbCliOptionsInterface.*;
-import static freeboogie.cli.FbCliOptionsInterface.LogCategories;
-import static freeboogie.cli.FbCliOptionsInterface.LogLevel;
 
 /**
   The entry point for FreeBoogie.
