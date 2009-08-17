@@ -22,6 +22,7 @@ public class FbError {
     REQ_SPECIALIZATION("Explicit specialization required for %0 at %1."),
     GEN_TOOMANY("Too many explicit generics."),
     NOT_SUBTYPE("Found type %0 instead of %1."),
+    WRONG_LEN("Expecting %0 item(s), got %1."),
     BAD_TYPE("Unrelated types: %0 and %1."),
     EXACT_TYPE("Type should be %."),
     TV_ALREADY_DEF("Type variable % already defined."),

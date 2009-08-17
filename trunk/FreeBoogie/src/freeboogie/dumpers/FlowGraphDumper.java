@@ -3,6 +3,7 @@ package freeboogie.dumpers;
 import java.io.*;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import genericutils.*;
 
 import freeboogie.ast.*;
@@ -36,33 +37,32 @@ public class FlowGraphDumper extends Transformer {
   @Override
   public void see(
     Implementation impl,
-    Attribute attr,
+    ImmutableList<Attribute> attr,
     Signature sig,
-    Body body,
-    Declaration tail
+    Body body
   ) {
     String name = 
-      impl.getSig().getName() + 
+      impl.sig().name() + 
       "_at_" + 
-      impl.loc().toString().replaceAll(":", "-");
+      impl.loc().toString().replace(':', '-');
     try {
       final PrintWriter w = new PrintWriter(new File(directory, name));
-      SimpleGraph<Block> fg = tc.getFlowGraph(impl);
+      SimpleGraph<Block> fg = tc.flowGraph(impl);
       w.println("digraph \"" + name + "\" {");
-      if (body.getBlocks() != null)
-        w.println("  \"" + body.getBlocks().getName() + "\" [style=bold];");
+      if (!body.blocks().isEmpty())
+        w.println("  \"" + body.blocks().get(0).name() + "\" [style=bold];");
       for (Block b : fg.nodesInTopologicalOrder()) {
-        w.print("  \"" + b.getName() + "\" ");
-        if (b.getCmd() == null)
+        w.print("  \"" + b.name() + "\" ");
+        if (b.cmd() == null)
           w.print("[shape=circle,label=\"\"]");
         else
-          w.print("[shape=box,label=\""+cmdToString(b.getCmd())+"\"]");
+          w.print("[shape=box,label=\""+cmdToString(b.cmd())+"\"]");
         w.println(";");
       }
       fg.iterEdge(new Closure<Pair<Block,Block>>() {
         @Override public void go(Pair<Block,Block> t) {
-          w.println("  \"" + t.first.getName() + "\" -> \"" 
-            + t.second.getName() + "\";");
+          w.println("  \"" + t.first.name() + "\" -> \"" 
+            + t.second.name() + "\";");
         }});
       w.println("}");
       w.flush();
@@ -70,6 +70,5 @@ public class FlowGraphDumper extends Transformer {
     } catch (FileNotFoundException e) {
       assert false : "PrintWriter should create the file.";
     }
-    if (tail != null) tail.eval(this);
   }
 }

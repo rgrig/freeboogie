@@ -4,6 +4,7 @@ import java.io.PrintWriter;
 import java.util.*;
 import java.util.logging.Logger;
 
+import com.google.common.collect.*;
 import genericutils.*;
 
 import freeboogie.ast.*;
@@ -49,12 +50,12 @@ public class Passivator extends Transformer {
   // used mainly for debugging
   private static final Logger log = Logger.getLogger("freeboogie.vcgen");
 
-  private String fileName;
   private HashMap<VariableDecl, HashMap<Block, Integer>> readIdx;
   private HashMap<VariableDecl, HashMap<Block, Integer>> writeIdx;
   private HashMap<VariableDecl, Integer> newVarsCnt;
   private HashMap<VariableDecl, Integer> toReport;
   private HashMap<Command, HashSet<VariableDecl>> commandWs;
+  private List<Block> extraBlocks;
   private ReadWriteSetFinder rwsf;
 
   private VariableDecl currentVar;
@@ -63,83 +64,85 @@ public class Passivator extends Transformer {
   private SimpleGraph<Block> currentFG;
   private Block currentBlock;
   private HashSet<VariableDecl> allWritten; // by the current implementation
-  private Declaration newLocals;
+  private ImmutableList.Builder<VariableDecl> newLocals;
 
-  private Deque<Boolean> context; // true = write, false = read
   private int belowOld;
+  private boolean inResults;
 
-  // === public interface ===
-  
-  public Program process(Program program, TcInterface tc) {
-    fileName = program.fileName;
-    return new Program(process(program.ast, tc), fileName);
-  }
-  
-  @Override
-  public Declaration process(Declaration ast, TcInterface tc) {
-    this.tc = tc;
-    readIdx = new LinkedHashMap<VariableDecl, HashMap<Block, Integer>>();
-    writeIdx = new LinkedHashMap<VariableDecl, HashMap<Block, Integer>>();
-    newVarsCnt = new LinkedHashMap<VariableDecl, Integer>();
-    toReport = new LinkedHashMap<VariableDecl, Integer>();
-    commandWs = new LinkedHashMap<Command, HashSet<VariableDecl>>();
-    rwsf = new ReadWriteSetFinder(tc.getST());
-    ast = (Declaration)ast.eval(this);
-    for (Map.Entry<VariableDecl, Integer> e : newVarsCnt.entrySet()) {
-      for (int i = 1; i <= e.getValue(); ++i) {
-        Identifiers ntv = e.getKey().getTypeArgs();
-        if (ntv != null) ntv = ntv.clone();
-        ast = VariableDecl.mk(
-          null,
-          e.getKey().getName()+"$$"+i, 
-          TypeUtils.stripDep(e.getKey().getType()).clone(), 
-          ntv, 
-          ast);
+  // === transformers ===
+
+  // visits ONLY implementations and then adds new globals
+  @Override public Program eval(
+      Program program,
+      String fileName,
+      ImmutableList<TypeDecl> types,
+      ImmutableList<Axiom> axioms,
+      ImmutableList<VariableDecl> variables,
+      ImmutableList<ConstDecl> constants, 
+      ImmutableList<FunctionDecl> functions,
+      ImmutableList<Procedure> procedures,
+      ImmutableList<Implementation> implementations
+  ) {
+    readIdx = Maps.newHashMap();
+    writeIdx = Maps.newHashMap();
+    newVarsCnt = Maps.newHashMap();
+    toReport = Maps.newHashMap();
+    commandWs = Maps.newHashMap();
+    extraBlocks = Lists.newArrayList();
+    rwsf = new ReadWriteSetFinder(tc.st());
+    implementations = AstUtils.evalListOfImplementation(implementations, this);
+    if (!newVarsCnt.isEmpty()) {
+      ImmutableList.Builder<VariableDecl> newVariables = 
+          ImmutableList.builder();
+      newVariables.addAll(variables);
+      for (Map.Entry<VariableDecl, Integer> e : newVarsCnt.entrySet()) {
+        for (int i = 1; i <= e.getValue(); ++i) {
+          newVariables.add(VariableDecl.mk(
+              ImmutableList.<Attribute>of(),
+              name(e.getKey().name(), i),
+              TypeUtils.stripDep(e.getKey().type()).clone(), 
+              AstUtils.cloneListOfAtomId(e.getKey().typeArgs())));
+        }
       }
+      variables = newVariables.build();
     }
-    if (false) { // TODO log-categ
-      System.out.print(Environment.mapToString(toReport));
-    }
-    if (!tc.process(ast).isEmpty()) {
-      PrintWriter pw = new PrintWriter(System.out);
-      PrettyPrinter pp = new PrettyPrinter();
-      pp.writer(pw);
-      ast.eval(pp);
-      pw.flush();
-      Err.internal("Passivator produced invalid Boogie.");
-    }
-    return tc.getAST();
+    return Program.mk(
+        fileName,
+        types,
+        axioms,
+        variables,
+        constants,
+        functions,
+        procedures,
+        implementations,
+        program.loc());
   }
-
-  // === (block) transformers ===
 
   @Override
   public Implementation eval(
-    Implementation implementation,
-    Attribute attr, 
-    Signature sig,
-    Body body,
-    Declaration tail
+      Implementation implementation,
+      ImmutableList<Attribute> attr, 
+      Signature sig,
+      Body body
   ) {
-    currentFG = tc.getFlowGraph(implementation);
+    currentFG = tc.flowGraph(implementation);
     if (currentFG.hasCycle()) {
       Err.warning("" + implementation.loc() + ": Implementation " + 
-        sig.getName() + " has cycles. I'm not passivating it.");
-      if (tail != null) tail = (Declaration)tail.eval(this);
-      return Implementation.mk(attr, sig, body, tail);
+        sig.name() + " has cycles. I'm not passivating it.");
+      return implementation;
     }
     
     // collect all variables that are assigned to
     Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> rwIds = 
-      implementation.eval(rwsf);
-    allWritten = new LinkedHashSet<VariableDecl>();
+        implementation.eval(rwsf);
+    allWritten = Sets.newLinkedHashSet();
     for (VariableDecl vd : rwIds.second) allWritten.add(vd);
 
     // figure out read and write indexes
     for (VariableDecl vd : allWritten) {
       currentVar = vd;
-      currentReadIdxCache = new LinkedHashMap<Block, Integer>();
-      currentWriteIdxCache = new LinkedHashMap<Block, Integer>();
+      currentReadIdxCache = Maps.newLinkedHashMap();
+      currentWriteIdxCache = Maps.newLinkedHashMap();
       readIdx.put(vd, currentReadIdxCache);
       writeIdx.put(vd, currentWriteIdxCache);
       currentFG.iterNode(new Closure<Block>() {
@@ -149,30 +152,44 @@ public class Passivator extends Transformer {
       });
     }
 
-    // transform the body
-    context = new ArrayDeque<Boolean>();
-    context.addFirst(false);
-    currentBlock = null;
+    // transform the body and the out parameters
     belowOld = 0;
+    newLocals = ImmutableList.builder();
+    body = (Body) body.eval(this); // adds to newLocals
+    sig = (Signature) sig.eval(this); // adds to newLocals
+    newLocals.addAll(body.vars());
+    body = Body.mk(newLocals.build(), body.blocks(), body.loc());
+    return Implementation.mk(attr, sig, body);
+  }
 
-    body = (Body)body.eval(this);
-    context = null;
-    currentFG = null;
+  @Override public Signature eval(
+      Signature signature,
+      String name,
+      ImmutableList<AtomId> typeArgs,
+      ImmutableList<VariableDecl> args,
+      ImmutableList<VariableDecl> results
+  ) {
+    AstUtils.evalListOfVariableDecl(args, this);
+    assert !inResults : "There shouldn't be nesting here.";
+    inResults = true;
+    results = AstUtils.evalListOfVariableDecl(results, this);
+    inResults = false;
+    return Signature.mk(name, typeArgs, args, results);
+  }
 
-    // process out parameters
-    newLocals = body.getVars();
-
-    sig = Signature.mk(
-      sig.getName(), 
-      sig.getTypeArgs(),
-      sig.getArgs(),
-      newResults((VariableDecl)sig.getResults()),
-      sig.loc());
-    body = Body.mk(newLocals, body.getBlocks());
-
-    // process the rest of the program
-    if (tail != null) tail = (Declaration)tail.eval(this);
-    return Implementation.mk(attr, sig, body, tail);
+  @Override public Body eval(
+      Body body,
+      ImmutableList<VariableDecl> vars,
+      ImmutableList<Block> blocks
+  ) {
+    AstUtils.evalListOfVariableDecl(vars, this);
+    ImmutableList.Builder<Block> newBlocks = ImmutableList.builder();
+    for (Block b : blocks) {
+      extraBlocks.clear();
+      newBlocks.add((Block) b.eval(this)).addAll(extraBlocks);
+    }
+    // NOTE: newLocals are added later by eval(Implementation...)
+    return Body.mk(vars, newBlocks.build(), body.loc());
   }
 
 
@@ -192,12 +209,12 @@ public class Passivator extends Transformer {
     if (currentWriteIdxCache.containsKey(b))
       return currentWriteIdxCache.get(b);
     int wi = compReadIdx(b);
-    if (b.getCmd() != null) {
-      HashSet<VariableDecl> ws = commandWs.get(b.getCmd());
+    if (b.cmd() != null) {
+      HashSet<VariableDecl> ws = commandWs.get(b.cmd());
       if (ws == null) {
-        ws = new LinkedHashSet<VariableDecl>();
-        for (VariableDecl vd : rwsf.get(b.getCmd()).second) ws.add(vd);
-        commandWs.put(b.getCmd(), ws);
+        ws = Sets.newLinkedHashSet();
+        for (VariableDecl vd : rwsf.get(b.cmd()).second) ws.add(vd);
+        commandWs.put(b.cmd(), ws);
       }
       if (ws.contains(currentVar)) ++wi;
     }
@@ -210,69 +227,69 @@ public class Passivator extends Transformer {
 
   // === visitors ===
   @Override
-  public Block eval(Block block, String name, Command cmd, Identifiers succ, Block tail) {
-    // first process the rest
-    Block newTail = tail == null? null : (Block)tail.eval(this);
-
+  public Block eval(
+      Block block, 
+      String name, 
+      Command cmd, 
+      ImmutableList<AtomId> succ
+  ) {
     currentBlock = block;
     // change variable occurrences in the command of this block
-    Command newCmd = cmd == null? null : (Command)cmd.eval(this);
+    Command newCmd = AstUtils.eval(cmd, this);
 
     /* Compute the successors, perhaps introducing extra blocks for
-     * copy operations.
-     */
-    Identifiers newSucc = null;
+     * copy operations. */
+    boolean changedSucc = false;
+    ImmutableList.Builder<AtomId> newSucc = ImmutableList.builder();
     for (Block s : currentFG.to(block)) {
-      Block ss = s; // new successor
+      String nextLabel, currentLabel;
+      nextLabel = s.name();
       for (VariableDecl v : allWritten) {
         int ri = readIdx.get(v).get(s);
         int wi = writeIdx.get(v).get(block);
         if (ri == wi) continue;
-        // TODO: Perhaps I need to specify some type variables?
-        ss = newTail = Block.mk(
-          Id.get("copy"),
-          AssertAssumeCmd.mk(
-            AssertAssumeCmd.CmdType.ASSUME,
-            null,
-            BinaryOp.mk(
-              BinaryOp.Op.EQ,
-              AtomId.mk(v.getName() + (ri > 0? "$$" + ri : ""), null),
-              AtomId.mk(v.getName() + (wi > 0? "$$" + wi : ""), null))),
-          Identifiers.mk(
-            AtomId.mk(ss.getName(), null),
-            null),
-          newTail,
-          block.loc());
+        changedSucc = true;
+        extraBlocks.add(Block.mk(
+            currentLabel = Id.get("copyBlock"),
+            AssertAssumeCmd.mk(
+              AssertAssumeCmd.CmdType.ASSUME,
+              ImmutableList.<AtomId>of(),
+              BinaryOp.mk(
+                BinaryOp.Op.EQ,
+                AstUtils.mkId(name(v.name(), ri)),
+                AstUtils.mkId(name(v.name(), wi)))),
+            AstUtils.ids(nextLabel),
+            block.loc()));
+        nextLabel = currentLabel;
       }
-      newSucc = Identifiers.mk(AtomId.mk(ss.getName(), null), newSucc);
+      newSucc.add(AtomId.mk(nextLabel, ImmutableList.<Type>of(), block.loc()));
     }
     currentBlock = null;
 
-    if (newCmd != cmd || newTail != tail)
-      block = Block.mk(name, newCmd, newSucc, newTail, block.loc());
+    if (newCmd != cmd || changedSucc)
+      block = Block.mk(name, newCmd, newSucc.build(), block.loc());
     return block;
   }
 
-  public AssertAssumeCmd eval(AssertAssumeCmd assertAssumeCmd, AssertAssumeCmd.CmdType type, Identifiers typeVars, Expr expr) {
-    Expr newExpr = (Expr)expr.eval(this);
-    if (newExpr != expr)
-      return AssertAssumeCmd.mk(type, typeVars, newExpr);
-    return assertAssumeCmd;
-  }
-
-  @Override
-  public AssertAssumeCmd eval(AssignmentCmd assignmentCmd, AtomId lhs, Expr rhs) {
+  // Note the return type
+  @Override public AssertAssumeCmd eval(
+      AssignmentCmd assignmentCmd, 
+      AtomId lhs, 
+      Expr rhs
+  ) {
     AssertAssumeCmd result = null;
     Expr value = (Expr)rhs.eval(this);
-    VariableDecl vd = (VariableDecl)tc.getST().ids.def(lhs);
-    result = AssertAssumeCmd.mk(AssertAssumeCmd.CmdType.ASSUME, null,
+    VariableDecl vd = (VariableDecl)tc.st().ids.def(lhs);
+    return AssertAssumeCmd.mk(
+        AssertAssumeCmd.CmdType.ASSUME, 
+        ImmutableList.<AtomId>of(),
         BinaryOp.mk(BinaryOp.Op.EQ,
           AtomId.mk(
-            lhs.getId()+"$$"+getIdx(writeIdx, vd), 
-            lhs.getTypes(), 
+            name(lhs.id(), getIdx(writeIdx, vd)),
+            lhs.types(), 
             lhs.loc()),
-          value));
-    return result;
+          value),
+        assignmentCmd.loc());
   }
 
   @Override
@@ -284,53 +301,56 @@ public class Passivator extends Transformer {
   }
 
   @Override
-  public AtomId eval(AtomId atomId, String id, TupleType types) {
+  public AtomId eval(AtomId atomId, String id, ImmutableList<Type> types) {
     if (currentBlock == null) return atomId;
-    Declaration d = tc.getST().ids.def(atomId);
+    IdDecl d = tc.st().ids.def(atomId);
     if (!(d instanceof VariableDecl)) return atomId;
-    VariableDecl vd = (VariableDecl)d;
-    int idx = context.getFirst() ? getIdx(writeIdx, vd) : getIdx(readIdx, vd);
+    VariableDecl vd = (VariableDecl) d;
+    int idx = getIdx(readIdx, vd);
     if (idx == 0) return atomId;
-    return AtomId.mk(id + "$$" + idx, types, atomId.loc());
+    return AtomId.mk(name(id, idx), types, atomId.loc());
   }
 
   @Override
   public VariableDecl eval(
-    VariableDecl variableDecl,
-    Attribute attr,
-    String name,
-    Type type,
-    Identifiers typeArgs,
-    Declaration tail
+      VariableDecl variableDecl,
+      ImmutableList<Attribute> attr,
+      String name,
+      Type type,
+      ImmutableList<AtomId> typeArgs
   ) {
-    int last = newVarsCnt.containsKey(variableDecl) ? newVarsCnt.get(variableDecl) : 0;
-    if (false) { // TODO log-categ
-      toReport.put(variableDecl, last);
-    }
+    Integer last = newVarsCnt.get(variableDecl);
+    if (last == null) last = 0;
     newVarsCnt.remove(variableDecl);
-    Declaration newTail = tail == null? null : (Declaration)tail.eval(this);
-    if (newTail != tail) {
+    if (inResults) {
       variableDecl = VariableDecl.mk(
-        null,
-        name, 
-        TypeUtils.stripDep(type).clone(), 
-        typeArgs == null? null : typeArgs.clone(),
-        newTail, 
-        variableDecl.loc());
+          ImmutableList.<Attribute>of(),
+          name(name, last),
+          type,
+          typeArgs,
+          variableDecl.loc());
     }
-    for (int i = 1; i <= last; ++i) {
-      variableDecl = VariableDecl.mk(
-        null,
-        name+"$$"+i, 
-        TypeUtils.stripDep(type).clone(), 
-        typeArgs == null? null : typeArgs.clone(), 
-        variableDecl);
+    int start = 1;
+    if (inResults) {
+      --last;
+      --start;
+    }
+    for (int i = start; i <= last; ++i) {
+      newLocals.add(VariableDecl.mk(
+          ImmutableList.<Attribute>of(),
+          name(name, i),
+          TypeUtils.stripDep(type).clone(), 
+          AstUtils.cloneListOfAtomId(typeArgs)));
     }
     return variableDecl;
   }
 
   // === helpers ===
-  private int getIdx(HashMap<VariableDecl, HashMap<Block, Integer> > cache, VariableDecl vd) {
+  private int getIdx(
+      HashMap<VariableDecl, 
+      HashMap<Block, Integer> > cache, 
+      VariableDecl vd
+  ) {
     Map<Block, Integer> m = cache.get(vd);
     if (m == null || belowOld > 0 || currentBlock == null) 
       return 0; // this variable is never written to
@@ -338,34 +358,8 @@ public class Passivator extends Transformer {
     return idx == null? 0 : idx;
   }
 
-  private VariableDecl newResults(VariableDecl old) {
-    if (old == null) return null;
-    Integer last = newVarsCnt.get(old);
-    if (false) { // TODO log-categ
-      toReport.put(old, last);
-    }
-    newVarsCnt.remove(old);
-    if (last != null) {
-      for (int i = 1; i < last; ++i) {
-        newLocals = VariableDecl.mk(
-          null,
-          old.getName() + "$$" + i,
-          TypeUtils.stripDep(old.getType()).clone(),
-          old.getTypeArgs() == null? null :old.getTypeArgs().clone(),
-          newLocals);
-      }
-      newLocals = VariableDecl.mk(
-        null,
-        old.getName(),
-        TypeUtils.stripDep(old.getType()).clone(),
-        old.getTypeArgs() == null? null : old.getTypeArgs().clone(),
-        newLocals);
-    }
-    return VariableDecl.mk(
-      null,
-      old.getName() + (last != null && last > 0? "$$" + last : ""),
-      TypeUtils.stripDep(old.getType()).clone(),
-      old.getTypeArgs() == null? null : old.getTypeArgs().clone(),
-      newResults((VariableDecl)old.getTail()));
+  private String name(String prefix, int count) {
+    if (count == 0) return prefix;
+    return prefix + "$$" + count;
   }
 }

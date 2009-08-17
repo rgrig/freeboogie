@@ -2,6 +2,10 @@ package freeboogie.vcgen;
 
 import java.util.*;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import freeboogie.ast.*;
 import freeboogie.backend.*;
 
@@ -13,23 +17,23 @@ import freeboogie.backend.*;
 public class AxiomSender<T extends Term<T>> extends Transformer {
   private Prover<T> prover;
   private TermBuilder<T> term;
-  private Set<T> axioms = new HashSet<T>(109);
-  private List<String> uniqConst = new ArrayList<String>(109);
+  private Set<T> axioms = Sets.newHashSet();
+  private List<String> uniqConst = Lists.newArrayList();
 
   public void setProver(Prover<T> prover) {
     this.prover = prover;
     this.term = prover.getBuilder();
   }
 
-  public void process(Declaration ast) throws ProverException {
+  public void process(Program p) throws ProverException {
     axioms.clear();
     uniqConst.clear();
-    ast.eval(this);
+    p.eval(this);
 
-    ArrayList<T> uc = new ArrayList<T>(uniqConst.size());
+    ImmutableList.Builder<T> uc = ImmutableList.builder();
     for (String cn : uniqConst)
       uc.add(term.mk("var", "term$$" + cn));
-    axioms.add(term.mk("distinct", uc));
+    axioms.add(term.mk("distinct", uc.build()));
 
     for (T t : axioms) prover.assume(t);
   }
@@ -37,28 +41,24 @@ public class AxiomSender<T extends Term<T>> extends Transformer {
   @Override
   public void see(
     Axiom axiom,
-    Attribute attr,
+    ImmutableList<Attribute> attr,
     String name,
-    Identifiers typeArgs,
-    Expr expr,
-    Declaration tail
+    ImmutableList<AtomId> typeArgs,
+    Expr expr
   ) {
     T a = term.of(expr);
     axioms.add(a);
     a.collectAxioms(axioms);
-    if (tail != null) tail.eval(this);
   }
 
   @Override
   public void see(
     ConstDecl constDecl, 
-    Attribute attr, 
+    ImmutableList<Attribute> attr, 
     String id,
     Type type,
-    boolean uniq,
-    Declaration tail
+    boolean uniq
   ) {
     if (uniq) uniqConst.add(id);
-    if (tail != null) tail.eval(this);
   }
 }

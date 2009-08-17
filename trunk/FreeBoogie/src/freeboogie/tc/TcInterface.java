@@ -27,9 +27,7 @@ public interface TcInterface {
    * @param ast the AST to check
    * @return the detected errors 
    */
-  List<FbError> process(Declaration ast);
-
-  Program process(Program p) throws ErrorsFoundException;
+  List<FbError> process(Program p);
 
   /**
    * Returns the flow graph of {@code impl}.
@@ -37,7 +35,7 @@ public interface TcInterface {
    * @param impl the implementation whose flow graph is requested
    * @return the flow graph of {@code impl}
    */
-  SimpleGraph<Block> getFlowGraph(Implementation impl);
+  SimpleGraph<Block> flowGraph(Implementation impl);
 
 
   /**
@@ -45,37 +43,37 @@ public interface TcInterface {
    * @param bdy the body whose flow graph is requested
    * @return the flow graph of {@code bdy}
    */
-  SimpleGraph<Block> getFlowGraph(Body bdy);
+  SimpleGraph<Block> flowGraph(Body bdy);
   
   /**
    * Returns the map of expressions to types.
    * @return the map of expressions to types.
    */
-  Map<Expr, Type> getTypes();
+  Map<Expr, Type> types();
 
   /**
    * Returns the map from implementations to procedures.
    * @return the map from implementations to procedures
    */
-  UsageToDefMap<Implementation, Procedure> getImplProc();
+  UsageToDefMap<Implementation, Procedure> implProc();
 
   /**
    * Returns the map from implementation parameters to procedure parameters.
    * @return the map from implementation parameters to procedure parameters
    */
-  UsageToDefMap<VariableDecl, VariableDecl> getParamMap();
+  UsageToDefMap<VariableDecl, VariableDecl> paramMap();
 
   /**
    * Returns the symbol table.
    * @return the symbol table
    */
-  SymbolTable getST(); 
+  SymbolTable st(); 
 
   /**
    * Returns the (possibly modified) AST that was last processed.
    * @return the last processed AST
    */
-  Declaration getAST();
+  Program ast();
   
 }
 

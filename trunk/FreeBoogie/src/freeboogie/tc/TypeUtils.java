@@ -2,10 +2,14 @@ package freeboogie.tc;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Iterator;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.UnmodifiableIterator;
+import genericutils.Err;
 
 import freeboogie.ast.*;
 import freeboogie.astutil.PrettyPrinter;
-import genericutils.Err;
 
 /**
  * Various utilities for handling {@code Type}. For the moment, it contains
@@ -20,58 +24,79 @@ public final class TypeUtils {
   
   private static boolean eq(MapType a, MapType b) {
     return
-      eq(a.getElemType(), b.getElemType()) &&
-      eq(a.getIdxType(), b.getIdxType());
+      eq(a.elemType(), b.elemType()) &&
+      eq(a.idxTypes(), b.idxTypes());
+  }
+
+  private static boolean eq(TupleType a, TupleType b) {
+    return eq(a.types(), b.types());
+  }
+
+  private static <T extends Type> boolean eq(
+      ImmutableList<T> tla, 
+      ImmutableList<T> tlb
+  ) {
+    if (tla.size() != tlb.size()) return false;
+    UnmodifiableIterator<T> ia = tla.iterator();
+    UnmodifiableIterator<T> ib = tlb.iterator();
+    while (ia.hasNext()) if (!eq(ia.next(), ib.next())) return false;
+    return true;
   }
   
   private static boolean eq(PrimitiveType a, PrimitiveType b) {
-    return a.getPtype() == b.getPtype();
+    return a.ptype() == b.ptype();
   }
   
   private static boolean eq(IndexedType a, IndexedType b) {
-    return eq(a.getParam(), b.getParam()) && eq(a.getType(), b.getType());
+    return eq(a.param(), b.param()) && eq(a.type(), b.type());
   }
   
   private static boolean eq(UserType a, UserType b) {
-    return a.getName().equals(b.getName());
+    return a.name().equals(b.name());
   }
   
-  private static boolean eq(TupleType a, TupleType b) {
-    if (a == b) return true;
-    if (a == null ^ b == null) return false;
-    return eq(a.getType(), b.getType()) && eq(a.getTail(), b.getTail());
-  }
-
   /**
    * Recursively strip all dependent types from {@code a}.
    * @param a the type to strip of predicates
    * @return the type {@code a} striped of predicates
    */
   public static Type stripDep(Type a) {
-    if (a instanceof MapType) {
+    if (a instanceof TupleType) {
+      TupleType sa = (TupleType) a;
+      return TupleType.mk(stripDep(sa.types()), sa.loc());
+    } else if (a instanceof MapType) {
       MapType sa = (MapType)a;
       return MapType.mk(
-        (TupleType)stripDep(sa.getIdxType()), 
-        stripDep(sa.getElemType()));
+        stripDep(sa.idxTypes()), 
+        stripDep(sa.elemType()));
     } else if (a instanceof IndexedType) {
       IndexedType sa = (IndexedType)a;
-      return IndexedType.mk(stripDep(sa.getParam()), stripDep(sa.getType()));
-    } else if (a instanceof TupleType) {
-      TupleType sa = (TupleType)a;
-      return TupleType.mk(stripDep(sa.getType()), (TupleType)stripDep(sa.getTail()));
-    } else if (a instanceof DepType) return stripDep(((DepType)a).getType());
+      return IndexedType.mk(stripDep(sa.param()), stripDep(sa.type()));
+    } else if (a instanceof DepType) return stripDep(((DepType)a).type());
     else return a;
   }
+
+  // map stripDep
+  public static ImmutableList<Type> stripDep(ImmutableList<Type> tl) {
+    ImmutableList.Builder<Type> b = ImmutableList.builder();
+    for (Type t : tl) b.add(stripDep(t));
+    return b.build();
+  }
+
+  public static ImmutableList<VariableDecl> stripDepDecls(
+      ImmutableList<VariableDecl> dl
+  ) {
+    ImmutableList.Builder<VariableDecl> b = ImmutableList.builder();
+    for (VariableDecl d : dl) b.add(stripDep(d));
+    return b.build();
+  }
   
-  private static Declaration stripDep(Declaration a) {
-    if (!(a instanceof VariableDecl)) return a;
-    VariableDecl va = (VariableDecl)a;
+  private static VariableDecl stripDep(VariableDecl va) {
     return VariableDecl.mk(
         null,
-        va.getName(), 
-        stripDep(va.getType()),
-        va.getTypeArgs(),
-        stripDep(va.getTail()), 
+        va.name(), 
+        stripDep(va.type()),
+        va.typeArgs(),
         va.loc());
   }
 
@@ -83,10 +108,10 @@ public final class TypeUtils {
    */
   public static Signature stripDep(Signature s) {
     return Signature.mk(
-        s.getName(),
-        s.getTypeArgs(),
-        stripDep(s.getArgs()), 
-        stripDep(s.getResults()),
+        s.name(),
+        s.typeArgs(),
+        stripDepDecls(s.args()), 
+        stripDepDecls(s.results()),
         s.loc());
   }
   
@@ -109,7 +134,7 @@ public final class TypeUtils {
     else if (a instanceof UserType && b instanceof UserType)
       return eq((UserType)a, (UserType)b);
     else if (a instanceof TupleType && b instanceof TupleType)
-      return eq((TupleType)a, (TupleType)b);
+      return eq((TupleType) a, (TupleType) b);
     else
       return false;
   }
@@ -124,15 +149,17 @@ public final class TypeUtils {
     else if (t instanceof MapType) {
       MapType st = (MapType)t;
       return 
-        hasDep(st.getElemType()) || 
-        hasDep(st.getIdxType());
+        hasDep(st.elemType()) || 
+        hasDep(st.idxTypes());
     } else if (t instanceof IndexedType) {
       IndexedType st = (IndexedType)t;
-      return hasDep(st.getParam()) || hasDep(st.getType());
-    } else if (t instanceof TupleType) {
-      TupleType st = (TupleType)t;
-      return hasDep(st.getType()) || hasDep(st.getTail());
+      return hasDep(st.param()) || hasDep(st.type());
     }
+    return false;
+  }
+
+  public static boolean hasDep(ImmutableList<Type> tl) {
+    for (Type t : tl) if (hasDep(t)) return true;
     return false;
   }
 
@@ -142,15 +169,27 @@ public final class TypeUtils {
    * @return the string representation of {@code t}
    */
   public static String typeToString(Type t) {
-    if (t == null) return "()";
     StringWriter sw = new StringWriter();
     PrettyPrinter pp = new PrettyPrinter();
     pp.writer(sw);
     t.eval(pp);
-    if (t instanceof TupleType)
-      return "(" + sw + ")";
-    else 
-      return sw.toString();
+    return sw.toString();
+  }
+
+  public static String typeToString(ImmutableList<Type> ts) {
+    StringWriter sw = new StringWriter();
+    PrettyPrinter pp = new PrettyPrinter();
+    pp.writer(sw);
+    sw.write("(");
+    boolean first = true; // yuck
+    for (Type t : ts) {
+      t.eval(pp);
+      if (!first) sw.write(", ");
+      first = false;
+    }
+    sw.write(")");
+    return sw.toString();
+
   }
   
   public static boolean isInt(Type t) {
@@ -162,9 +201,17 @@ public final class TypeUtils {
   }
 
   public static boolean isPrimitive(Type t, PrimitiveType.Ptype p) {
+    t = untuple(t);
     if (!(t instanceof PrimitiveType)) return false;
     PrimitiveType pt = (PrimitiveType)t;
-    return pt.getPtype() == p;
+    return pt.ptype() == p;
+  }
+
+  public static Type untuple(Type t) {
+    if (!(t instanceof TupleType)) return t;
+    TupleType tt = (TupleType) t;
+    if (tt.types().size() != 1) return t;
+    return untuple(tt.types().get(0));
   }
 
   public static boolean isTypeVar(Type t) {
@@ -176,8 +223,8 @@ public final class TypeUtils {
    * Typechecks {@code ast} using {@code tc}. Raises an internal
    * error if the typecheck fails.
    */
-  public static Declaration internalTypecheck(Declaration ast, TcInterface tc) {
-    if (!tc.process(ast).isEmpty()) {
+  public static Program internalTypecheck(Program ast, TcInterface tc) {
+    if (FbError.reportAll(tc.process(ast))) {
       PrintWriter pw = new PrintWriter(System.out);
       PrettyPrinter pp = new PrettyPrinter();
       pp.writer(pw);
@@ -185,6 +232,6 @@ public final class TypeUtils {
       pw.flush();
       Err.internal("Invalid Boogie produced.");
     }
-    return tc.getAST();
+    return tc.ast();
   }
 }

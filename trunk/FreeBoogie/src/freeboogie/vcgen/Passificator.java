@@ -4,6 +4,8 @@ import java.io.PrintWriter;
 import java.util.*;
 import java.util.Map.Entry;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import genericutils.Err;
 import genericutils.Id;
 import genericutils.SimpleGraph;
@@ -12,6 +14,7 @@ import freeboogie.ast.*;
 import freeboogie.astutil.PrettyPrinter;
 import freeboogie.tc.TtspRecognizer;
 import freeboogie.tc.TcInterface;
+import freeboogie.tc.TypeUtils;
 
 /**
  * Passify option.
@@ -26,100 +29,63 @@ public class Passificator extends ABasicPassifier {
   /** the main global environment. */
   private Environment fEnv;
 
-  @Override
-  public Program process(Program program, TcInterface tc) {
-    setTypeChecker(tc);
-    return new Program(
-        process(program.ast, program.fileName), program.fileName);
-  }
-
   /**
    * Process the AST, and returns the modified version.
    * @param ast the ast to look at.
    * @return a valid modified ast
    */
-  public Declaration process(final Declaration ast, String fileName) {
-    fEnv = new Environment(fileName);
-    Declaration passifiedAst = (Declaration)ast.eval(this);
+  public Program process(final Program ast, final TcInterface tc) {
+    this.tc = tc;
+    fEnv = new Environment(ast.fileName());
+    for (VariableDecl vd : ast.variables()) fEnv.addGlobal(vd);
+    Program passifiedAst = (Program) ast.eval(this);
     
     if (false) { // TODO log-categ
       System.out.print(fEnv.globalToString());
     }
     passifiedAst = addVariableDeclarations(passifiedAst);
-    verifyAst(passifiedAst);
-    
-    return getTypeChecker().getAST();
+    return TypeUtils.internalTypecheck(passifiedAst, tc);
   }
-  
-  @Override
-  public Ast eval(
-    VariableDecl decl,
-    Attribute attr,
-    String name, 
-    Type type,
-    Identifiers typeVars,
-    Declaration tail
-  ) {
-    fEnv.addGlobal(decl);
-    Declaration newTail = tail != null?(Declaration)tail.eval(this) : null; 
-
-    return VariableDecl.mk(null, name, type, typeVars, newTail);
-  }
-  
-  @Override
-  public Ast eval(
-    Signature signature,
-    String name, 
-    Identifiers typeVars,
-    Declaration args,
-    Declaration results
-  )  {
-    return signature;
-  }
+ 
   /**
    * Handles one implementation.
    */
   @Override
   public Implementation eval(
     Implementation implementation,
-    Attribute attr,
+    ImmutableList<Attribute> attr,
     Signature sig,
-    Body oldBody,
-    Declaration tail
+    Body oldBody
   ) {
-    SimpleGraph<Block> currentFG = getTypeChecker().getFlowGraph(implementation);
-    TtspRecognizer<Block> recog = new TtspRecognizer<Block>(currentFG, oldBody.getBlocks());
+    SimpleGraph<Block> currentFG = tc.flowGraph(implementation);
+    TtspRecognizer<Block> recog = new TtspRecognizer<Block>(currentFG, oldBody.blocks().get(0));
     Body body = oldBody;
     if (!recog.check()) {
       Err.warning(this + " " + implementation.loc() + ": Implementation " + 
-        sig.getName() + " is not a series-parallel graph. I'm not passifying it.");
+        sig.name() + " is not a series-parallel graph. I'm not passifying it.");
     } else if (currentFG.hasCycle()) {
       Err.warning(this + " " + implementation.loc() + ": Implementation " + 
-        sig.getName() + " has cycles. I'm not passifying it.");
+        sig.name() + " has cycles. I'm not passifying it.");
     } else {
       if (false) { // TODO log-categ
-        System.out.println("process " + sig.getName());
+        System.out.println("process " + sig.name());
       }
       BodyPassifier bp = BodyPassifier.passify(
-        getTypeChecker(),
+        tc,
         fEnv, 
         oldBody,
         sig);
       sig = Signature.mk(
-        sig.getName(), 
-        sig.getTypeArgs(), 
-        sig.getArgs(),
+        sig.name(), 
+        sig.typeArgs(), 
+        sig.args(),
         bp.getResult(),
         sig.loc());
       body = bp.getBody();
       fEnv.updateGlobalWith(bp.getEnvironment());
     }
 
-    // process the rest of the program
-    if (tail != null) {
-      tail = (Declaration)tail.eval(this);
-    }
-    return Implementation.mk(attr, sig, body, tail);
+    return Implementation.mk(attr, sig, body);
   }
 
   
@@ -130,33 +96,25 @@ public class Passificator extends ABasicPassifier {
    * @param ast the AST to transform
    * @return the AST with the added declarations
    */
-  private Declaration addVariableDeclarations(Declaration ast) {
+  private Program addVariableDeclarations(Program ast) {
+    ImmutableList.Builder<VariableDecl> newVariables = ImmutableList.builder();
+    newVariables.addAll(ast.variables());
     for (Map.Entry<VariableDecl, Integer> e : fEnv.getGlobalSet()) {
-      for (int i = 1; i <= e.getValue(); ++i) {
-        ast = ABasicPassifier.mkDecl(e.getKey(), i, ast); 
-      }
+      for (int i = 1; i <= e.getValue(); ++i)
+        newVariables.add(mkDecl(e.getKey(), i));
     }
-    return ast;
+    return Program.mk(
+        ast.fileName(),
+        ast.types(),
+        ast.axioms(),
+        newVariables.build(),
+        ast.constants(),
+        ast.functions(),
+        ast.procedures(),
+        ast.implementations(),
+        ast.loc());
   }
 
-  /**
-   * Verify if the AST typechecks well.
-   * @param ast
-   * @return true if the typechecking works.
-   */
-  private boolean verifyAst(Declaration ast) {
-    if (!getTypeChecker().process(ast).isEmpty()) {
-      PrintWriter pw = new PrintWriter(System.out);
-      PrettyPrinter pp = new PrettyPrinter();
-      pp.writer(pw);
-      ast.eval(pp);
-      pw.flush();
-      Err.internal(this + " produced invalid Boogie.");
-      return false;
-    }
-    return true;
-  }
-  
   
   /**
    * 
@@ -167,19 +125,20 @@ public class Passificator extends ABasicPassifier {
    */
   private static class BodyPassifier extends ABasicPassifier {
     /** the list of local variables declarations. */
-    private Declaration newLocals = null;
+    private ImmutableList.Builder<VariableDecl> newLocals;
+    private ImmutableList.Builder<Block> newBlocks;
     /** the current counter associated with each local variable. */
     private final Environment freshEnv;
 
     private final Map<Block, Environment> startBlockStatus = 
-      new HashMap<Block, Environment> ();
+        Maps.newHashMap();
     private final Map<Block, Environment> endBlockStatus = 
-      new HashMap<Block, Environment> ();
-    private final VariableDecl fResults;
+        Maps.newHashMap();
+    private final ImmutableList<VariableDecl> fResults;
     private SimpleGraph<Block> fFlowGraph;
     
     private Body fBody;
-    private VariableDecl fNewResults;
+    private ImmutableList<VariableDecl> fNewResults;
     /**
      * Builds a body passifier.
      * @param typeChecker  
@@ -191,15 +150,11 @@ public class Passificator extends ABasicPassifier {
       Environment globalEnv,
       final Signature sig
     ) {
-      setTypeChecker(typeChecker);
-      freshEnv = new Environment(sig.loc() + " " + sig.getName());
-      fResults = (VariableDecl) sig.getResults();
+      this.tc = typeChecker;
+      freshEnv = new Environment(sig.loc() + " " + sig.name());
+      fResults = sig.results();
       freshEnv.putAll(globalEnv);
-      VariableDecl curr = (VariableDecl) sig.getArgs();
-      while (curr != null) {
-        freshEnv.put(curr, 0);
-        curr = (VariableDecl) curr.getTail();
-      }
+      for (VariableDecl vd : sig.args()) freshEnv.put(vd, 0);
     }
     
     public Environment getEnvironment() {
@@ -231,52 +186,52 @@ public class Passificator extends ABasicPassifier {
         int last = decl.getValue();
         VariableDecl old = decl.getKey();
         for (int i = 1; i <= last; ++i) {
-          newLocals = mkDecl(old, i, newLocals);
+          newLocals.add(mkDecl(old, i));
         }
       }
     }
-    
-    private VariableDecl newResults(VariableDecl old) {
-      if (old == null) return null;
-      int last = freshEnv.get(old);
-      freshEnv.remove(old);
-      for (int i = 0; i < last; ++i) {
-        newLocals = mkDecl(old, i, newLocals);
+
+    private ImmutableList<VariableDecl> newResults(
+        ImmutableList<VariableDecl> old
+    ) {
+      ImmutableList.Builder<VariableDecl> builder = ImmutableList.builder();
+      for (VariableDecl r : old) {
+        int last = freshEnv.get(r);
+        freshEnv.remove(r);
+        for (int i = 0; i < last; ++i) builder.add(mkDecl(r, i));
       }
-      return mkDecl(old, last, newResults((VariableDecl)old.getTail()));
+      return builder.build();
     }
-  
+    
     @Override
-    public Ast eval(final Body body, Declaration vars, Block blocks) {
+    public Body eval(
+        final Body body, 
+        ImmutableList<VariableDecl> vars, 
+        ImmutableList<Block> blocks
+    ) {
       // process out parameters
-      newLocals = vars;
-      VariableDecl curr = (VariableDecl) vars;
-      while (curr != null) {
-        freshEnv.put(curr, 0);
-        curr = (VariableDecl) curr.getTail();
-      }
+      newLocals = ImmutableList.builder();
+      newLocals.addAll(vars);
+      for (VariableDecl vd : vars) freshEnv.put(vd, 0);
       
-      fFlowGraph = getTypeChecker().getFlowGraph(body);
-      List<Block> list = fFlowGraph.nodesInTopologicalOrder();
-      Iterator<Block> iter = list.iterator();
-      Block newBlocks = evalBlock(iter.next(), iter);
-      
+      fFlowGraph = tc.flowGraph(body);
+      newBlocks = ImmutableList.builder();
+      for (Block b : fFlowGraph.nodesInTopologicalOrder())
+        newBlocks.add((Block) b.eval(this));
       
       if (false) { // TODO log-categ
         System.out.print(freshEnv.localToString());
       }
       computeDeclarations();
-      Body newBody = Body.mk(newLocals, newBlocks);
-      fBody = newBody;
-      return newBody;
+      return fBody = Body.mk(newLocals.build(), newBlocks.build());
     }
-    
-
-
-    public Block evalBlock(Block block, Iterator<Block> tail) {
-      String name = block.getName();
-      Command cmd = block.getCmd();
-      Identifiers succ = block.getSucc();
+   
+    @Override public Block eval(
+        Block block, 
+        String name,
+        Command cmd,
+        ImmutableList<AtomId> succ
+    ) {
       Set<Block> blist = fFlowGraph.from(block);
       Environment env = merge(blist);
       if (env == null) {
@@ -284,17 +239,15 @@ public class Passificator extends ABasicPassifier {
       }
       
       startBlockStatus.put(block, env.clone()); 
-      
-      Command newCmd = cmd == null? null : (Command) cmd.eval(new CommandEvaluator(getTypeChecker(), env));
+
+      Command newCmd = AstUtils.eval(cmd, new CommandEvaluator(tc, env));
       endBlockStatus.put(block, env);  
       
-      Block newTail = tail.hasNext()? evalBlock(tail.next(), tail) : null;
-      
-      Identifiers newSucc = succ;
+      ImmutableList<AtomId> newSucc = succ;
       
       // now we see if we have to add a command to be more proper :P
       Set<Block> succList = fFlowGraph.to(block);
-      if (succList.size() == 1) {
+      if (succList.size() == 1) { // TODO(rgrig): is this ok?
         Block next = succList.iterator().next();
         Environment nextEnv = startBlockStatus.get(next);
         for (Entry<VariableDecl, Integer> entry: nextEnv.getAllSet()) {
@@ -307,14 +260,13 @@ public class Passificator extends ABasicPassifier {
             AtomId oldVar = mkVar(decl, currIdx);
             Command assumeCmd = mkAssumeEQ(newVar, oldVar);
             String nodeName = Id.get(name);
-            newTail = Block.mk(nodeName, assumeCmd, newSucc, newTail);
-            newSucc = Identifiers.mk(AtomId.mk(nodeName, null), null);
+            newBlocks.add(Block.mk(nodeName, assumeCmd, newSucc, block.loc()));
+            newSucc = AstUtils.ids(nodeName);
           }
         }
       }
-      freshEnv.updateWith(env);    
-
-      return Block.mk(name, newCmd, newSucc, newTail, block.loc());
+      freshEnv.updateWith(env);
+      return Block.mk(name, newCmd, newSucc, block.loc());
     }
 
     /**
@@ -322,6 +274,7 @@ public class Passificator extends ABasicPassifier {
      * @param blist
      * @return the merged environment
      */
+    // TODO(rgrig): this function looks very suspicious
     private Environment merge(Set<Block> blist) {
       if (blist.size() == 0) {
         return null;
@@ -363,7 +316,7 @@ public class Passificator extends ABasicPassifier {
      * has been computed by the algorithm.
      * @return the corresponding result variable
      */
-    public VariableDecl getResult() {
+    public ImmutableList<VariableDecl> getResult() {
       return fNewResults;
     }
     
@@ -372,7 +325,7 @@ public class Passificator extends ABasicPassifier {
       int belowOld = 0;
       
       public CommandEvaluator(TcInterface tc, Environment env) {
-        setTypeChecker(tc);
+        this.tc = tc;
         this.env = env;
       }
 
@@ -382,7 +335,6 @@ public class Passificator extends ABasicPassifier {
        * @return an id which was not used before.
        */
       public AtomId fresh(AtomId var) {
-        
         VariableDecl decl = getDeclaration(var);
         Integer i = freshEnv.get(decl);
         int curr = i == null? 0 : i;
@@ -430,7 +382,7 @@ public class Passificator extends ABasicPassifier {
       }
       
       @Override
-      public AtomId eval(AtomId atomId, String id, TupleType types) {
+      public AtomId eval(AtomId atomId, String id, ImmutableList<Type> types) {
         return get(atomId);
       }
     }

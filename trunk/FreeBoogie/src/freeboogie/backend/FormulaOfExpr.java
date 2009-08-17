@@ -2,6 +2,7 @@ package freeboogie.backend;
 
 import java.util.Map;
 
+import com.google.common.collect.ImmutableList;
 import genericutils.Err;
 
 import freeboogie.ast.*;
@@ -38,8 +39,8 @@ public class FormulaOfExpr<T extends Term<T>> extends Evaluator<T> {
 
   public void setTypeChecker(TcInterface tc) {
     this.tc = tc;
-    this.st = tc.getST();
-    this.typeOf = tc.getTypes();
+    this.st = tc.st();
+    this.typeOf = tc.types();
     termOfExpr.setTypeChecker(tc);
   }
 
@@ -53,12 +54,17 @@ public class FormulaOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   @Override
-  public T eval(AtomFun atomFun, String function, TupleType types, Exprs args) {
+  public T eval(
+      AtomFun atomFun,
+      String function, 
+      ImmutableList<Type> types, 
+      ImmutableList<Expr> args
+  ) {
     return formulaOfTerm(atomFun.eval(termOfExpr));
   }
 
   @Override
-  public T eval(AtomId atomId, String id, TupleType types) {
+  public T eval(AtomId atomId, String id, ImmutableList<Type> types) {
     // TODO check that atomId's boogie type is bool
     return term.mk("var_formula", id);
   }
@@ -77,7 +83,11 @@ public class FormulaOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   @Override
-  public T eval(AtomMapSelect atomMapSelect, Atom atom, Exprs idx) {
+  public T eval(
+      AtomMapSelect atomMapSelect, 
+      Atom atom, 
+      ImmutableList<Expr> idx
+  ) {
     return formulaOfTerm(atomMapSelect.eval(termOfExpr));
   }
 
@@ -85,18 +95,13 @@ public class FormulaOfExpr<T extends Term<T>> extends Evaluator<T> {
   public T eval(
     AtomQuant atomQuant,
     AtomQuant.QuantType quant,
-    Declaration vars,
-    Attribute attr,
+    ImmutableList<VariableDecl> vars,
+    ImmutableList<Attribute> attr,
     Expr e
   ) {
     T result = e.eval(this);
-    while (vars != null) {
-      VariableDecl vd = (VariableDecl) vars;      
-      result = term.mk("forall", 
-        term.mk("var", "term$$" + vd.getName()),
-        result);
-      vars = vd.getTail();
-    }
+    for (VariableDecl vd : vars)
+      result = term.mk("forall", term.mk("var", "term$$" + vd.name()), result);
     return result;
   }
 

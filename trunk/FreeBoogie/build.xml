@@ -19,7 +19,7 @@
   <property name="version" value="0.2"/>
   <property name="genericutils-jar" value="genericutils-0.1.jar"/>
   <property name="antlr-jar" value="antlr-runtime-3.1.3.jar" />
-  <property name="astgen-jar" value="astgen-0.1.jar"/>
+  <property name="astgen-jar" value="astgen-0.2.jar"/>
   <property name="clops-jar" value="clops-runtime.jar"/>
   <property name="jline-jar" value="jline-0.9.94.jar"/>
   <property name="ast-dir" location="src/freeboogie/ast" />
@@ -38,13 +38,13 @@
     <mkdir dir="classes" />
     <java fork="yes" dir="${ast-dir}" jar="lib/${astgen-jar}">
       <arg value="fb.ag" />
-      <arg value="abstract_classes.tpl" />
-      <arg value="normal_classes.tpl" />
+      <arg value="classes.tpl" />
       <arg value="evaluator.tpl" />
       <arg value="transformer.tpl" />
       <arg value="substitutor.tpl" />
       <arg value="html.tpl" />
       <arg value="list.tpl" />
+      <arg value="utils.tpl" />
     </java>
   </target>
 
@@ -95,6 +95,8 @@
         debug="${debug}">
       <classpath refid="classpath" />
       <compilerarg value="-Xlint:all" />
+      <compilerarg value="-Xmaxerrs" /><compilerarg value="10" />
+      <compilerarg value="-Xmaxwarns" /><compilerarg value="10" />
     </javac>
   </target>
 
@@ -107,8 +109,10 @@
         sourcepath="src" 
         destdir="classes" 
         optimize="yes" 
-        debug="no">
+        debug="yes">
       <classpath refid="classpath" /> 
+      <compilerarg value="-Xmaxerrs" /><compilerarg value="10" />
+      <compilerarg value="-Xmaxwarns" /><compilerarg value="10" />
     </javac>
   </target>
 
@@ -123,6 +127,8 @@
         debug="${debug}">
       <classpath refid="classpath" /> 
       <compilerarg value="-Xlint:all" />
+      <compilerarg value="-Xmaxerrs" /><compilerarg value="10" />
+      <compilerarg value="-Xmaxwarns" /><compilerarg value="10" />
     </javac>
   </target>
   

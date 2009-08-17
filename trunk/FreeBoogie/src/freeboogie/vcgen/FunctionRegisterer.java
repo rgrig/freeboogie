@@ -2,6 +2,8 @@ package freeboogie.vcgen;
 
 import java.util.ArrayList;
 
+import com.google.common.collect.ImmutableList;
+
 import freeboogie.ast.*;
 import freeboogie.backend.Sort;
 import freeboogie.backend.TermBuilder;
@@ -30,8 +32,8 @@ public class FunctionRegisterer extends Transformer {
   }
 
   @Override
-  public Declaration process(Declaration ast, TcInterface tc) {
-    st = tc.getST();
+  public Program process(Program ast, TcInterface tc) {
+    st = tc.st();
     ast.eval(this);
     return ast;
   }
@@ -39,34 +41,30 @@ public class FunctionRegisterer extends Transformer {
   @Override
   public void see(
     FunctionDecl function,
-    Attribute attr,
-    Signature sig,
-    Declaration tail
+    ImmutableList<Attribute> attr,
+    Signature sig
   ) {
     argSorts.clear();
-    getArgSorts(sig.getArgs());
+    getArgSorts(sig.args());
     Sort[] asa = argSorts.toArray(sortArray);
-    Type rt = ((VariableDecl)sig.getResults()).getType();
-    if (TypeUtils.isInt(rt) || isTypeVar(rt))
-      builder.def("funI_" + sig.getName(), asa, Sort.INT);
-    if (TypeUtils.isBool(rt) || isTypeVar(rt))
-      builder.def("funB_" + sig.getName(), asa, Sort.BOOL);
-    if (!TypeUtils.isInt(rt) && !TypeUtils.isBool(rt))
-      builder.def("funT_" + sig.getName(), asa, Sort.TERM);
-    if (tail != null) tail.eval(this);
+    if (sig.results().size() == 1) {
+      Type t = sig.results().get(0).type();
+      if (TypeUtils.isInt(t) || isTypeVar(t))
+        builder.def("funI_" + sig.name(), asa, Sort.INT);
+      if (TypeUtils.isBool(t) || isTypeVar(t))
+        builder.def("funB_" + sig.name(), asa, Sort.BOOL);
+    } 
+    builder.def("funT_" + sig.name(), asa, Sort.TERM);
   }
 
   // === helpers ===
-  private void getArgSorts(Declaration args) {
-    if (!(args instanceof VariableDecl)) return;
-    VariableDecl vd = (VariableDecl)args;
-    argSorts.add(Sort.of(vd.getType()));
-    getArgSorts(vd.getTail());
+  private void getArgSorts(ImmutableList<VariableDecl> args) {
+    for (VariableDecl vd : args) argSorts.add(Sort.of(vd.type()));
   }
 
   private boolean isTypeVar(Type t) {
     if (!(t instanceof UserType)) return false;
-    UserType ut = (UserType)t;
+    UserType ut = (UserType) t;
     return st.typeVars.def(ut) != null;
   }
 }

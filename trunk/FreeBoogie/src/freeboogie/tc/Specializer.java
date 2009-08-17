@@ -2,6 +2,7 @@ package freeboogie.tc;
 
 import java.util.*;
 
+import com.google.common.collect.ImmutableList;
 import genericutils.StackedHashMap;
 
 import freeboogie.ast.*;
@@ -29,9 +30,6 @@ import freeboogie.ast.*;
  * @author rgrig
  */
 public class Specializer extends Transformer {
-
-  // used for control flow by {@code prepareTypeList()}
-  private boolean unknownSpec;
 
   // used to look up variable, functions, and procedures
   private SymbolTable st;
@@ -66,8 +64,8 @@ public class Specializer extends Transformer {
    * @param implicit contains the type parameters identified by
    *            {@code TypeChecker}
    */
-  public Declaration process(
-    Declaration ast, 
+  public Program process(
+    Program ast, 
     SymbolTable st,
     Map<Expr, AtomId> errors,
     Map<Expr, Type> desired,
@@ -81,8 +79,7 @@ public class Specializer extends Transformer {
 
     for (Expr e : errors.keySet()) assert desired.containsKey(e);
 
-    unknownSpec = false;
-    return (Declaration)ast.eval(this);
+    return (Program) ast.eval(this);
   }
 
   // === workers ===
@@ -117,50 +114,53 @@ public class Specializer extends Transformer {
   }
 
   @Override
-  public AtomId eval(AtomId atomId, String id, TupleType types) {
+  public AtomId eval(AtomId atomId, String id, ImmutableList<Type> types) {
     Declaration d = st.ids.def(atomId);
     if (!(d instanceof VariableDecl)) return atomId;
     VariableDecl vd = (VariableDecl)d;
-    types = prepareTypeList(vd.getTypeArgs());
-    if (unknownSpec) return atomId;
+    types = prepareTypeList(vd.typeArgs());
+    if (types == null) return atomId;
     return AtomId.mk(id, types, atomId.loc());
   }
 
   @Override
-  public AtomFun eval(AtomFun atomFun, String function, TupleType types, Exprs args) {
-    if (args != null) args = (Exprs)args.eval(this);
-    Signature sig = st.funcs.def(atomFun).getSig();
-    types = prepareTypeList(sig.getTypeArgs());
+  public AtomFun eval(
+      AtomFun atomFun, 
+      String function, 
+      ImmutableList<Type> types, 
+      ImmutableList<Expr> args
+  ) {
+    args = AstUtils.evalListOfExpr(args, this);
+    Signature sig = st.funcs.def(atomFun).sig();
+    types = prepareTypeList(sig.typeArgs());
     return AtomFun.mk(function, types, args, atomFun.loc());
   }
 
   @Override
-  public CallCmd eval(CallCmd callCmd, String procedure, TupleType types, Identifiers results, Exprs args) {
-    if (results != null) results = (Identifiers)results.eval(this);
-    if (args != null) args = (Exprs)args.eval(this);
-    Signature sig = st.procs.def(callCmd).getSig();
-    types = prepareTypeList(sig.getTypeArgs());
+  public CallCmd eval(
+      CallCmd callCmd, 
+      String procedure, 
+      ImmutableList<Type> types, 
+      ImmutableList<AtomId> results, 
+      ImmutableList<Expr> args
+  ) {
+    results = AstUtils.evalListOfAtomId(results, this);
+    args = AstUtils.evalListOfExpr(args, this);
+    Signature sig = st.procs.def(callCmd).sig();
+    types = prepareTypeList(sig.typeArgs());
     return CallCmd.mk(procedure, types, results, args);
   }
 
   
   // === helpers ===
 
-  private TupleType prepareTypeList(Identifiers ids) {
-    unknownSpec = false;
-    return recPrepareTypeList(ids);
-  }
-
-  private TupleType recPrepareTypeList(Identifiers ids) {
-    if (ids == null) return null;
-    AtomId ai = ids.getId();
-    Type t = specialisations.get(ai);
-    if (t == null) {
-      unknownSpec = true;
-      return null;
+  private ImmutableList<Type> prepareTypeList(ImmutableList<AtomId> ids) {
+    ImmutableList.Builder<Type> builder = ImmutableList.builder();
+    for (AtomId ai : ids) {
+      Type t = specialisations.get(ai);
+      if (t == null) return null;
+      builder.add(t);
     }
-    TupleType newTail = recPrepareTypeList(ids.getTail());
-    if (unknownSpec) return null;
-    return TupleType.mk(t.clone(), newTail);
+    return builder.build();
   }
 }

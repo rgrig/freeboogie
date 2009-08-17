@@ -3,6 +3,9 @@ package freeboogie.astutil;
 import java.io.PrintWriter;
 import java.util.HashSet;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 import freeboogie.ast.*;
@@ -53,12 +56,12 @@ public class Boogie2Printer extends PrettyPrinter {
   public void see(
     AtomFun atomFun, 
     String function, 
-    TupleType types, 
-    Exprs args
+    ImmutableList<Type> types, 
+    ImmutableList<Expr> args
   ) {
     say(function);
     say("(");
-    if (args != null) args.eval(this);
+    printList(", ", args);
     say(")");
   }
 
@@ -66,45 +69,49 @@ public class Boogie2Printer extends PrettyPrinter {
   public void see(
     AtomQuant atomQuant, 
     AtomQuant.QuantType quant, 
-    Declaration vars, 
-    Attribute attr, 
+    ImmutableList<VariableDecl> vars, 
+    ImmutableList<Attribute> attr, 
     Expr e
   ) {
     ++skipVar;
     say("(");
     if (quant == AtomQuant.QuantType.FORALL) {
       say("forall");
-      if (anyFinder.get(vars)) {
+      boolean addAny = Iterables.any(
+          vars, 
+          new Predicate<VariableDecl>() {
+            @Override public boolean apply(VariableDecl vd) {
+              return anyFinder.get(vd);
+          }});
+      if (addAny) {
         say("<"); say("any"); say(">");
       }
     } else say("exists");
     say(" ");
-    vars.eval(this);
+    printList(", ", vars);
     say(" :: ");
-    if (attr != null) attr.eval(this);
+    printList(" ", attr);
     e.eval(this);
     say(")");
     --skipVar;
   }
 
   @Override
-  public void see(AtomId atomId, String id, TupleType types) {
+  public void see(AtomId atomId, String id, ImmutableList<Type> types) {
     say(id);
   }
 
   @Override
   public void see(
     Axiom axiom, 
-    Attribute attr,
+    ImmutableList<Attribute> attr,
     String name,
-    Identifiers typeVars, 
-    Expr expr, 
-    Declaration tail
+    ImmutableList<AtomId> typeVars, 
+    Expr expr
   ) {
     say("axiom ");
     expr.eval(this);
     semi();
-    if (tail != null) tail.eval(this);
   }
 
   @Override
@@ -121,9 +128,9 @@ public class Boogie2Printer extends PrettyPrinter {
   public void see(
     Signature signature, 
     String name, 
-    Identifiers typeArgs,
-    Declaration args, 
-    Declaration results
+    ImmutableList<AtomId> typeArgs,
+    ImmutableList<VariableDecl> args, 
+    ImmutableList<VariableDecl> results
   ) {
     ++skipVar;
     say(name);
@@ -131,11 +138,11 @@ public class Boogie2Printer extends PrettyPrinter {
       say("<"); say("any"); say(">");
     }
     say("(");
-    if (args != null) args.eval(this);
+    printList(", ", args);
     say(")");
     if (results != null) {
       say(" returns (");
-      results.eval(this);
+      printList(", ", results);
       say(")");
     }
     --skipVar;
@@ -143,42 +150,60 @@ public class Boogie2Printer extends PrettyPrinter {
 
   @Override
   public void see(
-    Specification specification, 
-    Identifiers tv, 
-    Specification.SpecType type, 
-    Expr expr, 
-    boolean free, 
-    Specification tail
+      ModifiesSpec modifiesSpec, 
+      boolean free,
+      ImmutableList<AtomId> ids
   ) {
     if (free) say("free ");
-    say(specRep.get(type));
+    say("modifies ");
+    printList(", ", ids);
+    semi();
+  }
+
+  @Override
+  public void see(
+      PostSpec postSpec, 
+      boolean free,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
+  ) {
+    if (free) say("free ");
+    say("ensures ");
     expr.eval(this);
     semi();
-    if (tail != null) tail.eval(this);
+  }
+
+  @Override
+  public void see(
+      PreSpec preSpec, 
+      boolean free,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
+  ) {
+    if (free) say("free ");
+    say("requires ");
+    expr.eval(this);
+    semi();
   }
 
   @Override
   public void see(
     VariableDecl variableDecl, 
-    Attribute attr,
+    ImmutableList<Attribute> attr,
     String name, 
     Type type, 
-    Identifiers typeArgs, 
-    Declaration tail
+    ImmutableList<AtomId> typeArgs
   ) {
     if (skipVar==0) say("var ");
     say(name);
     say(" : ");
     if (typeArgs != null) {
       say("<");
-      typeArgs.eval(this);
+      printList(", ", typeArgs);
       say(">");
     }
     type.eval(this);
-    if (skipVar>0) {
-      if (tail != null) say(", ");
-    } else semi();
-    if (tail != null) tail.eval(this);
+    if (skipVar==0) semi();
   }
   
 }

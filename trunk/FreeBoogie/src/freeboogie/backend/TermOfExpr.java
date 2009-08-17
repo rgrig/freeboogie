@@ -3,6 +3,7 @@ package freeboogie.backend;
 import java.math.BigInteger;
 import java.util.*;
 
+import com.google.common.collect.ImmutableList;
 import genericutils.Err;
 
 import freeboogie.ast.*;
@@ -113,8 +114,8 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
 
   public void setTypeChecker(TcInterface tc) {
     this.tc = tc;
-    this.st = tc.getST();
-    this.typeOf = tc.getTypes();
+    this.st = tc.st();
+    this.typeOf = tc.types();
   }
 
   @Override
@@ -128,7 +129,12 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   @Override
-  public T eval(AtomFun atomFun, String function, TupleType types, Exprs args) {
+  public T eval(
+      AtomFun atomFun,
+      String function,
+      ImmutableList<Type> types,
+      ImmutableList<Expr> args
+  ) {
     String prefix = "funT_";
     if (TypeUtils.isInt(typeOf.get(atomFun)))
       prefix = "funI_";
@@ -138,15 +144,8 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   @Override
-  public T eval(AtomId atomId, String id, TupleType types) {
-    Declaration d = st.ids.def(atomId);
-    Type t = null;
-    if (d instanceof VariableDecl) {
-      t = ((VariableDecl)d).getType();
-    } else if (d instanceof ConstDecl) {
-      // TODO I might want to keep track of constness
-      t = ((ConstDecl)d).getType();
-    } else Err.internal("Unknown id declaration type for " + atomId + ": " + d);
+  public T eval(AtomId atomId, String id, ImmutableList<Type> types) {
+    Type t = st.ids.def(atomId).type();
     if (TypeUtils.isInt(t)) {
       // this prefix is needed for z3, but not simplify
       return mk("var_int", "term$$" + id);
@@ -181,7 +180,11 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   @Override
-  public T eval(AtomMapSelect atomMapSelect, Atom atom, Exprs idx) {
+  public T eval(
+      AtomMapSelect atomMapSelect,
+      Atom atom, 
+      ImmutableList<Expr> idx
+  ) {
     Type t = typeOf.get(atomMapSelect);
     String termId = "map_select";
     if (TypeUtils.isInt(t)) termId = "map_select_int";
@@ -190,13 +193,18 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   @Override
-  public T eval(AtomMapUpdate atomMapUpdate, Atom atom, Exprs idx, Expr val) {
+  public T eval(
+      AtomMapUpdate atomMapUpdate,
+      Atom atom,
+      ImmutableList<Expr> idx,
+      Expr val
+  ) {
     return term.mk(
       "map_update", 
-      new Term[] {
-        atom.eval(this), 
-        term.mk("tuple", tuple(idx)),
-        val.eval(this)});
+      ImmutableList.of(
+          atom.eval(this), 
+          term.mk("tuple", tuple(idx)),
+          val.eval(this)));
   }
 
   @Override
@@ -208,8 +216,8 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   public T eval(
     AtomQuant atomQuant, 
     AtomQuant.QuantType quant, 
-    Declaration vars, 
-    Attribute attr, 
+    ImmutableList<VariableDecl> vars, 
+    ImmutableList<Attribute> attr, 
     Expr e
   ) {
     // TODO can this be done without HOL?
@@ -284,13 +292,10 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   // === helpers ===
-  private ArrayList<T> tuple(Exprs e) {
-    ArrayList<T> r = new ArrayList<T>(23);
-    while (e != null) {
-      r.add(e.getExpr().eval(this));
-      e = e.getTail();
-    }
-    return r;
+  private ImmutableList<T> tuple(ImmutableList<Expr> es) {
+    ImmutableList.Builder<T> r = ImmutableList.builder();
+    for (Expr e : es) r.add(e.eval(this));
+    return r.build();
   }
 
   private T not(T t) {

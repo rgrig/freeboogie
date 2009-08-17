@@ -1,6 +1,6 @@
 package freeboogie.backend.coq;
 
-import java.util.ArrayList;
+import com.google.common.collect.ImmutableList;
 
 import freeboogie.backend.Sort;
 import freeboogie.backend.TermBuilder;
@@ -27,13 +27,13 @@ public class CoqNodeBuilder extends TermBuilder<CTerm> {
   }
 
   @Override
-  protected CTerm reallyMk(Sort sort, String termId, ArrayList<CTerm> a) {
+  protected CTerm reallyMk(Sort sort, String termId, ImmutableList<CTerm> a) {
       // TODO Auto-generated method stub
     return  null;
   }
 
   @Override
-  protected CTerm reallyMkNary(Sort sort, String termId, ArrayList<CTerm> a) {
+  protected CTerm reallyMkNary(Sort sort, String termId, ImmutableList<CTerm> a) {
       // TODO Auto-generated method stub
     return  null;
   }

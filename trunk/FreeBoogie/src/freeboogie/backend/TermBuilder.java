@@ -1,8 +1,8 @@
 package freeboogie.backend;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
 
+import com.google.common.collect.ImmutableList;
 import genericutils.Err;
 import genericutils.Logger;
 import genericutils.StackedHashMap;
@@ -206,31 +206,25 @@ public abstract class TermBuilder<T extends Term<T>> {
 
   /** Helper for unary operators. */
   public final T mk(String termId, T a) {
-    ArrayList<T> all = new ArrayList<T>(3);
-    all.add(a);
-    return mk(termId, all);
+    return mk(termId, ImmutableList.of(a));
   }
 
   /** Helper for binary operators. */
   public final T mk(String termId, T a, T b) {
-    ArrayList<T> all = new ArrayList<T>(7);
-    all.add(a);
-    all.add(b);
-    return mk(termId, all);
+    return mk(termId, ImmutableList.of(a, b));
   }
   
   /**
-   * Constructs a term with of the identified by {@code termId}
-   * that takes {@code a} as arguments.
+   * Constructs a term identified by {@code termId} that takes
+   * {@code a} as arguments.
    * 
    * @param termId identifies the term to be built
    * @param a the arguments
    * @return the newly built term
    */
-  public final T mk(String termId, ArrayList<T> a) {
+  public final T mk(String termId, ImmutableList<T> a) {
     TermDef def = getTermDef(termId);
     if (def == null) Err.internal("Unregistered sort " + termId);
-    for (T t : a) assert t != null;
     if (def.naryArgSort != null) {
       for (T t : a) {
         if (!t.sort().isSubsortOf(def.naryArgSort)) {
@@ -271,7 +265,7 @@ public abstract class TermBuilder<T extends Term<T>> {
    * @param a the arguments
    * @return the constructed term
    */
-  protected abstract T reallyMk(Sort sort, String termId, ArrayList<T> a);
+  protected abstract T reallyMk(Sort sort, String termId, ImmutableList<T> a);
   
   /**
    * Subclasses should either construct a tree ar communicate with
@@ -281,5 +275,5 @@ public abstract class TermBuilder<T extends Term<T>> {
    * @param a the arguments
    * @return the constructed term
    */
-  protected abstract T reallyMkNary(Sort sort, String termId, ArrayList<T> a);
+  protected abstract T reallyMkNary(Sort sort, String termId, ImmutableList<T> a);
 }

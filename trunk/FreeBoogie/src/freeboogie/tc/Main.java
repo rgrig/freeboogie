@@ -8,7 +8,7 @@ import org.antlr.runtime.ANTLRFileStream;
 import org.antlr.runtime.CommonTokenStream;
 import org.antlr.runtime.RecognitionException;
 
-import freeboogie.ast.Declaration;
+import freeboogie.ast.Program;
 import freeboogie.parser.FbLexer;
 import freeboogie.parser.FbParser;
 
@@ -17,8 +17,11 @@ import freeboogie.parser.FbParser;
  * It prints a list of identifiers and the place where they are defined.
  * It also prints errors if there are name clashes.
  *
+ * @deprecated {@code freeboogie.Main} does all of this and more
+ *
  * @author rgrig 
  */
+@Deprecated
 public final class Main {
   private Main() { /* forbid instantiation */ }
 
@@ -36,7 +39,7 @@ public final class Main {
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         FbParser parser = new FbParser(tokens);
         parser.fileName = args[i];
-        Declaration d = parser.program();
+        Program d = parser.program();
         if (d != null) {
           // parsing was OK
           for (FbError e : tc.process(d)) Err.error(e.toString());

@@ -1,5 +1,8 @@
 package freeboogie.backend;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
+
 import java.util.*;
 
 /**
@@ -10,10 +13,7 @@ import java.util.*;
  * @author rgrig 
  */
 public final class SmtTerm extends Term<SmtTerm> {
-  private static final ArrayList<SmtTerm> noChild = new ArrayList<SmtTerm>();
-  
-  private static final HashMap<SmtTerm, SmtTerm> cache =
-    new HashMap<SmtTerm, SmtTerm>(100003);
+  private static final HashMap<SmtTerm, SmtTerm> cache = Maps.newHashMap();
 
   private int hash;
 
@@ -28,7 +28,7 @@ public final class SmtTerm extends Term<SmtTerm> {
   public final Object data;
   
   /** The children of this term, nonnull. */
-  public final ArrayList<SmtTerm> children;
+  public final ImmutableList<SmtTerm> children;
 
   private HashSet<SmtTerm> axioms;
   
@@ -38,7 +38,7 @@ public final class SmtTerm extends Term<SmtTerm> {
    * @param id the identifier of this term
    * @param children the children of this term
    */
-  private SmtTerm(Sort sort, String id, ArrayList<SmtTerm> children) {
+  private SmtTerm(Sort sort, String id, ImmutableList<SmtTerm> children) {
     super(sort); 
     assert children != null;
     this.id = id;
@@ -52,11 +52,15 @@ public final class SmtTerm extends Term<SmtTerm> {
     super(sort); 
     this.id = id;
     this.data = data;
-    this.children = noChild;
+    this.children = ImmutableList.of();
 //System.out.println("s.mk2> " + id + " " + data);
   }
 
-  public static SmtTerm mk(Sort sort, String id, ArrayList<SmtTerm> children) {
+  public static SmtTerm mk(
+      Sort sort, 
+      String id, 
+      ImmutableList<SmtTerm> children
+  ) {
     return hashCons(new SmtTerm(sort, id, children));
   }
 

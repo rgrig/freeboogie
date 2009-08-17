@@ -1,14 +1,20 @@
 vim:filetype=java:
 
+\def{smt}{\if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}}
+\def{mt}{\if_tagged{list}{ImmutableList<}{}\smt\if_tagged{list}{>}{}}
+\def{mtn}{\mt \memberName}
+\def{mtn_list}{\members[,]{\mtn}}
+
 \file{Transformer.java}
-/**
-  This file was generated from transformer.tpl. Do not edit.
- */
+/** Do NOT edit. See transformer.tpl instead. */
 package freeboogie.ast;
 
 import java.math.BigInteger;
 import java.util.ArrayDeque;
 import java.util.Deque;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 import freeboogie.tc.TcInterface;
 import freeboogie.tc.TypeUtils;
@@ -26,7 +32,7 @@ import freeboogie.tc.TypeUtils;
   @see freeboogie.ast.Evaluator
  */
 public class Transformer extends Evaluator<Ast> {
-  private final Ast NULL = AtomId.mk("<NULL>",null);
+  private final Ast NULL = AtomId.mk("<NULL>", ImmutableList.<Type>of());
   private Deque<Ast> result = new ArrayDeque<Ast>();
   protected TcInterface tc;
 
@@ -36,77 +42,64 @@ public class Transformer extends Evaluator<Ast> {
   }
 
   public Program process(Program p, TcInterface tc) {
-    return new Program(process(p.ast, tc), p.fileName);
-  }
-
-  public Declaration process(Declaration ast, TcInterface tc) {
     this.tc = tc;
-    return TypeUtils.internalTypecheck((Declaration)ast.eval(this), tc);
+    return TypeUtils.internalTypecheck((Program)p.eval(this), tc);
   }
 
-\normal_classes{
+  \classes{\if_terminal{
+    public void see(\ClassName \className,\mtn_list) {
+      Preconditions.checkNotNull(\className);
+      boolean sameChildren = true;
+      \members{
+        \mt new\MemberName;
+        \if_primitive{
+          new\MemberName = \memberName;
+        }{
+          \if_tagged{list}{
+            new\MemberName = AstUtils.evalListOf\MemberType(\memberName, this);
+          }{
+            new\MemberName = \memberName == null ? null :(\MemberType)\memberName.eval(this);
+          }
+          sameChildren &= new\MemberName == \memberName;
+        }
+      }
 
-  public void see(
-    \ClassName \className,
-    \members[,]{
-      \if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType} 
-      \memberName
+      if (!sameChildren) {
+        result.removeFirst();
+        result.addFirst(\ClassName.mk(\members[,]{new\MemberName},\className.loc()));
+      }
     }
-  ) {
-    assert \className != null;
-    boolean sameChildren = true;
-    \members{
-      \if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}
-      new\MemberName = 
-        \if_primitive{\memberName}{
-          \memberName == null ? null :(\MemberType)\memberName.eval(this)
-        };
-      \if_primitive{}{sameChildren &= new\MemberName == \memberName;}
+    
+    @Override
+    public Ast eval(\ClassName \className,\mtn_list) {
+      // Deque<> doesn't support null elements
+      result.addFirst(\className == null ? NULL : \className);
+      enterNode(\className);
+      see(\className,\members[,]{\memberName});
+      exitNode(\className);
+      Ast r = result.removeFirst();
+      return r == NULL ? null : r;
     }
-
-    if (!sameChildren) {
-      result.removeFirst();
-      result.addFirst(\ClassName.mk(\members[,]{new\MemberName},\className.loc()));
-    }
-  }
-  
-  @Override
-  public Ast eval(
-    \ClassName \className,
-    \members[,]{
-      \if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType} 
-      \memberName
-    }
-  ) {
-    // Deque<> doesn't support null elements
-    result.addFirst(\className == null ? NULL : \className);
-    enterNode(\className);
-    see(\className,\members[,]{\memberName});
-    exitNode(\className);
-    Ast r = result.removeFirst();
-    return r == NULL ? null : r;
-  }
-}
+  }{}}
 }
 
 \file{visitor.skeleton}
 // You can copy and paste the text below when you define a visitor that
 // needs to override most functions on the base class.
 
-\normal_classes{  @Override
-  public void see(\ClassName \className, \members[, ]{\if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType} \memberName}) {
+\classes{\if_terminal{  @Override
+  public void see(\ClassName \className, \mtn_list) {
     assert false : "not implemented";
   }
-  
-}
+}{}}
 
 // *********
 
-\normal_classes{  @Override
-  public \ClassName eval(\ClassName \className, \members[, ]{\if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType} \memberName}) {
+\classes{\if_terminal{  @Override
+  public \ClassName see(\ClassName \className, \mtn_list) {
     assert false : "not implemented";
     return null;
   }
+}{}}
 
-}
 
