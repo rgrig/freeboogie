@@ -51,7 +51,7 @@ public abstract class ACalculus<T extends Term<T>> {
   }
 
   public void typeChecker(TcInterface tc) {
-System.out.println("really set " + (tc != null));
+//System.out.println("really set " + (tc != null));
     this.tc = tc;
   }
   

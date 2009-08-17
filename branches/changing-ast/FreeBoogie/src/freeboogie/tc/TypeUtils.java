@@ -201,9 +201,17 @@ public final class TypeUtils {
   }
 
   public static boolean isPrimitive(Type t, PrimitiveType.Ptype p) {
+    t = untuple(t);
     if (!(t instanceof PrimitiveType)) return false;
     PrimitiveType pt = (PrimitiveType)t;
     return pt.ptype() == p;
+  }
+
+  public static Type untuple(Type t) {
+    if (!(t instanceof TupleType)) return t;
+    TupleType tt = (TupleType) t;
+    if (tt.types().size() != 1) return t;
+    return untuple(tt.types().get(0));
   }
 
   public static boolean isTypeVar(Type t) {
@@ -216,7 +224,7 @@ public final class TypeUtils {
    * error if the typecheck fails.
    */
   public static Program internalTypecheck(Program ast, TcInterface tc) {
-    if (!tc.process(ast).isEmpty()) {
+    if (FbError.reportAll(tc.process(ast))) {
       PrintWriter pw = new PrintWriter(System.out);
       PrettyPrinter pp = new PrettyPrinter();
       pp.writer(pw);

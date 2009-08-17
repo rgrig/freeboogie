@@ -201,10 +201,10 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   ) {
     return term.mk(
       "map_update", 
-      new Term[] {
-        atom.eval(this), 
-        term.mk("tuple", tuple(idx)),
-        val.eval(this)});
+      ImmutableList.of(
+          atom.eval(this), 
+          term.mk("tuple", tuple(idx)),
+          val.eval(this)));
   }
 
   @Override
@@ -292,10 +292,10 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
   }
 
   // === helpers ===
-  private ArrayList<T> tuple(ImmutableList<Expr> es) {
-    ArrayList<T> r = new ArrayList<T>(23);
+  private ImmutableList<T> tuple(ImmutableList<Expr> es) {
+    ImmutableList.Builder<T> r = ImmutableList.builder();
     for (Expr e : es) r.add(e.eval(this));
-    return r;
+    return r.build();
   }
 
   private T not(T t) {

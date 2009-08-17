@@ -10,6 +10,7 @@ import genericutils.Id;
 import freeboogie.ast.*;
 import freeboogie.tc.TcInterface;
 import freeboogie.tc.TypeUtils;
+import static freeboogie.ast.AstUtils.*;
 
 /**
  * Replaces all map reads and writes by explicit calls to
@@ -248,21 +249,5 @@ public class MapRemover extends Transformer {
         name, 
         ImmutableList.<Type>of(), 
         ImmutableList.<Expr>builder().addAll(args).build());
-  }
-
-  private AtomId mkId(String name) {
-    return AtomId.mk(name, ImmutableList.<Type>of());
-  }
-
-  private BinaryOp mkNotEq(Expr lhs, Expr rhs) {
-    return BinaryOp.mk(BinaryOp.Op.NEQ, lhs, rhs);
-  }
-
-  private BinaryOp mkEq(Expr lhs, Expr rhs) {
-    return BinaryOp.mk(BinaryOp.Op.EQ, lhs, rhs);
-  }
-
-  private BinaryOp mkImplies(Expr lhs, Expr rhs) {
-    return BinaryOp.mk(BinaryOp.Op.IMPLIES, lhs, rhs);
   }
 }

@@ -42,4 +42,19 @@ public class AstUtils {
   }
 }
 
+  public static AtomId mkId(String name) {
+    return AtomId.mk(name, ImmutableList.<Type>of());
+  }
+
+  public static BinaryOp mkNotEq(Expr lhs, Expr rhs) {
+    return BinaryOp.mk(BinaryOp.Op.NEQ, lhs, rhs);
+  }
+
+  public static BinaryOp mkEq(Expr lhs, Expr rhs) {
+    return BinaryOp.mk(BinaryOp.Op.EQ, lhs, rhs);
+  }
+
+  public static BinaryOp mkImplies(Expr lhs, Expr rhs) {
+    return BinaryOp.mk(BinaryOp.Op.IMPLIES, lhs, rhs);
+  }
 }

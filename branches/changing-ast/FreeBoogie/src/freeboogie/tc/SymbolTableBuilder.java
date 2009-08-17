@@ -274,10 +274,10 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
       boolean free,
       ImmutableList<AtomId> ids
   ) {
-    assert lookInLocalScopes; // no nesting;
-    lookInLocalScopes = true;
-    AstUtils.evalListOfAtomId(ids, this);
+    assert lookInLocalScopes : "no nesting of modifies";
     lookInLocalScopes = false;
+    AstUtils.evalListOfAtomId(ids, this);
+    lookInLocalScopes = true;
   }
 
   @Override public void see(

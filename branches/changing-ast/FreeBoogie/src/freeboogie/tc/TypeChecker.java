@@ -116,7 +116,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   
   @Override
   public List<FbError> process(Program ast) {
-    assert new TreeChecker().isTree(ast);
+    assert new TreeChecker().isTree(ast) : "AST is a dag instead of a tree";
 
     tvLevel = 0; // DBG
     boolType = PrimitiveType.mk(PrimitiveType.Ptype.BOOL, -1);

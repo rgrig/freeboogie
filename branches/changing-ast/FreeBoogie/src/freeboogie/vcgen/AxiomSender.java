@@ -30,10 +30,10 @@ public class AxiomSender<T extends Term<T>> extends Transformer {
     uniqConst.clear();
     p.eval(this);
 
-    ArrayList<T> uc = Lists.newArrayList();
+    ImmutableList.Builder<T> uc = ImmutableList.builder();
     for (String cn : uniqConst)
       uc.add(term.mk("var", "term$$" + cn));
-    axioms.add(term.mk("distinct", uc));
+    axioms.add(term.mk("distinct", uc.build()));
 
     for (T t : axioms) prover.assume(t);
   }

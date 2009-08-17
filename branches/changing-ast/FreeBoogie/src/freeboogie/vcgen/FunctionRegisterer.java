@@ -53,9 +53,8 @@ public class FunctionRegisterer extends Transformer {
         builder.def("funI_" + sig.name(), asa, Sort.INT);
       if (TypeUtils.isBool(t) || isTypeVar(t))
         builder.def("funB_" + sig.name(), asa, Sort.BOOL);
-      if (!TypeUtils.isInt(t) && !TypeUtils.isBool(t))
-        builder.def("funT_" + sig.name(), asa, Sort.TERM);
-    } else builder.def("funT_" + sig.name(), asa, Sort.TERM);
+    } 
+    builder.def("funT_" + sig.name(), asa, Sort.TERM);
   }
 
   // === helpers ===

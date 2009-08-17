@@ -99,7 +99,7 @@ public class Passivator extends Transformer {
         for (int i = 1; i <= e.getValue(); ++i) {
           newVariables.add(VariableDecl.mk(
               ImmutableList.<Attribute>of(),
-              e.getKey().name() + "$$" + i,
+              name(e.getKey().name(), i),
               TypeUtils.stripDep(e.getKey().type()).clone(), 
               AstUtils.cloneListOfAtomId(e.getKey().typeArgs())));
         }
@@ -188,7 +188,7 @@ public class Passivator extends Transformer {
       extraBlocks.clear();
       newBlocks.add((Block) b.eval(this)).addAll(extraBlocks);
     }
-    // NOTE: newLocals are added late by eval(Implementation...)
+    // NOTE: newLocals are added later by eval(Implementation...)
     return Body.mk(vars, newBlocks.build(), body.loc());
   }
 
@@ -256,8 +256,8 @@ public class Passivator extends Transformer {
               ImmutableList.<AtomId>of(),
               BinaryOp.mk(
                 BinaryOp.Op.EQ,
-                AtomId.mk(v.name() + (ri > 0? "$$" + ri : ""), null),
-                AtomId.mk(v.name() + (wi > 0? "$$" + wi : ""), null))),
+                AstUtils.mkId(name(v.name(), ri)),
+                AstUtils.mkId(name(v.name(), wi)))),
             AstUtils.ids(nextLabel),
             block.loc()));
         nextLabel = currentLabel;
@@ -285,7 +285,7 @@ public class Passivator extends Transformer {
         ImmutableList.<AtomId>of(),
         BinaryOp.mk(BinaryOp.Op.EQ,
           AtomId.mk(
-            lhs.id() + "$$" + getIdx(writeIdx, vd), 
+            name(lhs.id(), getIdx(writeIdx, vd)),
             lhs.types(), 
             lhs.loc()),
           value),
@@ -308,7 +308,7 @@ public class Passivator extends Transformer {
     VariableDecl vd = (VariableDecl) d;
     int idx = getIdx(readIdx, vd);
     if (idx == 0) return atomId;
-    return AtomId.mk(id + "$$" + idx, types, atomId.loc());
+    return AtomId.mk(name(id, idx), types, atomId.loc());
   }
 
   @Override
@@ -325,16 +325,20 @@ public class Passivator extends Transformer {
     if (inResults) {
       variableDecl = VariableDecl.mk(
           ImmutableList.<Attribute>of(),
-          name + "$$" + last,
+          name(name, last),
           type,
           typeArgs,
           variableDecl.loc());
     }
-    if (inResults) --last;
-    for (int i = 1; i <= last; ++i) {
+    int start = 1;
+    if (inResults) {
+      --last;
+      --start;
+    }
+    for (int i = start; i <= last; ++i) {
       newLocals.add(VariableDecl.mk(
           ImmutableList.<Attribute>of(),
-          name + "$$" + i, 
+          name(name, i),
           TypeUtils.stripDep(type).clone(), 
           AstUtils.cloneListOfAtomId(typeArgs)));
     }
@@ -352,5 +356,10 @@ public class Passivator extends Transformer {
       return 0; // this variable is never written to
     Integer idx = m.get(currentBlock);
     return idx == null? 0 : idx;
+  }
+
+  private String name(String prefix, int count) {
+    if (count == 0) return prefix;
+    return prefix + "$$" + count;
   }
 }

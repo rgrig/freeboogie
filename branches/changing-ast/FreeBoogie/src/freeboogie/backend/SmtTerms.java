@@ -1,10 +1,8 @@
 package freeboogie.backend;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
+import java.util.*;
 
+import com.google.common.collect.ImmutableList;
 import genericutils.Id;
 
 /**
@@ -46,8 +44,7 @@ public final class SmtTerms {
     context.term = term;
     countParents(t, context);
     t = unshare(t, Position.NEGATIVE, context);
-    ArrayList<SmtTerm> defs =
-      new ArrayList<SmtTerm>(context.varDefs.size());
+    ImmutableList.Builder<SmtTerm> defs = ImmutableList.builder();
     for (Map.Entry<String, SmtTerm> vd : context.varDefs.entrySet()) {
       SmtTerm v = term.mk("var_formula", vd.getKey());
       SmtTerm od = vd.getValue();
@@ -63,7 +60,7 @@ public final class SmtTerms {
         defs.add(term.mk("iff", v, nd));
       }
     }
-    return term.mk("implies", term.mk("and", defs), t);
+    return term.mk("implies", term.mk("and", defs.build()), t);
   }
 
   private static void countParents(SmtTerm t, EliminateSharingContext context) {
@@ -102,7 +99,7 @@ public final class SmtTerms {
       return result;
     }
 
-    ArrayList<SmtTerm> children = new ArrayList<SmtTerm>(t.children.size());
+    ImmutableList.Builder<SmtTerm> children = ImmutableList.builder();
     if ("not".equals(t.id))
       children.add(unshare(t.children.get(0), not(p), context));
     else if ("and".equals(t.id) || "or".equals(t.id))
@@ -114,7 +111,7 @@ public final class SmtTerms {
       for (SmtTerm c : t.children) 
         children.add(unshare(c, Position.UNKNOWN, context));
     }
-    result = context.term.mk(t.id, children);
+    result = context.term.mk(t.id, children.build());
 
     int S = getPrintSize(result, context);
     Integer P = context.parentCount.get(t);

@@ -95,7 +95,7 @@ type_id:
 
 axiom_decl:
     'axiom' type_vars e=expr ';' 
-    { axiomDeclBuilder.add(Axiom.mk(
+    { if (ok) axiomDeclBuilder.add(Axiom.mk(
           ImmutableList.<Attribute>of(),
           Id.get("unnamed"),
           $type_vars.v,
@@ -168,7 +168,7 @@ scope {
     { if (ok) {
       implementationBuilder.add(Implementation.mk(
           ImmutableList.<Attribute>of(),
-          $signature.v.clone(),
+          TypeUtils.stripDep($signature.v).clone(),
           $body.v,
           tokLoc($p))); }}
     )?

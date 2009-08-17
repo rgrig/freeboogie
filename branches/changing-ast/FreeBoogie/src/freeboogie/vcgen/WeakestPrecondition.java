@@ -2,6 +2,8 @@ package freeboogie.vcgen;
 
 import java.util.ArrayList;
 
+import com.google.common.collect.ImmutableList;
+
 import freeboogie.ast.Block;
 import freeboogie.ast.Body;
 import freeboogie.backend.Term;
@@ -38,15 +40,10 @@ public class WeakestPrecondition<T extends Term<T>> extends StrongestPostconditi
   private T post(Block b) {
     T r = postCache.get(b);
     if (r != null) return r;
-    ArrayList<T> fromAnd = new ArrayList<T>();
+    ImmutableList.Builder<T> fromAnd = ImmutableList.builder();
     for (Block p : flow.to(b)) 
       fromAnd.add(pre(p));
-    if (fromAnd.isEmpty())
-      r = trueTerm;
-    else
-      r = term.mk("and", fromAnd);
-    
-
+    r = term.mk("and", fromAnd.build());
     postCache.put(b, r);
     return r;
   }

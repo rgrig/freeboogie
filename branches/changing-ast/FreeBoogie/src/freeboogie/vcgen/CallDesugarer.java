@@ -114,16 +114,19 @@ public class CallDesugarer extends Transformer {
       equivCmds.add(AssertAssumeCmd.mk(
         AssertAssumeCmd.CmdType.ASSERT,
         ImmutableList.<AtomId>of(),
-        pre.expr(),
+        (Expr) pre.expr().eval(this).clone(),
         callCmd.loc()));
     }
-    for (ModifiesSpec m : p.modifies())
-      equivCmds.add(HavocCmd.mk(m.ids(), callCmd.loc()));
+    for (ModifiesSpec m : p.modifies()) {
+      equivCmds.add(HavocCmd.mk(
+          AstUtils.cloneListOfAtomId(AstUtils.evalListOfAtomId(m.ids(), this)), 
+          callCmd.loc()));
+    }
     for (PostSpec post : p.postconditions()) {
       equivCmds.add(AssertAssumeCmd.mk(
         AssertAssumeCmd.CmdType.ASSUME,
         ImmutableList.<AtomId>of(),
-        post.expr(),
+        (Expr) post.expr().eval(this).clone(),
         callCmd.loc()));
     }
     toSubstitute.clear();
