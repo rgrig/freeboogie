@@ -41,15 +41,9 @@ import freeboogie.vcgen.ABasicPassifier.Environment;
  * coloring of comparison graphs) but not the number of copy
  * operations.
  *
- * TODO Introduce new variable declarations
- * TODO Change the out parameters of implementations to refer to the last version
- *
  * @author rgrig
  */
 public class Passivator extends Transformer {
-  // used mainly for debugging
-  private static final Logger log = Logger.getLogger("freeboogie.vcgen");
-
   private HashMap<VariableDecl, HashMap<Block, Integer>> readIdx;
   private HashMap<VariableDecl, HashMap<Block, Integer>> writeIdx;
   private HashMap<VariableDecl, Integer> newVarsCnt;

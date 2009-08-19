@@ -104,19 +104,20 @@ ModifiesSpec =
   [list] AtomId ids;
 Body = 
   [list] VariableDecl vars,
-  [list] Block blocks;
-Block = 
-  String! name, 
-  Command cmd, 
-  [list] AtomId successors; // successors.isEmpty() means that we return
+  Block! block;
+Block =
+  [list] Command commands; 
 
 // Commands
 Command :> 
   AssignmentCmd, 
   AssertAssumeCmd, 
+  GotoCmd,
   HavocCmd, 
   CallCmd, 
   WhileCmd;
+Command =
+  [list] String labels;
 AssignmentCmd = 
   AtomId! lhs, 
   Expr! rhs;
@@ -124,6 +125,8 @@ AssertAssumeCmd =
   enum(CmdType: ASSERT, ASSUME) type, 
   [list] AtomId typeArgs, 
   Expr! expr;
+GotoCmd =
+  [list] String successors; // if successors.isEmpty() then it's "return"
 HavocCmd = 
   [list] AtomId ids;
 CallCmd = 
@@ -134,7 +137,7 @@ CallCmd =
 WhileCmd = 
   Expr condition, 
   [list] LoopInvariant inv, 
-  [list] Block body;
+  Block body;
 LoopInvariant = 
   boolean free, 
   Expr! expr;
@@ -200,5 +203,4 @@ AtomMapUpdate: !idx.isEmpty()
 HavocCmd: !ids.isEmpty()
 PrimitiveType: ptype == Ptype.BV || bits == -1
 Specification: type != SpecType.MODIFIES || (expr instanceof AtomId)
-Body: !blocks.isEmpty()
 

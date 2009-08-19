@@ -3,7 +3,8 @@ vim:filetype=java:
 \def{smt}{\if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}}
 \def{mt}{\if_tagged{list}{ImmutableList<}{}\smt\if_tagged{list}{>}{}}
 \def{mtn}{\mt \memberName}
-\def{mtn_list}{\members[,]{\mtn}}
+\def{mtn_list}{\members[,
+      ]{\mtn}}
 
 \file{Transformer.java}
 /** Do NOT edit. See transformer.tpl instead. */
@@ -87,19 +88,21 @@ public class Transformer extends Evaluator<Ast> {
 // You can copy and paste the text below when you define a visitor that
 // needs to override most functions on the base class.
 
-\classes{\if_terminal{  @Override
-  public void see(\ClassName \className, \mtn_list) {
+\classes{  @Override public void see(
+      \ClassName \className, 
+      \mtn_list
+  ) {
     assert false : "not implemented";
   }
-}{}}
+}
 
 // *********
 
-\classes{\if_terminal{  @Override
-  public \ClassName see(\ClassName \className, \mtn_list) {
+\classes{  @Override public \ClassName eval(
+      \ClassName \className, 
+      \mtn_list
+  ) {
     assert false : "not implemented";
     return null;
   }
-}{}}
-
-
+}

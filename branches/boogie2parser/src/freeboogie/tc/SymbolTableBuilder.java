@@ -303,15 +303,4 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
     expr.eval(this);
     typeVarDecl.pop();
   }
- 
-  // === do not look at goto-s ===
-  @Override
-  public void see(
-      Block block, 
-      String name, 
-      Command cmd, 
-      ImmutableList<AtomId> succ
-  ) {
-    if (cmd != null) cmd.eval(this);
-  }
 }

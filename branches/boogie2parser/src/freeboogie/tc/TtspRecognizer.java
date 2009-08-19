@@ -113,9 +113,9 @@ private static void print(HashMap<Integer,HashSet<Integer>> h) {
           System.out.println("SUCCESS (empty).");
           return;
         }
-        SimpleGraph<Block> currentFG = tc.flowGraph(impl);
-        TtspRecognizer<Block> recog = 
-          new TtspRecognizer<Block>(currentFG, body.blocks().get(0));
+        SimpleGraph<Command> currentFG = tc.flowGraph(body);
+        TtspRecognizer<Command> recog = 
+          new TtspRecognizer<Command>(currentFG, body.block().commands().get(0));
         if (!recog.check()) {
           System.out.println("FAILED.");
         } else {

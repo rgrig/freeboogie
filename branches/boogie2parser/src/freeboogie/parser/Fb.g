@@ -237,7 +237,7 @@ scope {
 ;
 
 body returns [Body v]:
-  t='{' vl=var_decl_list b=block_list '}'
+  t='{' vl=var_decl_list b=block '}'
     { if(ok) $v = Body.mk($vl.v,$b.v,tokLoc(t)); }
 ;
 
@@ -253,83 +253,55 @@ scope {
     { $v=$var_decl_list::b_.build(); }
 ;
 
-block_list returns [ImmutableList<Block> v]
+block returns [Block v]:
+    cl=command_list
+    { if (ok) $v = Block.mk($cl.v, fileLoc($cl)); }
+;
+
+command_list returns [ImmutableList<Command> v]
 scope {
-  ImmutableList.Builder<Block> builder;
-  String nextLabel;
+  ImmutableList.Builder<Command> b;
 }:
-      { $block_list::builder = ImmutableList.builder(); 
-        $block_list::nextLabel = null; }
-    block+
-      { $v = $block_list::builder.build(); }
+    { $command_list::b = ImmutableList.builder(); }
+    (c=command {if (ok) $command_list::b.add($c.v, fileLoc($c))})*
+    { $v = $command_list::b.build(); }
 ;
 
-block
+command	returns [Command v]
 scope {
-  ArrayList<Command> cmds;
-}
-: 
-    (id=ID ':')? command? (block_succ)?
-    { if (ok) {
-      FileLocation location = null;
-      if ($id != null) location = tokLoc($id);
-      else if ($command.v != null) location = fileLoc($command.v);
-      else location = fileLoc($block_succ.v);
-
-      String label;
-      if ($id == null) {
-        label = $block_list::nextLabel == null? 
-            Id.get("L") : 
-            $block_list::nextLabel;
-      } else {
-        if ($block_list::nextLabel != null) {
-          $block_list::builder.add(Block.mk(
-              $block_list::nextLabel,
-              null,
-              AstUtils.ids($id.text)));
-        }
-        label = $id.text;
-      }
-      ImmutableList<AtomId> succ = $block_succ.v;
-      if (succ == null) {
-        $block_list::nextLabel = Id.get("L");
-        succ = AstUtils.ids($block_list::nextLabel);
-      } else $block_list::nextLabel = null;
-      $block_list::builder.add(Block.mk(
-          label,
-          $command.v,
-          succ,
-          location)); }}
-;
-
-block_succ returns [ImmutableList<AtomId> v]:
-    ('goto' s=id_list | 'return') ';' 
-      { $v = s!=null? $s.v : ImmutableList.<AtomId>of(); }
-;
-
-command	returns [Command v]:
-    a=atom_id i=index_list ':=' b=expr ';' 
-      { if(ok) {
-          // a[b][c][d][e]:=f --> a:=a[b:=a[b][c:=a[b][c][d:=a[b][c][d][e:=f]]]]
-          // grows quadratically
-          Expr rhs = $b.v;
-          ArrayList<Atom> lhs = new ArrayList<Atom>();
-          lhs.add($a.v.clone());
-          for (int k = 1; k < $i.v.size(); ++k)
-            lhs.add(AtomMapSelect.mk(lhs.get(k-1).clone(), $i.v.get(k-1)));
-          for (int k = $i.v.size()-1; k>=0; --k)
-            rhs = AtomMapUpdate.mk(lhs.get(k).clone(), ImmutableList.copyOf($i.v.get(k)), rhs);
-          $v=AssignmentCmd.mk($a.v,rhs,fileLoc($a.v));
-      }}
-  | t='assert' tv=type_vars expr ';'
-      { if(ok) $v=AssertAssumeCmd.mk(AssertAssumeCmd.CmdType.ASSERT,$tv.v,$expr.v,tokLoc($t)); }
-  | t='assume' tv=type_vars expr ';'
-      { if(ok) $v=AssertAssumeCmd.mk(AssertAssumeCmd.CmdType.ASSUME,$tv.v,$expr.v,tokLoc($t)); }
-  | t='havoc' id_list ';'
-      { if(ok) $v=HavocCmd.mk($id_list.v,tokLoc($t));}
-  | t='call' call_lhs
-    n=ID st=quoted_simple_type_list '(' (r=expr_list)? ')' ';'
-      { if(ok) $v=CallCmd.mk($n.text,$st.v,$call_lhs.v,$r.v,tokLoc($t)); }
+  String l;
+}:
+  (ID ':' { $command::l = $ID.text; })? 
+  { if ($command::l == null) $command::l = Id.get("L"); }
+  (
+      a=atom_id i=index_list ':=' b=expr ';' 
+        { if(ok) {
+            // a[b][c][d][e]:=f --> a:=a[b:=a[b][c:=a[b][c][d:=a[b][c][d][e:=f]]]]
+            // grows quadratically
+            Expr rhs = $b.v;
+            ArrayList<Atom> lhs = new ArrayList<Atom>();
+            lhs.add($a.v.clone());
+            for (int k = 1; k < $i.v.size(); ++k)
+              lhs.add(AtomMapSelect.mk(lhs.get(k-1).clone(), $i.v.get(k-1)));
+            for (int k = $i.v.size()-1; k>=0; --k)
+              rhs = AtomMapUpdate.mk(lhs.get(k).clone(), ImmutableList.copyOf($i.v.get(k)), rhs);
+            $v=AssignmentCmd.mk($command::l,$a.v,rhs,fileLoc($a.v));
+        }}
+    | t='assert' tv=type_vars expr ';'
+        { if(ok) $v=AssertAssumeCmd.mk($command::l,AssertAssumeCmd.CmdType.ASSERT,$tv.v,$expr.v,tokLoc($t)); }
+    | t='assume' tv=type_vars expr ';'
+        { if(ok) $v=AssertAssumeCmd.mk($command::l,AssertAssumeCmd.CmdType.ASSUME,$tv.v,$expr.v,tokLoc($t)); }
+    | t='havoc' id_list ';'
+        { if(ok) $v=HavocCmd.mk($command::l,$id_list.v,tokLoc($t));}
+    | t='call' call_lhs
+      n=ID st=quoted_simple_type_list '(' (r=expr_list)? ')' ';'
+        { if(ok) $v=CallCmd.mk($command::l,$n.text,$st.v,$call_lhs.v,$r.v,tokLoc($t)); }
+    | (t='goto' s=id_list | t='return') ';'
+        { if (ok) {
+          ImmutableList<String> successors = $s.v;
+          if (successors == null) successors = ImmutableList.of();
+          $v = GotoCmd.mk($command::l, successors, tokLoc($t)); }}
+  )
 ;
 
 call_lhs returns [ImmutableList<AtomId> v]:

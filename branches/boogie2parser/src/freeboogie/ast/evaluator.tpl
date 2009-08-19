@@ -40,8 +40,8 @@ public class Evaluator<R> {
     return r; 
   }
 
-  \classes{\if_terminal{
-    public R eval(\ClassName \className,\mtn_list) {
+  \classes{
+    public R eval(\ClassName \className\if_terminal{,\mtn_list}{}) {
       R result_ = evalCache.get(\className);
       if (result_ != null) return result_;
       enterNode(\className);
@@ -49,7 +49,7 @@ public class Evaluator<R> {
       exitNode(\className);
       return null;
     }
-  }{}}
+  }
 
   // === hooks for derived classes ===
   public void enterNode(Ast ast) { /* do nothing */ }

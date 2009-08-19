@@ -80,13 +80,11 @@ public \if_terminal{final}{abstract} class \ClassName extends \BaseName {
   }
 }{}
 
-\if_terminal{
   // === the Visitor pattern ===
   @Override
   public <R> R eval(Evaluator<R> evaluator) { 
-    return evaluator.eval(this, \members[,]{\memberName}); 
+    return evaluator.eval(this\if_terminal{, \members[,]{\memberName}}{}); 
   }
-}{}
 
   // === others ===
 \if_terminal{

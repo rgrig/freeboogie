@@ -54,7 +54,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   
   private GlobalsCollector gc;
   
-  private BlockFlowGraphs flowGraphs;
+  private FlowGraphMaker flowGraphs;
   
   // detected errors
   private List<FbError> errors;
@@ -145,7 +145,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     paramMap = ic.paramMap();
     
     // check blocks
-    flowGraphs = new BlockFlowGraphs();
+    flowGraphs = new FlowGraphMaker();
     errors.addAll(flowGraphs.process(ast));
     if (!errors.isEmpty()) return errors;
 
@@ -156,12 +156,8 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
 
   @Override
-  public SimpleGraph<Block> flowGraph(Implementation impl) {
-    return flowGraphs.flowGraph(impl.body());
-  }
-  @Override
-  public SimpleGraph<Block> flowGraph(Body bdy) {
-    return flowGraphs.flowGraph(bdy);
+  public SimpleGraph<Command> flowGraph(Body body) {
+    return flowGraphs.flowGraph(body);
   }
   
   @Override
@@ -848,18 +844,6 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     collectEnclosingTypeVars(sig.typeArgs());
     body.eval(this);
     enclosingTypeVar.pop();
-    return null;
-  }
-
-  // === do not look at block successors ===
-  @Override
-  public Type eval(
-      Block block, 
-      String name, 
-      Command cmd, 
-      ImmutableList<AtomId> succ
-  ) {
-    if (cmd != null) cmd.eval(this);
     return null;
   }
 }

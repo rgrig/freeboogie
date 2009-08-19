@@ -73,13 +73,8 @@ public class ForgivingTc extends Transformer implements TcInterface {
   }
 
   @Override
-  public SimpleGraph<Block> flowGraph(Implementation impl) {
-    return tc.flowGraph(impl);
-  }  
-  
-  @Override
-  public SimpleGraph<Block> flowGraph(Body bdy) {
-    return tc.flowGraph(bdy);
+  public SimpleGraph<Command> flowGraph(Body body) {
+    return tc.flowGraph(body);
   }
   
   @Override public Map<Expr, Type> types() { return tc.types(); }

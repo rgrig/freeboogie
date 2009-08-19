@@ -33,6 +33,7 @@ Declaration.java
 DepType.java
 Expr.java
 FunctionDecl.java
+GotoCmd.java
 HavocCmd.java
 IdDecl.java
 Implementation.java
