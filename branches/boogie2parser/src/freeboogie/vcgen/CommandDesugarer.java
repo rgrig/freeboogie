@@ -26,7 +26,7 @@ import freeboogie.ast.*;
 
   NOTE: relies on commands appearing only in blocks
  */
-public class CallDesugarer extends Transformer {
+public class CommandDesugarer extends Transformer {
   private HashMap<IdDecl, Expr> toSubstitute = Maps.newHashMap();
   private ArrayDeque<Command> equivCmds = new ArrayDeque<Command>();
   private ImmutableList.Builder<VariableDecl> newVars;

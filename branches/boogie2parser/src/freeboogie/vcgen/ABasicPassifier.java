@@ -33,7 +33,7 @@ public abstract class ABasicPassifier extends Transformer {
   //    See also the stuff in AxiomSender.
  
   public static AssertAssumeCmd mkAssumeEQ(Expr left, Expr right) {
-    return AssertAssumeCmd.mk(AssertAssumeCmd.CmdType.ASSUME, null,
+    return AssertAssumeCmd.mk(noString, AssertAssumeCmd.CmdType.ASSUME, null,
       BinaryOp.mk(BinaryOp.Op.EQ, left, right));
   }
   

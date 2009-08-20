@@ -697,7 +697,12 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
 
   // === visit commands ===
   @Override
-  public Type eval(AssignmentCmd assignmentCmd, AtomId lhs, Expr rhs) {
+  public Type eval(
+      AssignmentCmd assignmentCmd, 
+      ImmutableList<String> labels,
+      AtomId lhs, 
+      Expr rhs
+  ) {
     Type lt = TypeUtils.stripDep(lhs.eval(this));
     Type rt = TypeUtils.stripDep(rhs.eval(this));
     typeVarEnter(assignmentCmd);
@@ -709,6 +714,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   @Override
   public Type eval(
       AssertAssumeCmd assertAssumeCmd, 
+      ImmutableList<String> labels,
       AssertAssumeCmd.CmdType type,
       ImmutableList<AtomId> typeVars,
       Expr expr
@@ -723,7 +729,8 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
 
   @Override
   public Type eval(
-      CallCmd callCmd, 
+      CallCmd callCmd,
+      ImmutableList<String> labels,
       String procedure, 
       ImmutableList<Type> types, 
       ImmutableList<AtomId> results, 

@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 import genericutils.Closure;
 
-import freeboogie.ast.Block;
+import freeboogie.ast.Command;
 import freeboogie.backend.Term;
 import freeboogie.tc.TcInterface;
 
@@ -12,20 +12,15 @@ import freeboogie.tc.TcInterface;
  * Computes strongest postcondition for one {@code
  * Implementation}.
  *
- * This class receives a flow graph of blocks ({@code
- * SimpleGraph&lt;Block&gt;}, where each block must contain only
- * {@code AssertAssumeCmd}s) and computes preconditions and
- * postconditions for all nodes, verification conditions for
- * individual assertions, and a verification condition for all
- * assertion. (The implementation is inspired by strongest
+ * This class receives a flow graph of commands ({@code
+ * SimpleGraph&lt;Command&gt;}, where each block must contain
+ * only {@code AssertAssumeCmd}s) and computes preconditions
+ * and postconditions for all nodes, verification conditions
+ * for individual assertions, and a verification condition for
+ * all assertion. (The implementation is inspired by strongest
  * postcondition calculus.)
  *
  * The graph must be acyclic.
- *
- * (The input can be obtained as follows: (a) parse BPL, (b) add
- * procedure specs to the body as assumes and assert, (c) build a
- * flow graph, (d) make that reducible, (e) eliminate loops, and
- * (f) passivate.)
  *
  * The formulas are built using a {@code TermBuilder} that is
  * handed to us by the user. That {@code TermBuilder} must know
@@ -35,8 +30,6 @@ import freeboogie.tc.TcInterface;
  * initial; the nodes with no successors are considered
  * final. (So unreachable code blocks must be removed in
  * a previous phase.)
- *
- * TODO Give some guides in a document somewhere how to name terms.
  *
  * Each command is attached a precondition and a postcondition
  * according to the following definitions:
@@ -65,11 +58,11 @@ public class StrongestPostcondition<T extends Term<T>> extends ACalculus<T> {
    * Returns the precondition of {@code b}, which must be in
    * the last set flow graph.
    */
-  private T pre(Block b) {
+  private T pre(Command b) {
     T r = preCache.get(b);
     if (r != null) return r;
     ArrayList<T> toOr = new ArrayList<T>();
-    for (Block p : flow.from(b)) 
+    for (Command p : flow.from(b)) 
       toOr.add(post(p));
     if (toOr.isEmpty())
       r = trueTerm;
@@ -79,7 +72,7 @@ public class StrongestPostcondition<T extends Term<T>> extends ACalculus<T> {
     return r;
   }
 
-  private T post(Block b) {
+  private T post(Command b) {
     T r = postCache.get(b);
     if (r != null) return r;
     r = pre(b);
@@ -93,7 +86,7 @@ public class StrongestPostcondition<T extends Term<T>> extends ACalculus<T> {
    * Returns the verification condition for a particular command.
    * If {@code cmd} is an assume then I return TRUE.
    */
-  protected T vc(Block b) {
+  protected T vc(Command b) {
     if (!isAssert(b)) return trueTerm;
     return term.mk("implies", pre(b), term(b));
   }
@@ -101,9 +94,9 @@ public class StrongestPostcondition<T extends Term<T>> extends ACalculus<T> {
   @Override
   public T vc() {
     final ArrayList<T> vcs = new ArrayList<T>();
-    flow.iterNode(new Closure<Block>() {
+    flow.iterNode(new Closure<Command>() {
       @Override
-      public void go(Block b) {
+      public void go(Command b) {
         vcs.add(vc(b));
       }
     });

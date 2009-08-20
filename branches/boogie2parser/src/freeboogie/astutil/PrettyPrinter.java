@@ -137,13 +137,17 @@ public class PrettyPrinter extends Transformer {
     elemType.eval(this);
   }
 
-  @Override
-  public void see(
+  @Override public void see(
     AssertAssumeCmd assertAssumeCmd, 
+    ImmutableList<String> labels,
     AssertAssumeCmd.CmdType type, 
     ImmutableList<AtomId> typeVars, 
     Expr expr
   ) {
+    for (String l : labels) {
+      say(l);
+      say(": ");
+    }
     say(cmdRep.get(type));
     if (!typeVars.isEmpty()) {
       say("<");
@@ -155,7 +159,16 @@ public class PrettyPrinter extends Transformer {
   }
 
   @Override
-  public void see(AssignmentCmd assignmentCmd, AtomId lhs, Expr rhs) {
+  public void see(
+      AssignmentCmd assignmentCmd, 
+      ImmutableList<String> labels, 
+      AtomId lhs, 
+      Expr rhs
+  ) {
+    for (String l : labels) {
+      say(l);
+      say(": ");
+    }
     lhs.eval(this);
     say(" := ");
     rhs.eval(this);
@@ -302,38 +315,20 @@ public class PrettyPrinter extends Transformer {
   }
 
   @Override
-  public void see(
-    Block block, 
-    String name, 
-    Command cmd, 
-    ImmutableList<AtomId> succ
-  ) {
-    say(name);
-    say(":");
-    if (cmd != null) {
-      say(" ");
-      cmd.eval(this);
-    }
-    say(" ");
-    if (succ.isEmpty()) {
-      say("return");
-    } else {
-      say("goto ");
-      printList(", ", succ);
-    }
-    semi();
+  public void see(Block block, ImmutableList<Command> commands) {
+    printList("", commands);
   }
 
   @Override
   public void see(
       Body body, 
       ImmutableList<VariableDecl> vars, 
-      ImmutableList<Block> blocks
+      Block block
   ) {
     say(" {");
     ++indentLevel; nl();
     printList("", vars);
-    printList("", blocks);
+    block.eval(this);
     --indentLevel; nl();
     say("}");
     nl();
@@ -341,12 +336,17 @@ public class PrettyPrinter extends Transformer {
 
   @Override
   public void see(
-    CallCmd callCmd, 
-    String procedure, 
-    ImmutableList<Type> types, 
-    ImmutableList<AtomId> results,
-    ImmutableList<Expr> args
+      CallCmd callCmd, 
+      ImmutableList<String> labels,
+      String procedure, 
+      ImmutableList<Type> types, 
+      ImmutableList<AtomId> results,
+      ImmutableList<Expr> args
   ) {
+    for (String l : labels) {
+      say(l);
+      say(": ");
+    }
     say("call ");
     if (!results.isEmpty()) {
       printList(", ", results);
@@ -420,7 +420,15 @@ public class PrettyPrinter extends Transformer {
   }
 
   @Override
-  public void see(HavocCmd havocCmd, ImmutableList<AtomId> ids) {
+  public void see(
+      HavocCmd havocCmd, 
+      ImmutableList<String> labels,
+      ImmutableList<AtomId> ids
+  ) {
+    for (String l : labels) {
+      say(l);
+      say(": ");
+    }
     say("havoc ");
     printList(", ", ids);
     say(";");

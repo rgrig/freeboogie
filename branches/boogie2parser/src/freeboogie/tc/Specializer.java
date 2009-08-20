@@ -138,7 +138,8 @@ public class Specializer extends Transformer {
 
   @Override
   public CallCmd eval(
-      CallCmd callCmd, 
+      CallCmd callCmd,
+      ImmutableList<String> labels,
       String procedure, 
       ImmutableList<Type> types, 
       ImmutableList<AtomId> results, 
@@ -148,7 +149,7 @@ public class Specializer extends Transformer {
     args = AstUtils.evalListOfExpr(args, this);
     Signature sig = st.procs.def(callCmd).sig();
     types = prepareTypeList(sig.typeArgs());
-    return CallCmd.mk(procedure, types, results, args);
+    return CallCmd.mk(labels, procedure, types, results, args);
   }
 
   

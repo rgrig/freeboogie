@@ -97,6 +97,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   @Override
   public void see(
       CallCmd callCmd, 
+      ImmutableList<String> labels,
       String p, 
       ImmutableList<Type> types, 
       ImmutableList<AtomId> results, 
@@ -257,6 +258,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   @Override
   public void see(
       AssertAssumeCmd assertAssumeCmd, 
+      ImmutableList<String> labels,
       AssertAssumeCmd.CmdType type, 
       ImmutableList<AtomId> typeVars, 
       Expr expr

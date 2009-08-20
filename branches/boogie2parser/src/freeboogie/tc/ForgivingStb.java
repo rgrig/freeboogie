@@ -200,6 +200,7 @@ public class ForgivingStb extends Transformer implements StbInterface {
   @Override
   public AssertAssumeCmd eval(
       AssertAssumeCmd assertAssumeCmd,
+      ImmutableList<String> labels,
       AssertAssumeCmd.CmdType type,
       ImmutableList<AtomId> typeArgs,
       Expr expr
@@ -210,7 +211,12 @@ public class ForgivingStb extends Transformer implements StbInterface {
         typeArgs, 
         "assert/assume", 
         assertAssumeCmd.loc());
-    return AssertAssumeCmd.mk(type, typeArgs, expr, assertAssumeCmd.loc());
+    return AssertAssumeCmd.mk(
+        labels, 
+        type, 
+        typeArgs, 
+        expr, 
+        assertAssumeCmd.loc());
   }
 
   private ImmutableList<AtomId> introduceGenerics(

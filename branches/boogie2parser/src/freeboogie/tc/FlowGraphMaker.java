@@ -2,9 +2,7 @@ package freeboogie.tc;
 
 import java.util.*;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import com.google.common.collect.*;
 import genericutils.Err;
 import genericutils.SimpleGraph;
 
@@ -61,7 +59,6 @@ public class FlowGraphMaker extends Transformer {
    * @return the detected problems 
    */
   public List<FbError> process(Program ast) {
-    currentBlock = null;
     nextCommand.clear();
     errors = Lists.newArrayList();
     flowGraphs = Maps.newHashMap();
@@ -101,7 +98,7 @@ public class FlowGraphMaker extends Transformer {
 
     // build graph
     phase = Phase.COLLECT_NAMES;
-    block.eval(this)
+    block.eval(this);
     phase = Phase.CONNECT_COMMANDS;
     block.eval(this);
 
@@ -136,19 +133,16 @@ public class FlowGraphMaker extends Transformer {
     }
   }
   
-  @Override public void see(
-      Command command, 
-      ImmutableList<String> labels
-  ) {
+  @Override public void see(Command c) {
     switch (phase) {
       case COLLECT_NAMES:
-        allCommands.add(command);
-        for (String l : labels) cmdByLabel.put(l, command);
+        allCommands.add(c);
+        for (String l : c.labels()) cmdByLabel.put(l, c);
         break;
       case CONNECT_COMMANDS:
         Command next = nextCommand.pollLast();
         if (next != null)
-          currentFlowGraph.edge(command, next);
+          currentFlowGraph.edge(c, next);
         break;
       default:
         assert false: "There's no such flowgraph construction phase.";
@@ -162,11 +156,11 @@ public class FlowGraphMaker extends Transformer {
   ) {
     switch (phase) {
       case COLLECT_NAMES:
-        see(gotoCmd, labels);
+        see(gotoCmd);
         break;
       case CONNECT_COMMANDS:
         for (String s : successors) {
-          Command next = cmdsByLabel.get(s);
+          Command next = cmdByLabel.get(s);
           if (next == null)
             errors.add(new FbError(FbError.Type.MISSING_BLOCK, gotoCmd, s));
           else

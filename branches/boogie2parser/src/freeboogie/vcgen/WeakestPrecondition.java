@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 import com.google.common.collect.ImmutableList;
 
-import freeboogie.ast.Block;
+import freeboogie.ast.Command;
 import freeboogie.ast.Body;
 import freeboogie.backend.Term;
 import freeboogie.tc.TcInterface;
@@ -18,7 +18,7 @@ import freeboogie.tc.TcInterface;
  * @param <T> the type of the terms
  */
 public class WeakestPrecondition<T extends Term<T>> extends StrongestPostcondition<T> {
-  private T pre(Block b) {
+  private T pre(Command b) {
     T r = preCache.get(b);
     if (r != null) return r;
     
@@ -37,11 +37,11 @@ public class WeakestPrecondition<T extends Term<T>> extends StrongestPostconditi
     return r;
   }
 
-  private T post(Block b) {
+  private T post(Command b) {
     T r = postCache.get(b);
     if (r != null) return r;
     ImmutableList.Builder<T> fromAnd = ImmutableList.builder();
-    for (Block p : flow.to(b)) 
+    for (Command p : flow.to(b)) 
       fromAnd.add(pre(p));
     r = term.mk("and", fromAnd.build());
     postCache.put(b, r);
@@ -51,6 +51,6 @@ public class WeakestPrecondition<T extends Term<T>> extends StrongestPostconditi
   @Override
   public T vc() {
     Body bdy = getCurrentBody();
-    return pre(bdy.blocks().get(0));
+    return pre(bdy.block().commands().get(0));
   }
 }

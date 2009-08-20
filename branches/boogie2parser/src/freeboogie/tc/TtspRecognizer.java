@@ -109,7 +109,7 @@ private static void print(HashMap<Integer,HashSet<Integer>> h) {
       ) {
         System.out.print(this + " " + impl.loc() + ": Implementation " + 
           sig.name() + " SPG check...");
-        if (body.blocks().isEmpty()) {
+        if (body.block().commands().isEmpty()) {
           System.out.println("SUCCESS (empty).");
           return;
         }

@@ -6,6 +6,7 @@ import java.util.logging.Logger;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import genericutils.Pair;
+import genericutils.SimpleGraph;
 
 import freeboogie.ast.*;
 

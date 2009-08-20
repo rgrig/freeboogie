@@ -138,7 +138,7 @@ public class HavocMaker extends CommandDesugarer {
     return cmd;
   }
 
-  private public boolean entryPoint(Command c) {
+  private boolean entryPoint(Command c) {
     Integer cmdScc = sccOfEntryPoint.get(c);
     if (cmdScc != null 
         && sccSize.get(cmdScc) > 1 

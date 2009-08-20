@@ -1,9 +1,11 @@
 package freeboogie.dumpers;
 
 import java.io.*;
+import java.util.HashMap;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import genericutils.*;
 
 import freeboogie.ast.*;
@@ -47,22 +49,24 @@ public class FlowGraphDumper extends Transformer {
       impl.loc().toString().replace(':', '-');
     try {
       final PrintWriter w = new PrintWriter(new File(directory, name));
-      SimpleGraph<Block> fg = tc.flowGraph(impl);
+      SimpleGraph<Command> fg = tc.flowGraph(body);
       w.println("digraph \"" + name + "\" {");
-      if (!body.blocks().isEmpty())
-        w.println("  \"" + body.blocks().get(0).name() + "\" [style=bold];");
-      for (Block b : fg.nodesInTopologicalOrder()) {
-        w.print("  \"" + b.name() + "\" ");
-        if (b.cmd() == null)
-          w.print("[shape=circle,label=\"\"]");
-        else
-          w.print("[shape=box,label=\""+cmdToString(b.cmd())+"\"]");
+      final HashMap<Command, String> blockNames = Maps.newHashMap();
+      for (Command c : body.block().commands()) 
+        blockNames.put(c, Id.get("L"));
+      if (!body.block().commands().isEmpty()) {
+        w.println("  \"" + blockNames.get(body.block().commands().get(0)) + 
+            "\" [style=bold];");
+      }
+      for (Command c : body.block().commands()) {
+        w.print("  \"" + blockNames.get(c) + "\" ");
+        w.print("[shape=box,label=\""+cmdToString(c)+"\"]");
         w.println(";");
       }
-      fg.iterEdge(new Closure<Pair<Block,Block>>() {
-        @Override public void go(Pair<Block,Block> t) {
-          w.println("  \"" + t.first.name() + "\" -> \"" 
-            + t.second.name() + "\";");
+      fg.iterEdge(new Closure<Pair<Command,Command>>() {
+        @Override public void go(Pair<Command,Command> t) {
+          w.println("  \"" + blockNames.get(t.first) + "\" -> \"" 
+            + blockNames.get(t.second) + "\";");
         }});
       w.println("}");
       w.flush();
