@@ -45,9 +45,6 @@ public class HavocMaker extends CommandDesugarer {
 
   private Block localNewBlock; // block possibly introduced by eval(Block...)
 
-  // shorter name
-  private static final ImmutableList<String> noLabel = ImmutableList.of();
-
   @Override
   public Program process(Program ast, TcInterface tc) {
     this.tc = tc;

@@ -44,19 +44,17 @@ import freeboogie.vcgen.ABasicPassifier.Environment;
  * @author rgrig
  */
 public class Passivator extends Transformer {
-  private HashMap<VariableDecl, HashMap<Block, Integer>> readIdx;
-  private HashMap<VariableDecl, HashMap<Block, Integer>> writeIdx;
+  private HashMap<VariableDecl, HashMap<Command, Integer>> readIdx;
+  private HashMap<VariableDecl, HashMap<Command, Integer>> writeIdx;
   private HashMap<VariableDecl, Integer> newVarsCnt;
   private HashMap<VariableDecl, Integer> toReport;
   private HashMap<Command, HashSet<VariableDecl>> commandWs;
-  private List<Block> extraBlocks;
   private ReadWriteSetFinder rwsf;
 
   private VariableDecl currentVar;
-  private HashMap<Block, Integer> currentReadIdxCache;
-  private HashMap<Block, Integer> currentWriteIdxCache;
-  private SimpleGraph<Block> currentFG;
-  private Block currentBlock;
+  private HashMap<Command, Integer> currentReadIdxCache;
+  private HashMap<Command, Integer> currentWriteIdxCache;
+  private SimpleGraph<Command> currentFG;
   private HashSet<VariableDecl> allWritten; // by the current implementation
   private ImmutableList.Builder<VariableDecl> newLocals;
 
