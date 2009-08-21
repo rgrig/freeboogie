@@ -39,7 +39,7 @@ public class HavocMaker extends CommandDesugarer {
     // variables assigned in the scc being processed
   private ArrayList<Command> dfs2order = Lists.newArrayList();
 
-  private SimpleGraph<Block> flowGraph;
+  private SimpleGraph<Command> flowGraph;
 
   private ReadWriteSetFinder rw;
 
@@ -89,7 +89,7 @@ public class HavocMaker extends CommandDesugarer {
       Expr rhs
   ) {
     if (entryPoint(cmd)) 
-      cmd = AssignmentCmd.mk(noLabel, lhs, rhs, cmd.loc());
+      cmd = AssignmentCmd.mk(noString, lhs, rhs, cmd.loc());
     return cmd;
   }
 
@@ -101,7 +101,7 @@ public class HavocMaker extends CommandDesugarer {
       Expr expr
   ) {
     if (entryPoint(cmd))
-      cmd = AssertAssumeCmd.mk(noLabel, type, typeArgs, expr, cmd.loc());
+      cmd = AssertAssumeCmd.mk(noString, type, typeArgs, expr, cmd.loc());
     return cmd;
   }
 
@@ -111,7 +111,7 @@ public class HavocMaker extends CommandDesugarer {
       ImmutableList<String> successors
   ) {
     if (entryPoint(cmd))
-      cmd = GotoCmd.mk(noLabel, successors, cmd.loc());
+      cmd = GotoCmd.mk(noString, successors, cmd.loc());
     return cmd;
   }
 
@@ -121,7 +121,7 @@ public class HavocMaker extends CommandDesugarer {
       ImmutableList<AtomId> ids
   ) {
     if (entryPoint(cmd))
-      cmd = HavocCmd.mk(noLabel, ids, cmd.loc());
+      cmd = HavocCmd.mk(noString, ids, cmd.loc());
     return cmd;
   }
 
@@ -134,7 +134,7 @@ public class HavocMaker extends CommandDesugarer {
       ImmutableList<Expr> args
   ) {
     if (entryPoint(cmd))
-      cmd = CallCmd.mk(noLabel, procedure, types, results, args, cmd.loc());
+      cmd = CallCmd.mk(noString, procedure, types, results, args, cmd.loc());
     return cmd;
   }
 
@@ -144,7 +144,9 @@ public class HavocMaker extends CommandDesugarer {
         && sccSize.get(cmdScc) > 1 
         && !assignedVars.get(cmdScc).isEmpty()) {
       addEquivalentCommand(HavocCmd.mk(
-          AstUtils.ids(assignedVars.get(cmdScc)), c.loc()));
+          c.labels(),
+          AstUtils.ids(assignedVars.get(cmdScc)), 
+          c.loc()));
       return true;
     }
     return false;
@@ -169,7 +171,7 @@ public class HavocMaker extends CommandDesugarer {
     for (VariableDecl vd : rwVars.second)
       sccAssignedVars.add(vd.name());
 
-    for (Block c : flowGraph.from(b)) {
+    for (Command c : flowGraph.from(b)) {
       Integer cScc = scc.get(c);
       if (cScc == null)
         dfs2(c);

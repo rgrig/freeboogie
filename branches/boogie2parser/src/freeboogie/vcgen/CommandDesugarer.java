@@ -31,10 +31,6 @@ public class CommandDesugarer extends Transformer {
   private ArrayDeque<Command> equivCmds = new ArrayDeque<Command>();
   private ImmutableList.Builder<VariableDecl> newVars;
 
-  // shorter name to be used by subclasses
-  static final ImmutableList<String> noLabel = ImmutableList.of();
-
-
   // === interface for subclasses ===
   void addEquivalentCommand(Command c) {
     equivCmds.add(c);
@@ -50,15 +46,15 @@ public class CommandDesugarer extends Transformer {
 
   // === transformer methods ===
 
-  @Override public void see(
+  @Override public Body eval(
       Body body, 
       ImmutableList<VariableDecl> vars,
       Block block
   ) {
     newVars = ImmutableList.builder();
     Block nb = (Block) block.eval(this);
-    newVars.add(vars);
-    return Body.mk(newVars.build(), nb, block.loc());
+    newVars.addAll(vars);
+    return Body.mk(newVars.build(), nb, body.loc());
   }
 
   @Override
@@ -68,12 +64,12 @@ public class CommandDesugarer extends Transformer {
     for (Command c : commands) {
         equivCmds.clear();
         toSubstitute.clear();
-        Command nc = c.eval(this);
+        Command nc = (Command) c.eval(this);
         newCommands.addAll(equivCmds);
         if (nc != null)  newCommands.add(nc);
         same = equivCmds.isEmpty() && nc == c;
     }
-    if (!same) block = Block.mk(newCommands, block.loc());
+    if (!same) block = Block.mk(newCommands.build(), block.loc());
     return block;
   }
  

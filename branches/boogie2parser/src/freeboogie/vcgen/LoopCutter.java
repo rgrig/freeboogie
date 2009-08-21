@@ -52,10 +52,11 @@ public class LoopCutter extends CommandDesugarer {
     return GotoCmd.mk(labels, newSuccessors.build(), cmd.loc());
   }
 
-  @Override public Command eval(Command cmd, ImmutableList<String> labels) {
-    if (toRemove.contains(Pair.of(cmd, currentFG.to(cmd).get(0)))) {
+  @Override public Command eval(Command cmd) {
+    assert currentFG.to(cmd).size() == 1;
+    if (toRemove.contains(Pair.of(cmd, currentFG.to(cmd).iterator().next()))) {
       addEquivalentCommand(cmd);
-      return GotoCmd.mk(noLabel, noLabel, cmd.loc());
+      return GotoCmd.mk(noString, noString, cmd.loc());
     }
     return cmd;
   }

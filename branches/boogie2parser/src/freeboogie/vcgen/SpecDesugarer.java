@@ -2,7 +2,6 @@ package freeboogie.vcgen;
 
 import java.io.PrintWriter;
 import java.util.*;
-import java.util.logging.Logger;
 
 import com.google.common.collect.*;
 import genericutils.*;
@@ -26,35 +25,31 @@ import freeboogie.tc.*;
  * <pre>
  * implementation X(v : int) returns (w : int) {
  *    var z : int;
- * a: z := v / 2; goto b;
- * b: w := z * 2;
+ *    z := v / 2;
+ *    return;
+ *    w := z * 2;
  * }
  * </pre>
  * becomes
  * <pre>
  * implementation X(v : int) returns (w : int) {
- *       var z : int;
- * pre:  assume v &gt; 0; goto a;
- * a:    z := v / 2;      goto b;
- * b:    w := z * 2;      goto post;
- * post: assert w % 2 == 0;
+ *     var z : int;
+ *     assume v &gt; 0;
+ *     z := v / 2;
+ *     goto $$post;
+ *     w := z * 2;
+ * $$post: assert w % 2 == 0;
  * }
  * </pre>
  *
  * NOTE: Free ensures are ignored.
- *
- * TODO: Take care of generics.
  */
 public class SpecDesugarer extends Transformer {
-  private static final Logger log = Logger.getLogger("freeboogie.vcgen");
-
   private UsageToDefMap<Implementation, Procedure> implProc;
   private UsageToDefMap<VariableDecl, VariableDecl> paramMap;
   private Map<VariableDecl, AtomId> toSubstitute = Maps.newLinkedHashMap();
   private List<Expr> preconditions = Lists.newArrayList();
   private List<Expr> postconditions = Lists.newArrayList();
-
-  private String afterBody;
 
   /** Transforms the {@code ast} and updates the typechecker. */
   @Override
@@ -120,53 +115,41 @@ public class SpecDesugarer extends Transformer {
   public Body eval(
       Body body, 
       ImmutableList<VariableDecl> vars,
-      ImmutableList<Block> blocks
+      Block block
   ) {
-    // newBlocks is built backwards
-    Deque<Block> newBlocks = new ArrayDeque<Block>();
-    String nextLabel, currentLabel;
-    Block b;
-    newBlocks.addFirst(b = Block.mk(
-        nextLabel = Id.get("exit"), 
-        null, 
-        ImmutableList.<AtomId>of()));
-    for (Expr e : Iterables.reverse(postconditions)) {
-      newBlocks.addFirst(b = Block.mk(
-          currentLabel = Id.get("post"),
-          AssertAssumeCmd.mk(
-              AssertAssumeCmd.CmdType.ASSERT, 
-              ImmutableList.<AtomId>of(), 
-              e),
-          AstUtils.ids(nextLabel)));
-      nextLabel = currentLabel;
+    ImmutableList.Builder<Command> newCommands = ImmutableList.builder();
+    for (Expr e : preconditions) {
+      newCommands.add(AssertAssumeCmd.mk(
+          noString,
+          AssertAssumeCmd.CmdType.ASSUME,
+          AstUtils.ids(),
+          e));
     }
-    afterBody = nextLabel; // used by the eval* call on the next line
-    for (Block ob : Iterables.reverse(AstUtils.evalListOfBlock(blocks, this))) {
-      newBlocks.addFirst(ob);
-      nextLabel = ob.name();
+    newCommands.addAll(AstUtils.evalListOfCommand(block.commands(), this));
+    newCommands.add(AssertAssumeCmd.mk(
+        noString,
+        AssertAssumeCmd.CmdType.ASSUME,
+        AstUtils.ids(),
+        AtomLit.mk(AtomLit.AtomType.TRUE)));
+    for (Expr e : postconditions) {
+      newCommands.add(AssertAssumeCmd.mk(
+          noString,
+          AssertAssumeCmd.CmdType.ASSERT,
+          AstUtils.ids(),
+          e));
     }
-    for (Expr e : Iterables.reverse(preconditions)) {
-      newBlocks.addFirst(b = Block.mk(
-          currentLabel = Id.get("pre"),
-          AssertAssumeCmd.mk(
-              AssertAssumeCmd.CmdType.ASSUME,
-              ImmutableList.<AtomId>of(),
-              e),
-          AstUtils.ids(nextLabel)));
-      nextLabel = currentLabel;
-    }
-    return Body.mk(vars, ImmutableList.copyOf(newBlocks));
+    return Body.mk(
+        vars, 
+        Block.mk(newCommands.build(), block.loc()), body.loc());
   }
 
-  @Override
-  public Block eval(
-      Block block, 
-      String name, 
-      Command cmd, 
-      ImmutableList<AtomId> succ
+  @Override public GotoCmd eval(
+      GotoCmd gotoCmd, 
+      ImmutableList<String> labels,
+      ImmutableList<String> successors
   ) {
-    if (succ.isEmpty())
-      block = Block.mk(name, cmd, AstUtils.ids(afterBody));
-    return block;
+    if (successors.isEmpty())
+      return GotoCmd.mk(labels, ImmutableList.of("$$post"), gotoCmd.loc());
+    return gotoCmd;
   }
 }

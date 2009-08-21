@@ -51,6 +51,7 @@ extends AssociativeEvaluator<Pair<CSeq<VariableDecl>,CSeq<VariableDecl>>> {
   @Override
   public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> eval(
       CallCmd callCmd, 
+      ImmutableList<String> labels,
       String procedure, 
       ImmutableList<Type> types, 
       ImmutableList<AtomId> results, 
@@ -68,6 +69,7 @@ extends AssociativeEvaluator<Pair<CSeq<VariableDecl>,CSeq<VariableDecl>>> {
   @Override
   public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> eval(
       AssignmentCmd assignmentCmd, 
+      ImmutableList<String> labels,
       AtomId lhs, 
       Expr rhs
   ) {
@@ -83,6 +85,7 @@ extends AssociativeEvaluator<Pair<CSeq<VariableDecl>,CSeq<VariableDecl>>> {
   @Override
   public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> eval(
       HavocCmd havocCmd, 
+      ImmutableList<String> labels,
       ImmutableList<AtomId> ids
   ) {
     assert !context.getFirst();

@@ -86,6 +86,7 @@ public abstract class AbstractPassivator extends Transformer {
   private HashMap<VariableDecl, HashMap<Command, Integer>> writeIdx;
   private HashMap<VariableDecl, Integer> toReport;
 
+  private Command currentCommand;
   private VariableDecl currentVar;
   private HashSet<VariableDecl> allWritten; // by the current implementation
   private ImmutableList.Builder<VariableDecl> newLocals;
@@ -219,7 +220,7 @@ public abstract class AbstractPassivator extends Transformer {
       currentWriteIdxCache = Maps.newLinkedHashMap();
       readIdx.put(vd, currentReadIdxCache);
       writeIdx.put(vd, currentWriteIdxCache);
-      currentFG.iterNodes(new Closure<Command>() {
+      currentFG.iterNode(new Closure<Command>() {
         @Override public void go(Command c) {
           computeReadIndex(c);
           computeWriteIndex(c);
@@ -286,17 +287,10 @@ public abstract class AbstractPassivator extends Transformer {
   }
 
   // === visitors ===
-  // TODO (radugrigore): visit each type of command to look at children :(
-  @Override public Command eval(Command command) {
-    trailingCommands = getCopyCommands(
-        command, 
-        currentFG.to(command).iterator().next());
-    return command;
-  }
-
   // Note the return type
   @Override public AssertAssumeCmd eval(
       AssignmentCmd cmd, 
+      ImmutableList<String> labels,
       AtomId lhs, 
       Expr rhs
   ) {
@@ -306,6 +300,7 @@ public abstract class AbstractPassivator extends Transformer {
     Expr value = (Expr)rhs.eval(this);
     VariableDecl vd = (VariableDecl)tc.st().ids.def(lhs);
     return AssertAssumeCmd.mk(
+        noString,
         AssertAssumeCmd.CmdType.ASSUME, 
         ImmutableList.<AtomId>of(),
         BinaryOp.mk(BinaryOp.Op.EQ,
@@ -315,6 +310,27 @@ public abstract class AbstractPassivator extends Transformer {
                 lhs.loc()),
             value),
         cmd.loc());
+  }
+
+  @Override public AssertAssumeCmd eval(
+      AssertAssumeCmd assertAssumeCmd, 
+      ImmutableList<String> labels,
+      AssertAssumeCmd.CmdType type,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
+  ) {
+    trailingCommands = getCopyCommands(
+        assertAssumeCmd, 
+        currentFG.to(assertAssumeCmd).iterator().next());
+    assert currentCommand == null; // no nesting
+    currentCommand = assertAssumeCmd;
+    assertAssumeCmd = AssertAssumeCmd.mk(
+        labels,
+        type,
+        typeArgs,
+        (Expr) expr.eval(this));
+    currentCommand = null;
+    return assertAssumeCmd;
   }
 
   @Override public GotoCmd eval(
@@ -330,11 +346,55 @@ public abstract class AbstractPassivator extends Transformer {
         newSuccessors.add(oldTarget);
       else {
         endOfBodyCommands.addAll(copyCommands);
-        endOfBodyCommands.add(GotoCmd.mk(noLabel, ImmutableList.of(oldTarget)));
-        newSuccessors.add(endOfBodyCommands.get(0).labels().get(0));
+        endOfBodyCommands.add(GotoCmd.mk(
+            noString, 
+            ImmutableList.of(oldTarget)));
+        newSuccessors.add(endOfBodyCommands.peekFirst().labels().get(0));
       }
     }
     return GotoCmd.mk(labels, newSuccessors.build(), gotoCmd.loc());
+  }
+
+  @Override public HavocCmd eval(
+      HavocCmd havocCmd, 
+      ImmutableList<String> labels,
+      ImmutableList<AtomId> ids
+  ) {
+    trailingCommands = getCopyCommands(
+        havocCmd, 
+        currentFG.to(havocCmd).iterator().next());
+    assert currentCommand == null; // no nesting
+    currentCommand = havocCmd;
+    havocCmd = HavocCmd.mk(
+        labels, 
+        AstUtils.evalListOfAtomId(ids, this),
+        havocCmd.loc());
+    currentCommand = null;
+    return havocCmd;
+  }
+
+  @Override public CallCmd eval(
+      CallCmd callCmd, 
+      ImmutableList<String> labels,
+      String procedure,
+      ImmutableList<Type> types,
+      ImmutableList<AtomId> results,
+      ImmutableList<Expr> args
+  ) {
+    trailingCommands = getCopyCommands(
+        callCmd,
+        currentFG.to(callCmd).iterator().next());
+    assert currentCommand == null; // no nesting
+    currentCommand = callCmd;
+    callCmd = CallCmd.mk(
+        labels,
+        procedure,
+        types,
+        AstUtils.evalListOfAtomId(results, this),
+        AstUtils.evalListOfExpr(args, this),
+        callCmd.loc());
+    currentCommand = null;
+    return callCmd;
   }
 
   @Override
@@ -347,7 +407,7 @@ public abstract class AbstractPassivator extends Transformer {
 
   @Override
   public AtomId eval(AtomId atomId, String id, ImmutableList<Type> types) {
-    if (currentBlock == null) return atomId;
+    if (currentCommand == null) return atomId;
     IdDecl d = tc.st().ids.def(atomId);
     if (!(d instanceof VariableDecl)) return atomId;
     VariableDecl vd = (VariableDecl) d;
@@ -398,7 +458,7 @@ public abstract class AbstractPassivator extends Transformer {
     Map<Command, Integer> m = cache.get(vd);
     if (m == null || belowOld > 0) 
       return 0; // this variable is never written to
-    Integer idx = m.get(currentBlock);
+    Integer idx = m.get(currentCommand);
     return idx == null? 0 : idx;
   }
 
@@ -414,7 +474,7 @@ public abstract class AbstractPassivator extends Transformer {
       int wi = writeIdx.get(v).get(ca);
       int ri = readIdx.get(v).get(cb);
       if (ri == wi) continue;
-      result.add(AssertAssumeCmk.mk(
+      result.add(AssertAssumeCmd.mk(
           labels,
           AssertAssumeCmd.CmdType.ASSUME,
           ImmutableList.<AtomId>of(),
@@ -430,8 +490,7 @@ public abstract class AbstractPassivator extends Transformer {
   private boolean isReturn(Command c) {
     if (!(c instanceof GotoCmd)) return false;
     GotoCmd gc = (GotoCmd) c;
-    return gc.commands().isEmpty();
+    return gc.successors().isEmpty();
   }
-
 }
 

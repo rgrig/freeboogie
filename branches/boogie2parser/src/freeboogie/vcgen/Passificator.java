@@ -2,6 +2,8 @@ package freeboogie.vcgen;
 
 import java.util.TreeSet;
 
+import com.google.common.collect.Sets;
+
 import freeboogie.ast.Command;
 
 /**

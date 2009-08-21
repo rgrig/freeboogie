@@ -44,7 +44,11 @@ import freeboogie.tc.TypeUtils;
  */
 public class HavocDesugarer extends CommandDesugarer {
   @Override
-  public HavocCmd eval(HavocCmd havocCmd, ImmutableList<AtomId> ids) {
+  public HavocCmd eval(
+      HavocCmd havocCmd, 
+      ImmutableList<String> labels,
+      ImmutableList<AtomId> ids
+  ) {
     Expr e = AtomLit.mk(AtomLit.AtomType.TRUE, havocCmd.loc());
     for (AtomId id : ids) {
       VariableDecl vd = (VariableDecl)tc.st().ids.def(id);
@@ -52,7 +56,11 @@ public class HavocDesugarer extends CommandDesugarer {
       if (vd2 != null) vd = vd2;
       AtomId fresh = AtomId.mk(Id.get("fresh"), null, id.loc());
       addSubstitution(vd, fresh);
-      addEquivalentCommand(AssignmentCmd.mk(id, fresh, havocCmd.loc()));
+      addEquivalentCommand(AssignmentCmd.mk(
+          labels, 
+          id, 
+          fresh, 
+          havocCmd.loc()));
       if (vd.type() instanceof DepType) {
         Expr p = ((DepType) vd.type()).pred();
         e = BinaryOp.mk(
@@ -62,16 +70,17 @@ public class HavocDesugarer extends CommandDesugarer {
             p.loc());
       }
       addVariable(VariableDecl.mk(
-        ImmutableList.<Attribute>of(),
-        fresh.id(),
-        TypeUtils.stripDep(vd.type()).clone(),
-        AstUtils.cloneListOfAtomId(vd.typeArgs())));
+          ImmutableList.<Attribute>of(),
+          fresh.id(),
+          TypeUtils.stripDep(vd.type()).clone(),
+          AstUtils.cloneListOfAtomId(vd.typeArgs())));
     }
     addEquivalentCommand(AssertAssumeCmd.mk(
-      AssertAssumeCmd.CmdType.ASSUME,
-      ImmutableList.<AtomId>of(),
-      e,
-      havocCmd.loc()));
+        noString,
+        AssertAssumeCmd.CmdType.ASSUME,
+        ImmutableList.<AtomId>of(),
+        e,
+        havocCmd.loc()));
     return null;
   }
 }
