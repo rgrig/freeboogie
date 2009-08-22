@@ -123,7 +123,8 @@ public class ForgivingStb extends Transformer implements StbInterface {
       ImmutableList<Attribute> attr,
       String name,
       Type type,
-      ImmutableList<AtomId> typeArgs
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
   ) {
     toIntroduce.addFirst(new HashSet<String>());
     type = (Type) type.eval(this);
@@ -133,6 +134,7 @@ public class ForgivingStb extends Transformer implements StbInterface {
         name, 
         type, 
         typeArgs, 
+        expr,
         variableDecl.loc());
   }
 

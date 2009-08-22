@@ -61,8 +61,9 @@ public abstract class ABasicPassifier extends Transformer {
     return VariableDecl.mk(
         ImmutableList.<Attribute>of(),
         name,
-        TypeUtils.stripDep(old.type()).clone(),
-        AstUtils.cloneListOfAtomId(old.typeArgs()));
+        old.type().clone(),
+        AstUtils.cloneListOfAtomId(old.typeArgs()),
+        null);
   }
 
   /**

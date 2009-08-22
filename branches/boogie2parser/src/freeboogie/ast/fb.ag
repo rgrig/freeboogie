@@ -34,14 +34,15 @@ Declaration =
 TypeDecl = 
   boolean finite, 
   String! name,
-  [list] AtomId typeArgs,
+  [list] AtomId typeArgs, // TODO(radugrigore): remane to typeVars
   Type type; // non-null when this is a type synonym
 Axiom =
   String! name,
   [list] AtomId typeArgs,
   Expr! expr;
 VariableDecl =
-  [list] AtomId typeArgs;
+  [list] AtomId typeArgs,
+  Expr where;
 ConstDecl = 
   boolean uniq;
 FunctionDecl = 
@@ -57,18 +58,10 @@ Implementation =
 
 // Types and constants
 Type :> 
-  DepType,
-  IndexedType, 
   MapType, 
   PrimitiveType, 
   TupleType,
   UserType;
-DepType = 
-  Type! type, 
-  Expr! pred;
-IndexedType = 
-  Type! param, 
-  Type! type;
 MapType = 
   [list] Type idxTypes,
   Type! elemType;

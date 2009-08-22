@@ -189,7 +189,8 @@ public class GlobalsCollector extends Transformer {
     ImmutableList<Attribute> attr,
     String name,
     Type type,
-    ImmutableList<AtomId> typeArgs
+    ImmutableList<AtomId> typeArgs,
+    Expr where
   ) {
     addVarDef(name, variableDecl);
   }

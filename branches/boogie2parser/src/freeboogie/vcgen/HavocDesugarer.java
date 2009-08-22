@@ -38,13 +38,10 @@ import freeboogie.tc.TypeUtils;
  * the program is not yet passive. A subsequent phase will get rid
  * of the other <b>where</b> clauses.
  *
- * TODO This is a bit too similar to call desugarer. Try to factor out code.
- *
  * @see freeboogie.vcgen.VcGenerator
  */
 public class HavocDesugarer extends CommandDesugarer {
-  @Override
-  public HavocCmd eval(
+  @Override public HavocCmd eval(
       HavocCmd havocCmd, 
       ImmutableList<String> labels,
       ImmutableList<AtomId> ids
@@ -61,19 +58,21 @@ public class HavocDesugarer extends CommandDesugarer {
           id, 
           fresh, 
           havocCmd.loc()));
+      /* TODO (radugrigore): use the 'where' part of vd
       if (vd.type() instanceof DepType) {
         Expr p = ((DepType) vd.type()).pred();
         e = BinaryOp.mk(
             BinaryOp.Op.AND, 
             e, 
             (Expr)p.eval(this).clone(), 
-            p.loc());
-      }
+            p.loc()); 
+      }*/
       addVariable(VariableDecl.mk(
           ImmutableList.<Attribute>of(),
           fresh.id(),
-          TypeUtils.stripDep(vd.type()).clone(),
-          AstUtils.cloneListOfAtomId(vd.typeArgs())));
+          vd.type().clone(),
+          AstUtils.cloneListOfAtomId(vd.typeArgs()),
+          null));
     }
     addEquivalentCommand(AssertAssumeCmd.mk(
         noString,

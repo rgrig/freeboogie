@@ -175,8 +175,9 @@ public abstract class AbstractPassivator extends Transformer {
           newVariables.add(VariableDecl.mk(
               ImmutableList.<Attribute>of(),
               name(e.getKey().name(), i),
-              TypeUtils.stripDep(e.getKey().type()).clone(), 
-              AstUtils.cloneListOfAtomId(e.getKey().typeArgs())));
+              e.getKey().type().clone(), 
+              AstUtils.cloneListOfAtomId(e.getKey().typeArgs()),
+              null));
         }
       }
       variables = newVariables.build();
@@ -423,7 +424,8 @@ public abstract class AbstractPassivator extends Transformer {
       ImmutableList<Attribute> attr,
       String name,
       Type type,
-      ImmutableList<AtomId> typeArgs
+      ImmutableList<AtomId> typeArgs,
+      Expr where
   ) {
     Integer last = newVarsCnt.get(variableDecl);
     if (last == null) last = 0;
@@ -434,6 +436,7 @@ public abstract class AbstractPassivator extends Transformer {
           name(name, last),
           type,
           typeArgs,
+          where,
           variableDecl.loc());
     }
     int start = 1;
@@ -445,8 +448,9 @@ public abstract class AbstractPassivator extends Transformer {
       newLocals.add(VariableDecl.mk(
           ImmutableList.<Attribute>of(),
           name(name, i),
-          TypeUtils.stripDep(type).clone(), 
-          AstUtils.cloneListOfAtomId(typeArgs)));
+          type.clone(), 
+          AstUtils.cloneListOfAtomId(typeArgs),
+          where));
     }
     return variableDecl;
   }

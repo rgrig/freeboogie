@@ -220,15 +220,6 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
         subst(tt.idxTypes(), a, b),
         subst(tt.elemType(), a, b),
         tt.loc());
-    } else if (t instanceof IndexedType) {
-      IndexedType tt = (IndexedType)t;
-      return IndexedType.mk(
-        subst(tt.param(), a, b),
-        subst(tt.type(), a, b),
-        tt.loc());
-    } else if (t instanceof DepType) {
-      DepType tt = (DepType)t;
-      return subst(tt.type(), a, b);
     } else if (t instanceof TupleType) {
       TupleType tt = (TupleType) t;
       return TupleType.mk(subst(tt.types(), a, b), tt.loc());
@@ -260,12 +251,6 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     return a.name().equals(b.name());
   }
   
-  private boolean sub(IndexedType a, IndexedType b) {
-    if (!sub(a.param(), b.param()) || !sub(b.param(), a.param()))
-      return false;
-    return sub(a.type(), b.type());
-  }
-
   private boolean sub(ImmutableList<Type> a, ImmutableList<Type> b) {
     if (a.size() != b.size()) return false;
     UnmodifiableIterator<Type> ia = a.iterator();
@@ -280,10 +265,6 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   
   // returns (a <: b)
   private boolean sub(Type a, Type b) {
-    // get rid of where clauses strip () if only one type inside
-    a = TypeUtils.stripDep(a); 
-    b = TypeUtils.stripDep(b);
-    
     if (a == b) return true; // the common case
     if (a == errType || b == errType) return true; // don't trickle up errors
 
@@ -305,26 +286,6 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       return true;
     }
 
-    // compatibility stuff, to be run only in "old" mode
-    if (acceptOld) {
-      // allow <X>T to be used where T is expected if in "old" mode
-      if (a instanceof IndexedType && !(b instanceof IndexedType)) {
-        IndexedType it = (IndexedType)a;
-        if (sub(it.type(), b)) return true;
-      }
-
-      // allow "name" where "<*>name" is expected
-      if (a instanceof PrimitiveType && b instanceof IndexedType) {
-        PrimitiveType apt = (PrimitiveType)a;
-        IndexedType it = (IndexedType)b;
-        Type bt = it.type();
-        if (apt.ptype() == PrimitiveType.Ptype.NAME && bt instanceof PrimitiveType) {
-          PrimitiveType bpt = (PrimitiveType)bt;
-          if (bpt.ptype() == PrimitiveType.Ptype.NAME) return true;
-        }
-      }
-    }
-    
     // the main check
     if (a instanceof PrimitiveType && b instanceof PrimitiveType)
       return sub((PrimitiveType)a, (PrimitiveType)b);
@@ -332,8 +293,6 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       return sub((MapType)a, (MapType)b);
     else if (a instanceof UserType && b instanceof UserType) 
       return sub((UserType)a, (UserType)b);
-    else if (a instanceof IndexedType && b instanceof IndexedType)
-      return sub((IndexedType)a, (IndexedType)b);
     else if (a instanceof TupleType && b instanceof TupleType)
       return sub((TupleType) a, (TupleType) b);
     else
@@ -395,14 +354,6 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       return MapType.mk(
           substRealType(at.idxTypes()),
           substRealType(at.elemType()));
-    } else if (t instanceof IndexedType) {
-      IndexedType it = (IndexedType)t;
-      return IndexedType.mk(
-          substRealType(it.param()),
-          substRealType(it.type()));
-    } else if (t instanceof DepType) {
-      DepType dt = (DepType)t;
-      return DepType.mk(substRealType(dt.type()), dt.pred());
     }
     Type nt = realType(t);
     return nt;
@@ -482,7 +433,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   // === visiting operators ===
   @Override
   public PrimitiveType eval(UnaryOp unaryOp, UnaryOp.Op op, Expr e) {
-    Type t = TypeUtils.stripDep(e.eval(this));
+    Type t = e.eval(this);
     switch (op) {
     case MINUS:
       check(t, intType, e);
@@ -500,8 +451,8 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
 
   @Override
   public PrimitiveType eval(BinaryOp binaryOp, BinaryOp.Op op, Expr left, Expr right) {
-    Type l = TypeUtils.stripDep(left.eval(this));
-    Type r = TypeUtils.stripDep(right.eval(this));
+    Type l = left.eval(this);
+    Type r = right.eval(this);
     switch (op) {
     case PLUS:
     case MINUS:
@@ -625,12 +576,11 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     
     typeVarEnter(atomFun);
     mapExplicitGenerics(sig.typeArgs(), types);
-    Type at = TypeUtils.stripDep(typeListOfExpr(args));
-    Type fat = TypeUtils.stripDep(typeListOfDecl(fargs));
+    Type at = typeListOfExpr(args);
+    Type fat = typeListOfDecl(fargs);
    
     check(at, fat, atomFun);
-    Type rt = TypeUtils.stripDep(checkRealType(
-          typeListOfDecl(sig.results()), atomFun));
+    Type rt = checkRealType(typeListOfDecl(sig.results()), atomFun);
     typeVarExit(atomFun);
     typeOf.put(atomFun, rt);
     return rt;
@@ -649,7 +599,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       Atom atom,
       ImmutableList<Expr> idx
   ) {
-    Type t = TypeUtils.stripDep(atom.eval(this));
+    Type t = atom.eval(this);
     if (t == errType) return errType;
     if (!(t instanceof MapType)) {
       errors.add(new FbError(FbError.Type.NEED_ARRAY, atom));
@@ -674,9 +624,9 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       Expr val
   ) {
     typeVarEnter(atomMapUpdate);
-    Type t = TypeUtils.stripDep(atom.eval(this));
-    Type ti = TypeUtils.stripDep(typeListOfExpr(idx));
-    Type tv = TypeUtils.stripDep(val.eval(this));
+    Type t = atom.eval(this);
+    Type ti = typeListOfExpr(idx);
+    Type tv = val.eval(this);
     if (
         TypeUtils.eq(t, errType) || 
         TypeUtils.eq(ti, errType) || 
@@ -703,8 +653,8 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       AtomId lhs, 
       Expr rhs
   ) {
-    Type lt = TypeUtils.stripDep(lhs.eval(this));
-    Type rt = TypeUtils.stripDep(rhs.eval(this));
+    Type lt = lhs.eval(this);
+    Type rt = rhs.eval(this);
     typeVarEnter(assignmentCmd);
     check(rt, lt, assignmentCmd);
     typeVarExit(assignmentCmd);
@@ -743,25 +693,17 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     typeVarEnter(callCmd);
     
     // check the actual arguments against the formal ones
-    Type at = TypeUtils.stripDep(typeListOfExpr(args));
-    Type fat = TypeUtils.stripDep(typeListOfDecl(fargs));
+    Type at = typeListOfExpr(args);
+    Type fat = typeListOfDecl(fargs);
     check(at, fat, callCmd);
     
     // check the assignment of the results
-    Type lt = TypeUtils.stripDep(typeListOfExpr(results));
-    Type rt = TypeUtils.stripDep(typeListOfDecl(sig.results()));
+    Type lt = typeListOfExpr(results);
+    Type rt = typeListOfDecl(sig.results());
     check(rt, lt, callCmd);
 
     typeVarExit(callCmd);
     
-    return null;
-  }
-  
-  // === visit dependent types ===
-  @Override
-  public DepType eval(DepType depType, Type type, Expr pred) {
-    Type t = pred.eval(this);
-    check(t, boolType, pred);
     return null;
   }
   
@@ -818,8 +760,10 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     ImmutableList<Attribute> attr, 
     String name,
     Type type,
-    ImmutableList<AtomId> typeVars
+    ImmutableList<AtomId> typeVars,
+    Expr where
   ) {
+    // TODO(radugrigore): check that the 'where' part is a boolean
     return null;
   }
 

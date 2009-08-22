@@ -384,13 +384,6 @@ public class PrettyPrinter extends Transformer {
     semi();
   }
 
-  @Override
-  public void see(DepType depType, Type type, Expr pred) {
-    type.eval(this);
-    say(" where ");
-    pred.eval(this);
-  }
-
   public <T extends Ast> void printList(String sep, ImmutableList<T> list) {
     Iterator<T> i = list.iterator();
     if (i.hasNext()) i.next().eval(this);
@@ -410,14 +403,6 @@ public class PrettyPrinter extends Transformer {
     printList(" ", attributes);
     sig.eval(this);
     semi();
-  }
-
-  @Override
-  public void see(IndexedType genericType, Type param, Type type) {
-    say("<");
-    param.eval(this);
-    say(">");
-    type.eval(this);
   }
 
   @Override
@@ -614,7 +599,8 @@ public class PrettyPrinter extends Transformer {
     ImmutableList<Attribute> attr,
     String name, 
     Type type, 
-    ImmutableList<AtomId> typeVars
+    ImmutableList<AtomId> typeVars,
+    Expr where
   ) {
     if (skipVar==0) say("var ");
     printList(" ", attr);
@@ -626,6 +612,12 @@ public class PrettyPrinter extends Transformer {
     }
     say(" : ");
     type.eval(this);
+    if (where != null) {
+      say(" ");
+      say("where");
+      say(" ");
+      where.eval(this);
+    }
     if (skipVar==0) semi();
   }
   

@@ -120,11 +120,6 @@ public class Boogie2Printer extends PrettyPrinter {
   }
 
   @Override
-  public void see(IndexedType genericType, Type param, Type type) {
-    type.eval(this);
-  }
-
-  @Override
   public void see(
     Signature signature, 
     String name, 
@@ -188,11 +183,12 @@ public class Boogie2Printer extends PrettyPrinter {
 
   @Override
   public void see(
-    VariableDecl variableDecl, 
-    ImmutableList<Attribute> attr,
-    String name, 
-    Type type, 
-    ImmutableList<AtomId> typeArgs
+      VariableDecl variableDecl, 
+      ImmutableList<Attribute> attr,
+      String name, 
+      Type type, 
+      ImmutableList<AtomId> typeArgs,
+      Expr where
   ) {
     if (skipVar==0) say("var ");
     say(name);
@@ -203,7 +199,13 @@ public class Boogie2Printer extends PrettyPrinter {
       say(">");
     }
     type.eval(this);
-    if (skipVar==0) semi();
+    if (where != null) {
+      say(" ");
+      say("where");
+      say(" ");
+      where.eval(this);
+    }
+  if (skipVar==0) semi();
   }
   
 }

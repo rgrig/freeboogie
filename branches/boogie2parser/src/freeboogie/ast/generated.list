@@ -30,14 +30,12 @@ CallCmd.java
 Command.java
 ConstDecl.java
 Declaration.java
-DepType.java
 Expr.java
 FunctionDecl.java
 GotoCmd.java
 HavocCmd.java
 IdDecl.java
 Implementation.java
-IndexedType.java
 LoopInvariant.java
 MapType.java
 ModifiesSpec.java

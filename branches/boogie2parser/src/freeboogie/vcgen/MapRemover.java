@@ -173,7 +173,8 @@ public class MapRemover extends Transformer {
                 ImmutableList.<Attribute>of(),
                 "result",
                 resultType,
-                ImmutableList.<AtomId>of()))));
+                ImmutableList.<AtomId>of(),
+                null))));
   }
 
   private Axiom mkAxiom(
@@ -197,7 +198,8 @@ public class MapRemover extends Transformer {
         ImmutableList.<Attribute>of(), 
         name, 
         type, 
-        ImmutableList.<AtomId>of());
+        ImmutableList.<AtomId>of(),
+        null);
   }
 
   // returns "NAME : [T1,...,TN]TV"

@@ -134,13 +134,15 @@ var_decl:
 ;
 
 one_var_decl returns [VariableDecl v]:
-    ID ':' type 
+    ID ':' type ('where' expr)
     { if (ok) {
         $v = VariableDecl.mk(
             ImmutableList.<Attribute>of(),
             $ID.text,
             $type.v,
-            AstUtils.ids()); }}
+            AstUtils.ids(),
+            $expr.v,
+            tokLoc($ID)); }}
 ;
 
 const_decl:
@@ -416,12 +418,9 @@ scope {
   | t='true'  { if(ok) $v = AtomLit.mk(AtomLit.AtomType.TRUE,tokLoc($t)); }
   | t='null'  { if(ok) $v = AtomLit.mk(AtomLit.AtomType.NULL,tokLoc($t)); }
   | t=INT     { if(ok) $v = AtomNum.mk(new BigInteger($INT.text),tokLoc($t)); }
-  |	t=ID ('<' st=quoted_simple_type_list '>')? 
+  |	t=ID 
               { if(ok) {
-                $atom::typeArgs = $st.v;
-                if ($atom::typeArgs == null) 
-                  $atom::typeArgs = ImmutableList.of();
-                $v = AtomId.mk($t.text,$atom::typeArgs,tokLoc($t)); }}
+                $v = AtomId.mk($t.text,ImmutableList.<Type>of(),tokLoc($t)); }}
     ('(' (p=expr_list?) ')'
               { if(ok) $v = AtomFun.mk($t.text,$atom::typeArgs,$p.v,tokLoc($t)); }
     )?
@@ -434,11 +433,9 @@ scope {
 ;
 
 atom_id returns [AtomId v]:
-    ID ('<' st=quoted_simple_type_list '>')?
+    ID 
       { if(ok) {
-        ImmutableList<Type> typeArgs = $st.v;
-        if (typeArgs == null) typeArgs = ImmutableList.of();
-        $v = AtomId.mk($ID.text,typeArgs,tokLoc($ID)); }}
+        $v = AtomId.mk($ID.text,ImmutableList.<Type>of(),tokLoc($ID)); }}
 ;
 
 // END of the expression grammar }}}
@@ -508,6 +505,7 @@ scope {
       { $v = $id_list::b_.build(); }
 ;
 
+/*
 quoted_simple_type_list returns [ImmutableList<Type> v]
 scope {
   ImmutableList.Builder<Type> builder;
@@ -527,6 +525,7 @@ scope {
     (',' tt=simple_type {if(ok)$simple_type_list::builder.add($tt.v);})*)?
       { $v = $simple_type_list::builder.build(); }
 ;
+*/
 
 opt_id_type_list returns [ImmutableList<VariableDecl> v]
 scope {
@@ -543,12 +542,13 @@ scope {
   String n;
 }:
     { $opt_id_type::n = Id.get("unnamed");  }
-    (ID {$opt_id_type::n = $ID.text;} ':')? type
+    (ID {$opt_id_type::n = $ID.text;} ':')? type ('where' expr)?
     { if (ok) $v=VariableDecl.mk(
         ImmutableList.<Attribute>of(),
         $opt_id_type::n,
         $type.v,
         AstUtils.ids(),
+        $expr.v,
         fileLoc($type.v)); }
 ;
 
@@ -564,7 +564,14 @@ scope {
 
 id_type returns [VariableDecl v]:
     i=ID ':' t=type
-    {if (ok) $v = VariableDecl.mk(ImmutableList.<Attribute>of(),$i.text,$t.v,AstUtils.ids(),tokLoc(i));}
+    { if (ok) {
+      $v = VariableDecl.mk(
+          ImmutableList.<Attribute>of(),
+          $i.text,
+          $t.v,
+          AstUtils.ids(),
+          null,
+          tokLoc(i)); }}
 ;
 
 index_list returns [ArrayList<ImmutableList<Expr>> v]:
@@ -587,7 +594,7 @@ type_args returns [ImmutableList<AtomId> v]:
 ;
 // END list rules }}}
 
-
+/*
 simple_type returns [Type v]:
     t='bool' { if(ok) $v = PrimitiveType.mk(PrimitiveType.Ptype.BOOL,-1,tokLoc($t)); }
   | t='int'  { if(ok) $v = PrimitiveType.mk(PrimitiveType.Ptype.INT,-1,tokLoc($t)); }
@@ -608,6 +615,9 @@ type returns [Type v]:
          else $v=DepType.mk($t.v,$p.v,fileLoc($t.v));
     }}
 ;
+*/
+
+type returns [Type v]: 'TODOtype';
 	
 ID:
   ('a'..'z'|'A'..'Z'|'\''|'~'|'#'|'$'|'.'|'?'|'_'|'^'|'\\')

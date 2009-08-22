@@ -134,7 +134,8 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
     ImmutableList<Attribute> attr,
     String name,
     Type type,
-    ImmutableList<AtomId> typeVars
+    ImmutableList<AtomId> typeVars,
+    Expr where
   ) {
     symbolTable.ids.seenDef(variableDecl);
     typeVarDecl.push();
