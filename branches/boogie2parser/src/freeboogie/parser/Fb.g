@@ -119,17 +119,12 @@ type_id:
 ;
 
 axiom_decl:
-    'axiom' type_vars e=expr ';' 
+    'axiom' e=expr ';' 
     { if (ok) axiomDeclBuilder.add(Axiom.mk(
           ImmutableList.<Attribute>of(),
           Id.get("unnamed"),
-          $type_vars.v,
+          AstUtils.ids(),
           $e.v)); }
-;
-
-type_vars returns [ImmutableList<AtomId> v]:
-    { $v=ImmutableList.of(); }
-  | '<' id_list '>' { if (ok) $v=$id_list.v; }
 ;
 
 var_decl:
@@ -139,13 +134,13 @@ var_decl:
 ;
 
 one_var_decl returns [VariableDecl v]:
-    ID type_vars ':' type 
+    ID ':' type 
     { if (ok) {
         $v = VariableDecl.mk(
             ImmutableList.<Attribute>of(),
             $ID.text,
             $type.v,
-            $type_vars.v); }}
+            AstUtils.ids()); }}
 ;
 
 const_decl:
@@ -210,7 +205,7 @@ impl_decl:
 ;
 
 signature returns [Signature v]:
-  ID tv=type_vars '(' (a=opt_id_type_list)? ')' 
+  ID tv=type_args '(' (a=opt_id_type_list)? ')' 
   ('returns' '(' (b=opt_id_type_list)? ')')?
     { if(ok) $v = Signature.mk($ID.text,$tv.v,$a.v,$b.v,tokLoc($ID)); }
 ;
@@ -226,12 +221,12 @@ scope {
 :
       {$spec::free = false;}
     (f='free' {$spec::free = true;})? 
-        (((r='requires' | e='ensures') tv=type_vars h=expr
+        (((r='requires' | e='ensures') h=expr
       { if(ok) {
         if ($r != null)
-          $proc_decl::pre.add(PreSpec.mk($spec::free, $tv.v, $h.v, fileLoc($h.v)));
+          $proc_decl::pre.add(PreSpec.mk($spec::free, AstUtils.ids(), $h.v, fileLoc($h.v)));
         else
-          $proc_decl::post.add(PostSpec.mk($spec::free, $tv.v, $h.v, fileLoc($h.v))); }})
+          $proc_decl::post.add(PostSpec.mk($spec::free, AstUtils.ids(), $h.v, fileLoc($h.v))); }})
     | (m='modifies' id_list { if (ok) $proc_decl::modifies.add(
         ModifiesSpec.mk($spec::free, $id_list.v, tokLoc($m))); } )) ';'
 ;
@@ -296,15 +291,14 @@ command	returns [Command v]:
               rhs = AtomMapUpdate.mk(lhs.get(k).clone(), ImmutableList.copyOf($i.v.get(k)), rhs);
             $v=AssignmentCmd.mk($label_list.v,$a.v,rhs,fileLoc($a.v));
         }}
-    | t='assert' tv=type_vars ae=expr ';'
-        { if(ok) $v=AssertAssumeCmd.mk($label_list.v,AssertAssumeCmd.CmdType.ASSERT,$tv.v,$ae.v,tokLoc($t)); }
-    | t='assume' tv=type_vars be=expr ';'
-        { if(ok) $v=AssertAssumeCmd.mk($label_list.v,AssertAssumeCmd.CmdType.ASSUME,$tv.v,$be.v,tokLoc($t)); }
+    | t='assert' ae=expr ';'
+        { if(ok) $v=AssertAssumeCmd.mk($label_list.v,AssertAssumeCmd.CmdType.ASSERT,AstUtils.ids(),$ae.v,tokLoc($t)); }
+    | t='assume' be=expr ';'
+        { if(ok) $v=AssertAssumeCmd.mk($label_list.v,AssertAssumeCmd.CmdType.ASSUME,AstUtils.ids(),$be.v,tokLoc($t)); }
     | t='havoc' hv=id_list ';'
         { if(ok) $v=HavocCmd.mk($label_list.v,$hv.v,tokLoc($t));}
-    | t='call' call_lhs
-      n=ID st=quoted_simple_type_list '(' (r=expr_list)? ')' ';'
-        { if(ok) $v=CallCmd.mk($label_list.v,$n.text,$st.v,$call_lhs.v,$r.v,tokLoc($t)); }
+    | t='call' call_lhs n=ID '(' (r=expr_list)? ')' ';'
+        { if(ok) $v=CallCmd.mk($label_list.v,$n.text,ImmutableList.<Type>of(),$call_lhs.v,$r.v,tokLoc($t)); }
     | (t='goto' ll=label_comma_list | t='return') ';'
         { if (ok) { $v = GotoCmd.mk($label_list.v, $ll.v, tokLoc($t)); }}
   )
@@ -547,12 +541,15 @@ scope {
 opt_id_type returns [VariableDecl v]
 scope {
   String n;
-  ImmutableList<AtomId> tv;
 }:
-    { $opt_id_type::n = Id.get("unnamed"); 
-      $opt_id_type::tv = ImmutableList.of(); }
-    (ID {$opt_id_type::n = $ID.text;} type_vars {$opt_id_type::tv=$type_vars.v;} ':')? type
-    {if (ok) $v=VariableDecl.mk(ImmutableList.<Attribute>of(),$opt_id_type::n,$type.v,$opt_id_type::tv,fileLoc($type.v));}
+    { $opt_id_type::n = Id.get("unnamed");  }
+    (ID {$opt_id_type::n = $ID.text;} ':')? type
+    { if (ok) $v=VariableDecl.mk(
+        ImmutableList.<Attribute>of(),
+        $opt_id_type::n,
+        $type.v,
+        AstUtils.ids(),
+        fileLoc($type.v)); }
 ;
 
 id_type_list returns [ImmutableList<VariableDecl> v]
@@ -566,8 +563,8 @@ scope {
 ;
 
 id_type returns [VariableDecl v]:
-    i=ID tv=type_vars ':' t=type
-    {if (ok) $v = VariableDecl.mk(ImmutableList.<Attribute>of(),$i.text,$t.v,$tv.v,tokLoc(i));}
+    i=ID ':' t=type
+    {if (ok) $v = VariableDecl.mk(ImmutableList.<Attribute>of(),$i.text,$t.v,AstUtils.ids(),tokLoc(i));}
 ;
 
 index_list returns [ArrayList<ImmutableList<Expr>> v]:
@@ -575,6 +572,19 @@ index_list returns [ArrayList<ImmutableList<Expr>> v]:
   (i=index {$v.add($i.v);})*
 ;
 	
+type_vars returns [ImmutableList<AtomId> v]
+scope {
+  ImmutableList.Builder<AtomId> b;
+}:
+    { $type_vars::b = ImmutableList.builder(); }
+    (ID { $type_vars::b.add(AtomId.mk($ID.text, ImmutableList.<Type>of())); })*
+    { $v = $type_vars::b.build(); }
+;
+
+type_args returns [ImmutableList<AtomId> v]:
+    { $v=ImmutableList.of(); }
+  | '<' id_list '>' { if (ok) $v=$id_list.v; }
+;
 // END list rules }}}
 
 
