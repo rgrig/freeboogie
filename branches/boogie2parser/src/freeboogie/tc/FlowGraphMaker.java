@@ -12,28 +12,15 @@ import freeboogie.ast.*;
   Constructs a flowgraph of blocks for each implementation.
 
   After {@code process(ast)} you can ask {@code flowGraph(body)}
-  and {@code flowgraph(implementation)} to get a {@code
-  SimpleGraph&lt;Command&gt;}. Processing checks for inexistent
-  labels and reports a list of errors. Unreachability warnings
-  are printed.
+  to get a {@code SimpleGraph&lt;Command&gt;}. Processing
+  checks for inexistent labels and reports a list of errors.
+  Unreachability warnings are printed.
 
   @author rgrig
  */
-@SuppressWarnings("unused") // unused params
 public class FlowGraphMaker extends Transformer {
-  // We visit commands twice and do different things. Two
-  // transformers seems too heavyweight.
-  private static enum Phase {
-    COLLECT_NAMES,
-    CONNECT_COMMANDS
-  }
-  private Phase phase;
-
-   // finds commands (in the currently processed Body) by label
-  private HashMap<String, Command> cmdByLabel;
-
-  // a set of commands in the current body, built during COLLECT_NAMES
-  private HashSet<Command> allCommands = Sets.newHashSet();
+  // Connects labels to commands.
+  private LabelsCollector labelsCollector;
 
   // A stack with next commands within each nested block.
   private ArrayDeque<Command> nextCommand = new ArrayDeque<Command>();
@@ -41,6 +28,8 @@ public class FlowGraphMaker extends Transformer {
   // the flow graph currently being built
   private SimpleGraph<Command> currentFlowGraph;
   
+  private Body currentBody;
+
   // maps bodies to their flowgraphs
   private HashMap<Body, SimpleGraph<Command>> flowGraphs;
   
@@ -60,9 +49,11 @@ public class FlowGraphMaker extends Transformer {
    */
   public List<FbError> process(Program ast) {
     nextCommand.clear();
+    labelsCollector = new LabelsCollector();
     errors = Lists.newArrayList();
     flowGraphs = Maps.newHashMap();
-    ast.eval(this);
+    ast.eval(labelsCollector); // collect labels
+    ast.eval(this);   // build the graph
     for (SimpleGraph<Command> fg : flowGraphs.values())
       fg.freeze();
     return errors;
@@ -94,19 +85,16 @@ public class FlowGraphMaker extends Transformer {
     // initialize graph
     currentFlowGraph = new SimpleGraph<Command>();
     flowGraphs.put(body, currentFlowGraph);
-    allCommands.clear();
 
     // build graph
-    phase = Phase.COLLECT_NAMES;
-    block.eval(this);
-    phase = Phase.CONNECT_COMMANDS;
+    currentBody = body;
     block.eval(this);
 
     // check for reachability
     seenCommands.clear();
     if (block.commands().isEmpty()) return;
     dfs(block.commands().get(0));
-    for (Command c : allCommands) {
+    for (Command c : labelsCollector.getAllCommands(body)) {
       if (!seenCommands.contains(c)) 
         Err.warning("" + c.loc() + ": Command is unreachable." + rep(c));
     }
@@ -114,39 +102,73 @@ public class FlowGraphMaker extends Transformer {
 
   @Override
   public void see(Block block, ImmutableList<Command> commands) {
-    switch (phase) {
-      case COLLECT_NAMES:
-        AstUtils.evalListOfCommand(commands, this);
-        break;
-      case CONNECT_COMMANDS:
-        for (int i = 1; i < commands.size(); ++i) {
-          nextCommand.addFirst(commands.get(i));
-          commands.get(i-1).eval(this);
-          nextCommand.removeFirst();
-        }
-        // At this point nextCommand.pollLast() is set by the outer block.
-        if (!commands.isEmpty())
-          commands.get(commands.size() - 1).eval(this);
-        break;
-      default:
-        assert false: "There's no such flowgraph construction phase.";
+    for (int i = 1; i < commands.size(); ++i) {
+      nextCommand.addFirst(commands.get(i));
+      commands.get(i-1).eval(this);
+      nextCommand.removeFirst();
     }
+    // At this point nextCommand.pollLast() is set by the outer block.
+    if (!commands.isEmpty())
+      commands.get(commands.size() - 1).eval(this);
   }
   
-  @Override public void see(Command c) {
-    switch (phase) {
-      case COLLECT_NAMES:
-        allCommands.add(c);
-        for (String l : c.labels()) cmdByLabel.put(l, c);
-        break;
-      case CONNECT_COMMANDS:
-        Command next = nextCommand.pollLast();
-        if (next != null)
-          currentFlowGraph.edge(c, next);
-        break;
-      default:
-        assert false: "There's no such flowgraph construction phase.";
+  @Override public void see(
+      AssertAssumeCmd assertAssumeCmd, 
+      ImmutableList<String> labels,
+      AssertAssumeCmd.CmdType type,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
+  ) {
+    Command next = nextCommand.peekLast();
+    if (next != null) currentFlowGraph.edge(assertAssumeCmd, next);
+  }
+
+  @Override public void see(
+      AssignmentCmd assignmentCmd, 
+      ImmutableList<String> labels,
+      AtomId lhs,
+      Expr rhs
+  ) {
+    Command next = nextCommand.peekLast();
+    if (next != null) currentFlowGraph.edge(assignmentCmd, next);
+  }
+
+  @Override public void see(
+      CallCmd callCmd, 
+      ImmutableList<String> labels,
+      String procedure,
+      ImmutableList<Type> types,
+      ImmutableList<AtomId> results,
+      ImmutableList<Expr> args
+  ) {
+    Command next = nextCommand.peekLast();
+    if (next != null) currentFlowGraph.edge(callCmd, next);
+  }
+
+  @Override public void see(
+      HavocCmd havocCmd, 
+      ImmutableList<String> labels,
+      ImmutableList<AtomId> ids
+  ) {
+    Command next = nextCommand.peekLast();
+    if (next != null) currentFlowGraph.edge(havocCmd, next);
+  }
+
+  @Override public void see(
+      WhileCmd whileCmd, 
+      ImmutableList<String> labels,
+      Expr condition,
+      ImmutableList<LoopInvariant> inv,
+      Block body
+  ) {
+    Command next = nextCommand.peekLast();
+    if (next != null) currentFlowGraph.edge(whileCmd, next);
+    ImmutableList<Command> commands = body.commands();
+    if (!commands.isEmpty()) {
+      currentFlowGraph.edge(whileCmd, commands.get(0));
+      currentFlowGraph.edge(commands.get(commands.size() - 1), whileCmd);
     }
+    body.eval(this);
   }
 
   @Override public void see(
@@ -154,21 +176,12 @@ public class FlowGraphMaker extends Transformer {
       ImmutableList<String> labels,
       ImmutableList<String> successors
   ) {
-    switch (phase) {
-      case COLLECT_NAMES:
-        see(gotoCmd);
-        break;
-      case CONNECT_COMMANDS:
-        for (String s : successors) {
-          Command next = cmdByLabel.get(s);
-          if (next == null)
-            errors.add(new FbError(FbError.Type.MISSING_BLOCK, gotoCmd, s));
-          else
-            currentFlowGraph.edge(gotoCmd, next);
-        }
-        break;
-      default:
-        assert false: "There's no such flowgraph construction phase.";
+    for (String s : successors) {
+      Command next = labelsCollector.getCommand(currentBody, s);
+      if (next == null)
+        errors.add(new FbError(FbError.Type.MISSING_BLOCK, gotoCmd, s));
+      else
+        currentFlowGraph.edge(gotoCmd, next);
     }
   }
 
@@ -183,4 +196,4 @@ public class FlowGraphMaker extends Transformer {
     sb.append(")");
     return sb.toString();
   }
- }
+}

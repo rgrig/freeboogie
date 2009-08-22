@@ -127,7 +127,7 @@ public class SpecDesugarer extends Transformer {
     }
     newCommands.addAll(AstUtils.evalListOfCommand(block.commands(), this));
     newCommands.add(AssertAssumeCmd.mk(
-        noString,
+        ImmutableList.of("$$post"),
         AssertAssumeCmd.CmdType.ASSUME,
         AstUtils.ids(),
         AtomLit.mk(AtomLit.AtomType.TRUE)));
@@ -138,6 +138,7 @@ public class SpecDesugarer extends Transformer {
           AstUtils.ids(),
           e));
     }
+    newCommands.add(GotoCmd.mk(noString, noString, body.loc()));
     return Body.mk(
         vars, 
         Block.mk(newCommands.build(), block.loc()), body.loc());

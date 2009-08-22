@@ -1,10 +1,11 @@
 package freeboogie.vcgen;
 
 import java.util.HashSet;
-import java.util.logging.Logger;
+import java.util.Set;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
+import genericutils.Err;
 import genericutils.Pair;
 import genericutils.SimpleGraph;
 
@@ -52,13 +53,62 @@ public class LoopCutter extends CommandDesugarer {
     return GotoCmd.mk(labels, newSuccessors.build(), cmd.loc());
   }
 
-  @Override public Command eval(Command cmd) {
-    assert currentFG.to(cmd).size() == 1;
-    if (toRemove.contains(Pair.of(cmd, currentFG.to(cmd).iterator().next()))) {
-      addEquivalentCommand(cmd);
-      return GotoCmd.mk(noString, noString, cmd.loc());
+  @Override public Command eval(
+      AssertAssumeCmd assertAssumeCmd, 
+      ImmutableList<String> labels,
+      AssertAssumeCmd.CmdType type,
+      ImmutableList<AtomId> typeArgs,
+      Expr expr
+  ) {
+    return processCommand(assertAssumeCmd);
+  }
+
+  @Override public Command eval(
+      AssignmentCmd assignmentCmd, 
+      ImmutableList<String> labels,
+      AtomId lhs,
+      Expr rhs
+  ) {
+    return processCommand(assignmentCmd);
+  }
+
+  @Override public Command eval(
+      CallCmd callCmd, 
+      ImmutableList<String> labels,
+      String procedure,
+      ImmutableList<Type> types,
+      ImmutableList<AtomId> results,
+      ImmutableList<Expr> args
+  ) {
+    return processCommand(callCmd);
+  }
+
+  @Override public Command eval(
+      HavocCmd havocCmd, 
+      ImmutableList<String> labels,
+      ImmutableList<AtomId> ids
+  ) {
+    return processCommand(havocCmd);
+  }
+
+  private Command processCommand(Command command) {
+    Set<Command> next = currentFG.to(command);
+    assert next.size() == 1;
+    if (toRemove.contains(Pair.of(command, next.iterator().next()))) {
+      addEquivalentCommand(command);
+      return GotoCmd.mk(noString, noString, command.loc());
     }
-    return cmd;
+    return command;
+  }
+
+  @Override public void see(
+      WhileCmd whileCmd, 
+      ImmutableList<String> labels,
+      Expr condition,
+      ImmutableList<LoopInvariant> inv,
+      Block body
+  ) {
+    Err.internal("While commands should have been desugared.");
   }
 
   // === depth first search for back edges ===

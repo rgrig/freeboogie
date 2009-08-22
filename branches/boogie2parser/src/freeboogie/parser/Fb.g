@@ -237,8 +237,21 @@ scope {
 ;
 
 body returns [Body v]:
-  t='{' vl=var_decl_list b=block '}'
-    { if(ok) $v = Body.mk($vl.v,$b.v,tokLoc(t)); }
+  t='{' vl=var_decl_list b=block last='}'
+    { if(ok) {
+      // add a return at the end if there isn't one (or at least a goto)
+      Block bl = $b.v;
+      ImmutableList<Command> cs = b.commands();
+      if (cs.isEmpty() || !(cs.get(cs.size()-1) instanceof GotoCmd)) {
+        ImmutableList.Builder<Command> builder = ImmutableList.builder();
+        builder.addAll(cs);
+        builder.add(GotoCmd.mk(
+            ImmutableList.<String>of(),
+            ImmutableList.<String>of(),
+            tokLoc($last)));
+        bl = Block.mk(builder.build(), bl.loc());
+      }
+      $v = Body.mk($vl.v,bl,tokLoc(t)); }}
 ;
 
 var_decl_list returns [ImmutableList<VariableDecl> v]
@@ -471,10 +484,10 @@ label_comma_list returns [ImmutableList<String> v]
 scope {
   ImmutableList.Builder<String> b;
 }:
-    { $label_list::b = ImmutableList.builder(); }
-    (h=ID { $label_list::b.add($h.text); }
-    (',' t=ID ',' { $label_list::b.add($t.text); })*)?
-    { $v = $label_list::b.build(); }
+    { $label_comma_list::b = ImmutableList.builder(); }
+    (h=ID { $label_comma_list::b.add($h.text); }
+    (',' t=ID { $label_comma_list::b.add($t.text); })*)?
+    { $v = $label_comma_list::b.build(); }
 ;
 
 

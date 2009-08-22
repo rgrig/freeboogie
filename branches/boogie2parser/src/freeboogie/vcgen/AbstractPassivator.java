@@ -262,6 +262,7 @@ public abstract class AbstractPassivator extends Transformer {
       ImmutableList<VariableDecl> vars,
       Block block
   ) {
+    endOfBodyCommands.clear();
     block = (Block) block.eval(this);
     ImmutableList<Command> cmds = block.commands();
     ImmutableList.Builder<Command> newCommands = ImmutableList.builder();
@@ -300,9 +301,9 @@ public abstract class AbstractPassivator extends Transformer {
     Expr value = (Expr)rhs.eval(this);
     VariableDecl vd = (VariableDecl)tc.st().ids.def(lhs);
     return AssertAssumeCmd.mk(
-        noString,
+        labels,
         AssertAssumeCmd.CmdType.ASSUME, 
-        ImmutableList.<AtomId>of(),
+        AstUtils.ids(),
         BinaryOp.mk(BinaryOp.Op.EQ,
             AtomId.mk(
                 name(lhs.id(), getIdx(writeIdx, vd)),

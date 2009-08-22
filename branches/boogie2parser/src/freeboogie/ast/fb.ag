@@ -202,4 +202,4 @@ AtomMapSelect: !idx.isEmpty()
 AtomMapUpdate: !idx.isEmpty()
 HavocCmd: !ids.isEmpty()
 PrimitiveType: ptype == Ptype.BV || bits == -1
-
+Body: !block.commands().isEmpty() && block.commands().get(block.commands.size()-1) instanceof GotoCmd

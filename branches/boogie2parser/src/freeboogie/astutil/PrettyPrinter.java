@@ -155,7 +155,7 @@ public class PrettyPrinter extends Transformer {
       say(">");
     }
     expr.eval(this);
-    say(";");
+    semi();
   }
 
   @Override
@@ -172,7 +172,7 @@ public class PrettyPrinter extends Transformer {
     lhs.eval(this);
     say(" := ");
     rhs.eval(this);
-    say(";");
+    semi();
   }
 
   @Override
@@ -363,7 +363,8 @@ public class PrettyPrinter extends Transformer {
     }
     say("(");
     printList(", ", args);
-    say(");");
+    say(")");
+    semi();
   }
 
   @Override
@@ -431,7 +432,7 @@ public class PrettyPrinter extends Transformer {
     }
     say("havoc ");
     printList(", ", ids);
-    say(";");
+    semi();
   }
 
   @Override
@@ -640,4 +641,36 @@ public class PrettyPrinter extends Transformer {
     printList(" ", exprs);
     say("} ");
   }
+
+  @Override public void see(
+      GotoCmd gotoCmd, 
+      ImmutableList<String> labels,
+      ImmutableList<String> successors
+  ) {
+    for (String l : labels) {
+      say(l);
+      say(": ");
+    }
+    if (successors.isEmpty())
+      say("return");
+    else {
+      say("goto ");
+      for (int i = 0; i < successors.size(); ++i) {
+        if (i != 0) say(", ");
+        say(successors.get(i));
+      }
+    }
+    semi();
+  }
+
+  @Override public void see(
+      WhileCmd whileCmd, 
+      ImmutableList<String> labels,
+      Expr condition,
+      ImmutableList<LoopInvariant> inv,
+      Block body
+  ) {
+    assert false : "not implemented";
+  }
+
 }

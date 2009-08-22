@@ -50,66 +50,62 @@ public class Transformer extends Evaluator<Ast> {
     return TypeUtils.internalTypecheck((Program)p.eval(this), tc);
   }
 
-  \classes{
-    public void see(\ClassName \className\if_terminal{,\mtn_list}{}) {
-      \if_terminal{
-        Preconditions.checkNotNull(\className);
-        boolean sameChildren = true;
-        \members{
-          \mt new\MemberName;
-          \if_primitive{
-            new\MemberName = \memberName;
+  \classes{\if_terminal{
+    public void see(\ClassName \className,\mtn_list) {
+      Preconditions.checkNotNull(\className);
+      boolean sameChildren = true;
+      \members{
+        \mt new\MemberName;
+        \if_primitive{
+          new\MemberName = \memberName;
+        }{
+          \if_tagged{list}{
+            new\MemberName = AstUtils.evalListOf\MemberType(\memberName, this);
           }{
-            \if_tagged{list}{
-              new\MemberName = AstUtils.evalListOf\MemberType(\memberName, this);
-            }{
-              new\MemberName = \memberName == null ? null :(\MemberType)\memberName.eval(this);
-            }
-            sameChildren &= new\MemberName == \memberName;
+            new\MemberName = \memberName == null ? null :(\MemberType)\memberName.eval(this);
           }
+          sameChildren &= new\MemberName == \memberName;
         }
+      }
 
-        if (!sameChildren) {
-          result.removeFirst();
-          result.addFirst(\ClassName.mk(\members[,]{new\MemberName},\className.loc()));
-        }
-      }{
-        assert false : "Hmm, this should never be called.";
+      if (!sameChildren) {
+        result.removeFirst();
+        result.addFirst(\ClassName.mk(\members[,]{new\MemberName},\className.loc()));
       }
     }
     
     @Override
-    public Ast eval(\ClassName \className\if_terminal{,\mtn_list}{}) {
+    public Ast eval(\ClassName \className,\mtn_list) {
       // Deque<> doesn't support null elements
       result.addFirst(\className == null ? NULL : \className);
       enterNode(\className);
-      see(\className\if_terminal{,\members[,]{\memberName}}{});
+      see(\className,\members[,]{\memberName});
       exitNode(\className);
       Ast r = result.removeFirst();
       return r == NULL ? null : r;
     }
-  }
+  }{}}
 }
 
 \file{visitor.skeleton}
 // You can copy and paste the text below when you define a visitor that
 // needs to override most functions on the base class.
 
-\classes{  @Override public void see(
+\classes{\if_terminal{  @Override public void see(
       \ClassName \className, 
       \mtn_list
   ) {
     assert false : "not implemented";
   }
-}
+}{}}
 
 // *********
 
-\classes{  @Override public \ClassName eval(
+\classes{\if_terminal{  @Override public \ClassName eval(
       \ClassName \className, 
       \mtn_list
   ) {
     assert false : "not implemented";
     return null;
   }
-}
+}{}}
