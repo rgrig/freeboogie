@@ -51,35 +51,38 @@ public class Transformer extends Evaluator<Ast> {
   }
 
   \classes{\if_terminal{
-    public void see(\ClassName \className,\mtn_list) {
+    public void see(\ClassName \className) {
       Preconditions.checkNotNull(\className);
       boolean sameChildren = true;
       \members{
-        \mt new\MemberName;
+        \mt \memberName;
         \if_primitive{
-          new\MemberName = \memberName;
+          \memberName = \className.\memberName();
         }{
           \if_tagged{list}{
-            new\MemberName = AstUtils.evalListOf\MemberType(\memberName, this);
+            \memberName = AstUtils.evalListOf\MemberType(
+                \className.\memberName(), this);
           }{
-            new\MemberName = \memberName == null ? null :(\MemberType)\memberName.eval(this);
+            \memberName = \memberName == null? 
+              null :
+              (\MemberType) \className.\memberName().eval(this);
           }
-          sameChildren &= new\MemberName == \memberName;
+          sameChildren &= \memberName == \className.\memberName();
         }
       }
 
       if (!sameChildren) {
         result.removeFirst();
-        result.addFirst(\ClassName.mk(\members[,]{new\MemberName},\className.loc()));
+        result.addFirst(\ClassName.mk(\members[,]{\memberName},\className.loc()));
       }
     }
     
     @Override
-    public Ast eval(\ClassName \className,\mtn_list) {
+    public Ast eval(\ClassName \className) {
       // Deque<> doesn't support null elements
       result.addFirst(\className == null ? NULL : \className);
       enterNode(\className);
-      see(\className,\members[,]{\memberName});
+      see(\className);
       exitNode(\className);
       Ast r = result.removeFirst();
       return r == NULL ? null : r;
@@ -91,20 +94,14 @@ public class Transformer extends Evaluator<Ast> {
 // You can copy and paste the text below when you define a visitor that
 // needs to override most functions on the base class.
 
-\classes{\if_terminal{  @Override public void see(
-      \ClassName \className, 
-      \mtn_list
-  ) {
+\classes{\if_terminal{  @Override public void see(\ClassName \className) {
     assert false : "not implemented";
   }
 }{}}
 
 // *********
 
-\classes{\if_terminal{  @Override public \ClassName eval(
-      \ClassName \className, 
-      \mtn_list
-  ) {
+\classes{\if_terminal{  @Override public \ClassName eval(\ClassName \className) {
     assert false : "not implemented";
     return null;
   }

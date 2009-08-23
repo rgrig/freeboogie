@@ -84,7 +84,7 @@ public \if_terminal{final}{abstract} class \ClassName extends \BaseName {
   // === the Visitor pattern ===
   @Override
   public <R> R eval(Evaluator<R> evaluator) { 
-    return evaluator.eval(this, \members[,]{\memberName}); 
+    return evaluator.eval(this); 
   }
 }{}
 

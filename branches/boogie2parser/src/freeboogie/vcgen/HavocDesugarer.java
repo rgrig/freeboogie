@@ -41,11 +41,7 @@ import freeboogie.tc.TypeUtils;
  * @see freeboogie.vcgen.VcGenerator
  */
 public class HavocDesugarer extends CommandDesugarer {
-  @Override public HavocCmd eval(
-      HavocCmd havocCmd, 
-      ImmutableList<String> labels,
-      ImmutableList<AtomId> ids
-  ) {
+  @Override public HavocCmd eval(HavocCmd havocCmd) {
     Expr e = AtomLit.mk(AtomLit.AtomType.TRUE, havocCmd.loc());
     for (AtomId id : ids) {
       VariableDecl vd = (VariableDecl)tc.st().ids.def(id);

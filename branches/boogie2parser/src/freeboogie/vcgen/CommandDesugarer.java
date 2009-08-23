@@ -46,19 +46,14 @@ public class CommandDesugarer extends Transformer {
 
   // === transformer methods ===
 
-  @Override public Body eval(
-      Body body, 
-      ImmutableList<VariableDecl> vars,
-      Block block
-  ) {
+  @Override public Body eval(Body body) {
     newVars = ImmutableList.builder();
     Block nb = (Block) block.eval(this);
     newVars.addAll(vars);
     return Body.mk(newVars.build(), nb, body.loc());
   }
 
-  @Override
-  public Block eval(Block block, ImmutableList<Command> commands) {
+  @Override public Block eval(Block block) {
     ImmutableList.Builder<Command> newCommands = ImmutableList.builder();
     boolean same = true;
     for (Command c : commands) {
@@ -73,8 +68,7 @@ public class CommandDesugarer extends Transformer {
     return block;
   }
  
-  @Override
-  public Expr eval(AtomId atomId, String id, ImmutableList<Type> types) {
+  @Override public Expr eval(AtomId atomId) {
     Expr e = toSubstitute.get(tc.st().ids.def(atomId));
     return e == null? atomId : e;
   }

@@ -107,13 +107,8 @@ public class ImplementationChecker extends Transformer {
   
   // === visiting implementations ===
 
-  @Override
-  public void see(
-    Implementation implementation,
-    ImmutableList<Attribute> attr,
-    Signature sig,
-    Body body
-  ) {
+  @Override public void see(Implementation implementation) {
+    Signature sig = implementation.sig();
     String name = sig.name();
     Procedure p = gc.procDef(name);
     if (p == null) {

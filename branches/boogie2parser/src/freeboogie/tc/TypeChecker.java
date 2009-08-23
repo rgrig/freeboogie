@@ -431,16 +431,16 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
 
   // === visiting operators ===
-  @Override
-  public PrimitiveType eval(UnaryOp unaryOp, UnaryOp.Op op, Expr e) {
-    Type t = e.eval(this);
+  @Override public PrimitiveType eval(UnaryOp unaryOp) {
+    Expr expr = unaryOp.expr();
+    Type t = expr.eval(this);
     switch (op) {
     case MINUS:
-      check(t, intType, e);
+      check(t, intType, expr);
       typeOf.put(unaryOp, intType);
       return intType;
     case NOT:
-      check(t, boolType, e);
+      check(t, boolType, expr);
       typeOf.put(unaryOp, boolType);
       return boolType;
     default:
@@ -449,11 +449,12 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     }
   }
 
-  @Override
-  public PrimitiveType eval(BinaryOp binaryOp, BinaryOp.Op op, Expr left, Expr right) {
+  @Override public PrimitiveType eval(BinaryOp binaryOp) {
+    Expr left = binaryOp.left();
+    Expr right = binaryOp.right();
     Type l = left.eval(this);
     Type r = right.eval(this);
-    switch (op) {
+    switch (binaryOp.op()) {
     case PLUS:
     case MINUS:
     case MUL:
@@ -502,8 +503,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
   
   // === visiting atoms ===
-  @Override
-  public Type eval(AtomId atomId, String id, ImmutableList<Type> types) {
+  @Override public Type eval(AtomId atomId) {
     IdDecl d = st.ids.def(atomId);
     Type t = errType;
     if (d instanceof VariableDecl) {
@@ -513,27 +513,24 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       t = checkRealType(vd.type(), atomId);
       typeVarExit(atomId);
     } else if (d instanceof ConstDecl) {
-      assert types.isEmpty(); // TODO
       t = ((ConstDecl)d).type();
     } else assert false;
     typeOf.put(atomId, t);
     return t;
   }
 
-  @Override
-  public PrimitiveType eval(AtomNum atomNum, BigInteger val) {
+  @Override public PrimitiveType eval(AtomNum atomNum) {
     typeOf.put(atomNum, intType);
     return intType;
   }
 
-  @Override
-  public PrimitiveType eval(AtomLit atomLit, AtomLit.AtomType val) {
-    switch (val) {
+  @Override public PrimitiveType eval(AtomLit atomLit) {
+    switch (atomLit.val()) {
     case TRUE:
     case FALSE:
       typeOf.put(atomLit, boolType);
       return boolType;
-    case NULL:
+    case NULL:  // TODO(radugrigore): remove the null constant completely
       typeOf.put(atomLit, refType);
       return refType;
     default:
@@ -542,41 +539,28 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     }
   }
 
-  @Override
-  public Type eval(AtomOld atomOld, Expr e) {
-    Type t = e.eval(this);
+  @Override public Type eval(AtomOld atomOld) {
+    Type t = atomOld.expr().eval(this);
     typeOf.put(atomOld, t);
     return t;
   }
 
-  @Override
-  public PrimitiveType eval(
-    AtomQuant atomQuant,
-    AtomQuant.QuantType quant,
-    ImmutableList<VariableDecl> vars,
-    ImmutableList<Attribute> attr,
-    Expr e
-  ) {
-    Type t = e.eval(this);
+  @Override public PrimitiveType eval(AtomQuant atomQuant) {
+    Expr e = AtomQuant.expression();
+    Type t = atomQuant.expression().eval(this);
     check(t, boolType, e);
     typeOf.put(atomQuant, boolType);
     return boolType;
   }
 
-  @Override
-  public Type eval(
-      AtomFun atomFun,
-      String function,
-      ImmutableList<Type> types,
-      ImmutableList<Expr> args
-  ) {
+  @Override public Type eval(AtomFun atomFun) {
     FunctionDecl d = st.funcs.def(atomFun);
     Signature sig = d.sig();
     ImmutableList<VariableDecl> fargs = sig.args();
     
     typeVarEnter(atomFun);
-    mapExplicitGenerics(sig.typeArgs(), types);
-    Type at = typeListOfExpr(args);
+    mapExplicitGenerics(sig.typeArgs(), atomFun.types());
+    Type at = typeListOfExpr(atomFun.args());
     Type fat = typeListOfDecl(fargs);
    
     check(at, fat, atomFun);
@@ -586,19 +570,14 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     return rt;
   }
 
-  @Override
-  public Type eval(AtomCast atomCast, Expr e, Type type) {
-    e.eval(this);
-    typeOf.put(atomCast, type);
-    return type;
+  @Override public Type eval(AtomCast atomCast) {
+    atomCast.expr().eval(this);
+    typeOf.put(atomCast, atomCast.type());
+    return atomCast.type();
   }
 
-  @Override
-  public Type eval(
-      AtomMapSelect atomMapSelect,
-      Atom atom,
-      ImmutableList<Expr> idx
-  ) {
+  @Override public Type eval(AtomMapSelect atomMapSelect) {
+    Atom atom = atomMapSelect.atom();
     Type t = atom.eval(this);
     if (t == errType) return errType;
     if (!(t instanceof MapType)) {
@@ -608,24 +587,22 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     MapType at = (MapType)t;
 
     // look at indexing types
+    ImmutableList<Expr> index = atomMapSelect.idx();
     typeVarEnter(atomMapSelect);
-    check(typeListOfExpr(idx), TupleType.mk(at.idxTypes()), atomMapSelect);
+    check(typeListOfExpr(index), TupleType.mk(at.idxTypes()), atomMapSelect);
     Type et = checkRealType(at.elemType(), atomMapSelect);
     typeVarExit(atomMapSelect);
     typeOf.put(atomMapSelect, et);
     return et;
   }
   
-  @Override
-  public Type eval(
-      AtomMapUpdate atomMapUpdate,
-      Atom atom,
-      ImmutableList<Expr> idx,
-      Expr val
-  ) {
+  @Override public Type eval(AtomMapUpdate atomMapUpdate) {
     typeVarEnter(atomMapUpdate);
+    Atom atom = atomMapUpdate.atom();
+    ImmutableList<Expr> index = atomMapUpdate.idx();
+    Expr val = atomMapUpdate.val();
     Type t = atom.eval(this);
-    Type ti = typeListOfExpr(idx);
+    Type ti = typeListOfExpr(index);
     Type tv = val.eval(this);
     if (
         TypeUtils.eq(t, errType) || 
@@ -638,7 +615,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       return errType;
     }
     mt = (MapType)t;
-    check(typeListOfExpr(idx), TupleType.mk(mt.idxTypes()), atomMapUpdate);
+    check(typeListOfExpr(index), TupleType.mk(mt.idxTypes()), atomMapUpdate);
     check(tv, mt.elemType(), val);
     typeVarExit(atomMapUpdate);
     typeOf.put(atomMapUpdate, mt);
@@ -646,46 +623,22 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
 
   // === visit commands ===
-  @Override
-  public Type eval(
-      AssignmentCmd assignmentCmd, 
-      ImmutableList<String> labels,
-      AtomId lhs, 
-      Expr rhs
-  ) {
-    Type lt = lhs.eval(this);
-    Type rt = rhs.eval(this);
+  @Override public Type eval(AssignmentCmd assignmentCmd) {
+    Type lt = assignmentCmd.lhs().eval(this);
+    Type rt = assignmentCmd.rhs().eval(this);
     typeVarEnter(assignmentCmd);
     check(rt, lt, assignmentCmd);
     typeVarExit(assignmentCmd);
     return null;
   }
 
-  @Override
-  public Type eval(
-      AssertAssumeCmd assertAssumeCmd, 
-      ImmutableList<String> labels,
-      AssertAssumeCmd.CmdType type,
-      ImmutableList<AtomId> typeVars,
-      Expr expr
-  ) {
-    enclosingTypeVar.push();
-    collectEnclosingTypeVars(typeVars);
-    Type t = expr.eval(this);
+  @Override public Type eval(AssertAssumeCmd assertAssumeCmd) {
+    Type t = assertAssumeCmd.expr().eval(this);
     check(t, boolType, assertAssumeCmd);
-    enclosingTypeVar.pop();
     return null;
   }
 
-  @Override
-  public Type eval(
-      CallCmd callCmd,
-      ImmutableList<String> labels,
-      String procedure, 
-      ImmutableList<Type> types, 
-      ImmutableList<AtomId> results, 
-      ImmutableList<Expr> args
-  ) {
+  @Override public Type eval(CallCmd callCmd) {
     Procedure p = st.procs.def(callCmd);
     Signature sig = p.sig();
     ImmutableList<VariableDecl> fargs = sig.args();
@@ -693,12 +646,12 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     typeVarEnter(callCmd);
     
     // check the actual arguments against the formal ones
-    Type at = typeListOfExpr(args);
+    Type at = typeListOfExpr(callCmd.args());
     Type fat = typeListOfDecl(fargs);
     check(at, fat, callCmd);
     
     // check the assignment of the results
-    Type lt = typeListOfExpr(results);
+    Type lt = typeListOfExpr(callCmd.results());
     Type rt = typeListOfDecl(sig.results());
     check(rt, lt, callCmd);
 
@@ -716,84 +669,42 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     return null;
   }
 
-  @Override public Type eval(
-      PostSpec postSpec, 
-      boolean free,
-      ImmutableList<AtomId> typeArgs,
-      Expr expr
-  ) {
+  @Override public Type eval(PostSpec postSpec) {
     return checkBool(typeArgs, expr);
   }
 
-  @Override public Type eval(
-      PreSpec preSpec, 
-      boolean free,
-      ImmutableList<AtomId> typeArgs,
-      Expr expr
-  ) {
+  @Override public Type eval(PreSpec preSpec) {
     return checkBool(typeArgs, expr);
   }
 
-  @Override public Type eval(
-      Axiom axiom,
-      ImmutableList<Attribute> attr, 
-      String name,
-      ImmutableList<AtomId> typeVars,
-      Expr expr
-  ) {
+  @Override public Type eval(Axiom axiom) {
     return checkBool(typeVars, expr);
   }
 
   // === keep track of formal generics (see also eval(Axiom...) and eval(AssertAssumeCmd...)) ===
-  @Override
-  public Type eval(
-    FunctionDecl function,
-    ImmutableList<Attribute> attr,
-    Signature sig
-  ) {
+  @Override public Type eval(FunctionDecl function) {
     return null;
   }
 
-  @Override
-  public Type eval(
-    VariableDecl variableDecl,
-    ImmutableList<Attribute> attr, 
-    String name,
-    Type type,
-    ImmutableList<AtomId> typeVars,
-    Expr where
-  ) {
+  @Override public Type eval(VariableDecl variableDecl) {
     // TODO(radugrigore): check that the 'where' part is a boolean
     return null;
   }
 
-  @Override public Type eval(
-    Procedure procedure,
-    ImmutableList<Attribute> attr, 
-    Signature sig,
-    ImmutableList<PreSpec> pre,
-    ImmutableList<PostSpec> post,
-    ImmutableList<ModifiesSpec> modifies
-  ) {
+  @Override public Type eval(Procedure procedure) {
     enclosingTypeVar.push();
-    collectEnclosingTypeVars(sig.typeArgs());
-    AstUtils.evalListOfPreSpec(pre, this);
-    AstUtils.evalListOfPostSpec(post, this);
-    AstUtils.evalListOfModifiesSpec(modifies, this);
+    collectEnclosingTypeVars(implementation.sig().typeArgs());
+    AstUtils.evalListOfPreSpec(procedure.preconditions(), this);
+    AstUtils.evalListOfPostSpec(procedure.postconditions(), this);
+    AstUtils.evalListOfModifiesSpec(procedure.modifies(), this);
     enclosingTypeVar.pop();
     return null;
   }
 
-  @Override
-  public Type eval(
-    Implementation implementation,
-    ImmutableList<Attribute> attr,
-    Signature sig,
-    Body body
-  ) {
+  @Override public Type eval(Implementation implementation) {
     enclosingTypeVar.push();
-    collectEnclosingTypeVars(sig.typeArgs());
-    body.eval(this);
+    collectEnclosingTypeVars(implementation.sig().typeArgs());
+    implementation.body().eval(this);
     enclosingTypeVar.pop();
     return null;
   }

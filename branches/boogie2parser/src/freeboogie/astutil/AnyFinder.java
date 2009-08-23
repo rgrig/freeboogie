@@ -20,25 +20,13 @@ public class AnyFinder extends AssociativeEvaluator<Boolean> {
     super(new Or());
   }
 
-  @Override
-  public Boolean eval(
-    AtomQuant atomQuant, 
-    AtomQuant.QuantType quant, 
-    ImmutableList<VariableDecl> vars, 
-    ImmutableList<Attribute> attr, 
-    Expr e
-  ) {
-    AstUtils.evalListOfVariableDecl(vars, this);
-    e.eval(this);
+  @Override public Boolean eval(AtomQuant atomQuant) {
+    AstUtils.evalListOfVariableDecl(atomQuant.vars(), this);
+    atomQuant.expression().eval(this);
     return memo(atomQuant, false);
   }
 
-  @Override
-  public Boolean eval(
-    PrimitiveType primitiveType,
-    PrimitiveType.Ptype ptype,
-    int bits
-  ) {
-    return ptype == PrimitiveType.Ptype.ANY;
+  @Override public Boolean eval(PrimitiveType primitiveType) {
+    return primitiveType.ptype() == PrimitiveType.Ptype.ANY;
   }
 }

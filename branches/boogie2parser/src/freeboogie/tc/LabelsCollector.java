@@ -33,11 +33,8 @@ public class LabelsCollector extends Transformer {
     return Sets.newHashSet(commandsByBody.get(body));
   }
 
-  @Override public void see(
-      Body body, 
-      ImmutableList<VariableDecl> vars,
-      Block block
-  ) {
+  @Override public void see(Body body) {
+    Block block = body.block();
     commandByLabel = Maps.newHashMap();
     commandByBodyAndLabel.put(body, commandByLabel);
     commands = Sets.newHashSet();
@@ -45,66 +42,33 @@ public class LabelsCollector extends Transformer {
     block.eval(this);
   }
 
-  @Override public void see(
-      AssertAssumeCmd assertAssumeCmd, 
-      ImmutableList<String> labels,
-      AssertAssumeCmd.CmdType type,
-      ImmutableList<AtomId> typeArgs,
-      Expr expr
-  ) {
-    commands.add(assertAssumeCmd);
-    for (String l : labels) commandByLabel.put(l, assertAssumeCmd);
+  @Override public void see(AssertAssumeCmd assertAssumeCmd) {
+    recordLabels(assertAssumeCmd);
   }
 
-  @Override public void see(
-      AssignmentCmd assignmentCmd, 
-      ImmutableList<String> labels,
-      AtomId lhs,
-      Expr rhs
-  ) {
-    commands.add(assignmentCmd);
-    for (String l : labels) commandByLabel.put(l, assignmentCmd);
+  @Override public void see(AssignmentCmd assignmentCmd) {
+    recordLabels(assignmentCmd);
   }
 
-  @Override public void see(
-      CallCmd callCmd, 
-      ImmutableList<String> labels,
-      String procedure,
-      ImmutableList<Type> types,
-      ImmutableList<AtomId> results,
-      ImmutableList<Expr> args
-  ) {
-    commands.add(callCmd);
-    for (String l : labels) commandByLabel.put(l, callCmd);
+  @Override public void see(CallCmd callCmd) {
+    recordLabels(callCmd);
   }
 
-  @Override public void see(
-      GotoCmd gotoCmd, 
-      ImmutableList<String> labels,
-      ImmutableList<String> successors
-  ) {
-    commands.add(gotoCmd);
-    for (String l : labels) commandByLabel.put(l, gotoCmd);
+  @Override public void see(GotoCmd gotoCmd) {
+    recordLabels(gotoCmd);
   }
 
-  @Override public void see(
-      HavocCmd havocCmd, 
-      ImmutableList<String> labels,
-      ImmutableList<AtomId> ids
-  ) {
-    commands.add(havocCmd);
-    for (String l : labels) commandByLabel.put(l, havocCmd);
+  @Override public void see(HavocCmd havocCmd) {
+    recordLabels(havoccmd);
   }
 
-  @Override public void see(
-      WhileCmd whileCmd, 
-      ImmutableList<String> labels,
-      Expr condition,
-      ImmutableList<LoopInvariant> inv,
-      Block body
-  ) {
-    commands.add(whileCmd);
-    for (String l : labels) commandByLabel.put(l, whileCmd);
+  @Override public void see(WhileCmd whileCmd) {
+    recordLabels(whileCmd);
     body.eval(this);
+  }
+
+  private recordLabels(Command c) {
+    commands.add(c);
+    for (String l : c.labels()) commandByLabel.put(l,c);
   }
 }

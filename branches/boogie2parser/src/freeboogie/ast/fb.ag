@@ -150,7 +150,7 @@ BinaryOp =
   Expr! right;
 UnaryOp = 
   enum(Op: MINUS, NOT) op, 
-  Expr! e;
+  Expr! expr;
 Atom :> 
   AtomCast,
   AtomFun,
@@ -173,15 +173,15 @@ AtomFun =
   [list] Type types, 
   [list] Expr args;
 AtomOld = 
-  Expr! e;
+  Expr! expr;
 AtomCast = 
-  Expr! e, 
+  Expr! expr, 
   Type! type;
 AtomQuant =
   enum(QuantType: EXISTS, FORALL) quant,
   [list] VariableDecl vars,
   [list] Attribute attributes,
-  Expr! e;
+  Expr! expression;
 AtomMapSelect = 
   Atom! atom, 
   [list] Expr idx;
@@ -196,3 +196,5 @@ AtomMapUpdate: !idx.isEmpty()
 HavocCmd: !ids.isEmpty()
 PrimitiveType: ptype == Ptype.BV || bits == -1
 Body: !block.commands().isEmpty() && block.commands().get(block.commands.size()-1) instanceof GotoCmd
+
+// TODO(radugrigore): rename using whole words

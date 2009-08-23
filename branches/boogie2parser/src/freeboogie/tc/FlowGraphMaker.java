@@ -76,32 +76,28 @@ public class FlowGraphMaker extends Transformer {
   
   // === visiting methods ===
   
-  @Override
-  public void see(
-      Body body, 
-      ImmutableList<VariableDecl> vars,
-      Block block
-  ) {
+  @Override public void see(Body body) {
     // initialize graph
     currentFlowGraph = new SimpleGraph<Command>();
     flowGraphs.put(body, currentFlowGraph);
 
     // build graph
     currentBody = body;
-    block.eval(this);
+    body.block().eval(this);
 
     // check for reachability
     seenCommands.clear();
-    if (block.commands().isEmpty()) return;
-    dfs(block.commands().get(0));
+    ImmutableList<Command> commands = body.block().commands();
+    if (commands.isEmpty()) return;
+    dfs(commands.get(0));
     for (Command c : labelsCollector.getAllCommands(body)) {
       if (!seenCommands.contains(c)) 
         Err.warning("" + c.loc() + ": Command is unreachable." + rep(c));
     }
   }
 
-  @Override
-  public void see(Block block, ImmutableList<Command> commands) {
+  @Override public void see(Block block) {
+    ImmutableList<Command> commands = block.commands();
     for (int i = 1; i < commands.size(); ++i) {
       nextCommand.addFirst(commands.get(i));
       commands.get(i-1).eval(this);
@@ -112,70 +108,38 @@ public class FlowGraphMaker extends Transformer {
       commands.get(commands.size() - 1).eval(this);
   }
   
-  @Override public void see(
-      AssertAssumeCmd assertAssumeCmd, 
-      ImmutableList<String> labels,
-      AssertAssumeCmd.CmdType type,
-      ImmutableList<AtomId> typeArgs,
-      Expr expr
-  ) {
+  @Override public void see(AssertAssumeCmd assertAssumeCmd) {
     Command next = nextCommand.peekLast();
     if (next != null) currentFlowGraph.edge(assertAssumeCmd, next);
   }
 
-  @Override public void see(
-      AssignmentCmd assignmentCmd, 
-      ImmutableList<String> labels,
-      AtomId lhs,
-      Expr rhs
-  ) {
+  @Override public void see(AssignmentCmd assignmentCmd) {
     Command next = nextCommand.peekLast();
     if (next != null) currentFlowGraph.edge(assignmentCmd, next);
   }
 
-  @Override public void see(
-      CallCmd callCmd, 
-      ImmutableList<String> labels,
-      String procedure,
-      ImmutableList<Type> types,
-      ImmutableList<AtomId> results,
-      ImmutableList<Expr> args
-  ) {
+  @Override public void see(CallCmd callCmd) {
     Command next = nextCommand.peekLast();
     if (next != null) currentFlowGraph.edge(callCmd, next);
   }
 
-  @Override public void see(
-      HavocCmd havocCmd, 
-      ImmutableList<String> labels,
-      ImmutableList<AtomId> ids
-  ) {
+  @Override public void see(HavocCmd havocCmd) {
     Command next = nextCommand.peekLast();
     if (next != null) currentFlowGraph.edge(havocCmd, next);
   }
 
-  @Override public void see(
-      WhileCmd whileCmd, 
-      ImmutableList<String> labels,
-      Expr condition,
-      ImmutableList<LoopInvariant> inv,
-      Block body
-  ) {
+  @Override public void see(WhileCmd whileCmd) {
     Command next = nextCommand.peekLast();
     if (next != null) currentFlowGraph.edge(whileCmd, next);
-    ImmutableList<Command> commands = body.commands();
+    ImmutableList<Command> commands = whileCmd.body().commands();
     if (!commands.isEmpty()) {
       currentFlowGraph.edge(whileCmd, commands.get(0));
       currentFlowGraph.edge(commands.get(commands.size() - 1), whileCmd);
     }
-    body.eval(this);
+    whileCmd.body().eval(this);
   }
 
-  @Override public void see(
-      GotoCmd gotoCmd, 
-      ImmutableList<String> labels,
-      ImmutableList<String> successors
-  ) {
+  @Override public void see(GotoCmd gotoCmd) {
     for (String s : successors) {
       Command next = labelsCollector.getCommand(currentBody, s);
       if (next == null)

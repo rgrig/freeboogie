@@ -128,259 +128,188 @@ public class PrettyPrinter extends Transformer {
   
   // === the visiting methods ===
   
-  @Override
-  public void see(MapType arrayType, ImmutableList<Type> idxType, Type elemType) {
+  @Override public void see(MapType ast) {
     say("[");
     assert !prefixByBq;
-    printList(", ", idxType);
+    printList(", ", ast.idxType());
     say("]");
-    elemType.eval(this);
+    ast.elemType().eval(this);
   }
 
-  @Override public void see(
-    AssertAssumeCmd assertAssumeCmd, 
-    ImmutableList<String> labels,
-    AssertAssumeCmd.CmdType type, 
-    ImmutableList<AtomId> typeVars, 
-    Expr expr
-  ) {
-    for (String l : labels) {
+  @Override public void see(AssertAssumeCmd ast) {
+    for (String l : ast.labels()) {
       say(l);
       say(": ");
     }
-    say(cmdRep.get(type));
-    if (!typeVars.isEmpty()) {
+    say(cmdRep.get(ast.type()));
+    if (!ast.typeVars().isEmpty()) {
       say("<");
-      printList(", ", typeVars);
+      printList(", ", ast.typeVars());
       say(">");
     }
-    expr.eval(this);
+    ast.expr().eval(this);
     semi();
   }
 
-  @Override
-  public void see(
-      AssignmentCmd assignmentCmd, 
-      ImmutableList<String> labels, 
-      AtomId lhs, 
-      Expr rhs
-  ) {
-    for (String l : labels) {
+  @Override public void see(AssignmentCmd ast) {
+    for (String l : ast.labels()) {
       say(l);
       say(": ");
     }
-    lhs.eval(this);
+    ast.lhs().eval(this);
     say(" := ");
-    rhs.eval(this);
+    ast.rhs().eval(this);
     semi();
   }
 
-  @Override
-  public void see(AtomCast atomCast, Expr e, Type type) {
+  @Override public void see(AtomCast ast) {
     say("cast(");
-    e.eval(this);
+    ast.e().eval(this);
     say(", ");
-    type.eval(this);
+    ast.type().eval(this);
     say(")");
   }
 
-  @Override
-  public void see(
-    AtomFun atomFun, 
-    String function, 
-    ImmutableList<Type> types, 
-    ImmutableList<Expr> args
-  ) {
-    say(function);
-    if (!types.isEmpty()) {
+  @Override public void see(AtomFun ast) {
+    say(ast.function());
+    if (!ast.types().isEmpty()) {
       say("<");
       assert !prefixByBq;
       prefixByBq = true;
-      printList(", ", types);
+      printList(", ", ast.types());
       prefixByBq = false;
       say(">");
     }
     say("(");
-    printList(", ", args);
+    printList(", ", ast.args());
     say(")");
   }
 
-  @Override
-  public void see(AtomId atomId, String id, ImmutableList<Type> types) {
-    say(id);
-    if (!types.isEmpty()) {
+  @Override public void see(AtomId ast) {
+    say(ast.id());
+    if (!ast.types().isEmpty()) {
       say("<");
       assert !prefixByBq;
       prefixByBq = true;
-      printList(", ", types);
+      printList(", ", ast.types());
       prefixByBq = false;
       say(">");
     }
   }
 
-  @Override
-  public void see(
-      AtomMapSelect atomMapSelect, 
-      Atom atom, 
-      ImmutableList<Expr> idx
-  ) {
-    atom.eval(this);
+  @Override public void see(AtomMapSelect ast) {
+    ast.atom().eval(this);
     say("[");
-    printList(", ", idx);
+    printList(", ", ast.idx());
     say("]");
   }
 
-  @Override
-  public void see(
-      AtomMapUpdate atomMapUpdate, 
-      Atom atom, 
-      ImmutableList<Expr> idx, 
-      Expr val
-  ) {
-    atom.eval(this);
+  @Override public void see(AtomMapUpdate ast) {
+    ast.atom().eval(this);
     say("[");
-    printList(", ", idx);
+    printList(", ", ast.idx());
     say(" := ");
-    val.eval(this);
+    ast.val().eval(this);
     say("]");
   }
 
-  @Override
-  public void see(AtomLit atomLit, AtomLit.AtomType val) {
-    say(atomRep.get(val));
+  @Override public void see(AtomLit ast) {
+    say(atomRep.get(ast.val()));
   }
 
-  @Override
-  public void see(AtomNum atomNum, BigInteger val) {
-    say(val.toString());
+  @Override public void see(AtomNum ast) {
+    say(ast.val().toString());
   }
 
-  @Override
-  public void see(AtomOld atomOld, Expr e) {
+  @Override public void see(AtomOld ast) {
     say("old(");
-    e.eval(this);
+    ast.e().eval(this);
     say(")");
   }
 
-  @Override
-  public void see(
-    AtomQuant atomQuant, 
-    AtomQuant.QuantType quant, 
-    ImmutableList<VariableDecl> vars, 
-    ImmutableList<Attribute> attributes,
-    Expr e
-  ) {
+  @Override public void see(AtomQuant ast) {
     ++skipVar;
     say("(");
-    say(quantRep.get(quant));
-    printList(", ", vars);
+    say(quantRep.get(ast.quant()));
+    printList(", ", ast.vars());
     say(" :: ");
-    printList(" ", attributes);
-    e.eval(this);
+    printList(" ", ast.attributes());
+    ast.e().eval(this);
     say(")");
     --skipVar;
   }
 
-  @Override
-  public void see(
-    Axiom axiom, 
-    ImmutableList<Attribute> attributes,
-    String name,
-    ImmutableList<AtomId> typeArgs, 
-    Expr expr
-  ) {
+  @Override public void see(Axiom ast) {
     say("axiom");
     switch (boogieVersion) {
-      case TWO: say(" "); say(name); break;
+      case TWO: say(" "); say(ast.name()); break;
     }
-    if (!typeArgs.isEmpty()) {
+    if (!ast.typeArgs().isEmpty()) {
       say("<");
-      printList(", ", typeArgs);
+      printList(", ", ast.typeArgs());
       say(">");
     }
     switch (boogieVersion) {
       case TWO: say(":"); break;
     }
     say(" ");
-    expr.eval(this); semi();
+    ast.expr().eval(this); semi();
   }
 
-  @Override
-  public void see(BinaryOp binaryOp, BinaryOp.Op op, Expr left, Expr right) {
+  @Override public void see(BinaryOp ast) {
     say("(");
-    left.eval(this);
-    say(binRep.get(op));
-    right.eval(this);
+    ast.left().eval(this);
+    say(binRep.get(ast.op()));
+    ast.right().eval(this);
     say(")");
   }
 
-  @Override
-  public void see(Block block, ImmutableList<Command> commands) {
-    printList("", commands);
+  @Override public void see(Block ast) {
+    printList("", ast.commands());
   }
 
-  @Override
-  public void see(
-      Body body, 
-      ImmutableList<VariableDecl> vars, 
-      Block block
-  ) {
+  @Override public void see(Body ast) {
     say(" {");
     ++indentLevel; nl();
-    printList("", vars);
-    block.eval(this);
+    printList("", ast.vars());
+    ast.block().eval(this);
     --indentLevel; nl();
     say("}");
     nl();
   }
 
-  @Override
-  public void see(
-      CallCmd callCmd, 
-      ImmutableList<String> labels,
-      String procedure, 
-      ImmutableList<Type> types, 
-      ImmutableList<AtomId> results,
-      ImmutableList<Expr> args
-  ) {
-    for (String l : labels) {
+  @Override public void see(CallCmd ast) {
+    for (String l : ast.labels()) {
       say(l);
       say(": ");
     }
     say("call ");
-    if (!results.isEmpty()) {
-      printList(", ", results);
+    if (!ast.results().isEmpty()) {
+      printList(", ", ast.results());
       say(" := ");
     }
-    say(procedure);
-    if (!types.isEmpty()) {
+    say(ast.procedure());
+    if (!ast.types().isEmpty()) {
       say("<");
       assert !prefixByBq;
       prefixByBq = true;
-      printList(", ", types);
+      printList(", ", ast.types());
       prefixByBq = false;
       say(">");
     }
     say("(");
-    printList(", ", args);
+    printList(", ", ast.args());
     say(")");
     semi();
   }
 
-  @Override
-  public void see(
-    ConstDecl constDecl, 
-    ImmutableList<Attribute> attributes,
-    String name, 
-    Type type, 
-    boolean uniq
-  ) {
+  @Override public void see(ConstDecl ast) {
     say("const ");
-    printList(" ", attributes);
-    if (uniq) say("unique ");
-    say(name);
+    printList(" ", ast.attributes());
+    if (ast.uniq()) say("unique ");
+    say(ast.name());
     say(" : ");
-    type.eval(this);
+    ast.type().eval(this);
     semi();
   }
 
@@ -393,72 +322,43 @@ public class PrettyPrinter extends Transformer {
     }
   }
 
-  @Override
-  public void see(
-      FunctionDecl function,
-      ImmutableList<Attribute> attributes,
-      Signature sig
-  ) {
+  @Override public void see(FunctionDecl ast) {
     say("function ");
-    printList(" ", attributes);
-    sig.eval(this);
+    printList(" ", ast.attributes());
+    ast.sig().eval(this);
     semi();
   }
 
-  @Override
-  public void see(
-      HavocCmd havocCmd, 
-      ImmutableList<String> labels,
-      ImmutableList<AtomId> ids
-  ) {
-    for (String l : labels) {
+  @Override public void see(HavocCmd ast) {
+    for (String l : ast.labels()) {
       say(l);
       say(": ");
     }
     say("havoc ");
-    printList(", ", ids);
+    printList(", ", ast.ids());
     semi();
   }
 
-  @Override
-  public void see(
-    Implementation implementation, 
-    ImmutableList<Attribute> attributes,
-    Signature sig, 
-    Body body 
-  ) {
+  @Override public void see(Implementation ast) {
     say("implementation ");
-    printList(" ", attributes);
-    sig.eval(this);
-    body.eval(this);
+    printList(" ", ast.attributes());
+    ast.sig().eval(this);
+    ast.body().eval(this);
     nl();
   }
 
-  @Override
-  public void see(
-    PrimitiveType primitiveType,
-    PrimitiveType.Ptype ptype,
-    int bits
-  ) {
-    say(typeRep.get(ptype));
+  @Override public void see(PrimitiveType ast) {
+    say(typeRep.get(ast.ptype()));
   }
 
-  @Override
-  public void see(
-      Procedure procedure, 
-      ImmutableList<Attribute> attr,
-      Signature sig, 
-      ImmutableList<PreSpec> preconditions,
-      ImmutableList<PostSpec> postconditions,
-      ImmutableList<ModifiesSpec> modifies
-  ) {
+  @Override public void see(Procedure ast) {
     say("procedure ");
-    printList(" ", attr);
+    printList(" ", ast.attributes());
     sig.eval(this);
     say(";");
-    printSpecs(preconditions);
-    printSpecs(modifies);
-    printSpecs(postconditions);
+    printSpecs(ast.preconditions());
+    printSpecs(ast.modifies());
+    printSpecs(ast.postconditions());
     nl();
   }
 
@@ -472,197 +372,135 @@ public class PrettyPrinter extends Transformer {
     }
   }
 
-  @Override
-  public void see(
-    Signature signature, 
-    String name, 
-    ImmutableList<AtomId> typeArgs,
-    ImmutableList<VariableDecl> args,
-    ImmutableList<VariableDecl> results
-  ) {
+  @Override public void see(Signature ast) {
     ++skipVar;
-    say(name);
-    if (!typeArgs.isEmpty()) {
+    say(ast.name());
+    if (!ast.typeArgs().isEmpty()) {
       say("<");
-      printList(", ", typeArgs);
+      printList(", ", ast.typeArgs());
       say(">");
     }
     say("(");
-    printList(", ", args);
+    printList(", ", ast.args());
     say(")");
-    if (!results.isEmpty()) {
+    if (!ast.results().isEmpty()) {
       say(" returns (");
-      printList(", ", results);
+      printList(", ", ast.results());
       say(")");
     }
     --skipVar;
   }
 
-  @Override
-  public void see(
-      ModifiesSpec modifiesSpec, 
-      boolean free,
-      ImmutableList<AtomId> ids
-  ) {
-    if (free) say("free ");
+  @Override public void see(ModifiesSpec ast) {
+    if (ast.free()) say("free ");
     say("modifies ");
-    printList(", ", ids);
+    printList(", ", ast.ids());
     semi();
   }
 
-  @Override
-  public void see(
-      PostSpec postSpec, 
-      boolean free,
-      ImmutableList<AtomId> typeArgs,
-      Expr expr
-  ) {
-    if (free) say("free ");
+  @Override public void see(PostSpec ast) {
+    if (ast.free()) say("free ");
     say("ensures");
-    if (!typeArgs.isEmpty()) {
+    if (!ast.typeArgs().isEmpty()) {
       say("<");
-      printList(", ", typeArgs);
+      printList(", ", ast.typeArgs());
       say(">");
     }
     say(" ");
-    expr.eval(this);
+    ast.expr().eval(this);
     semi();
   }
 
-  @Override
-  public void see(
-      PreSpec preSpec, 
-      boolean free,
-      ImmutableList<AtomId> typeArgs,
-      Expr expr
-  ) {
-    if (free) say("free ");
+  @Override public void see(PreSpec ast) {
+    if (ast.free()) say("free ");
     say("requires");
-    if (!typeArgs.isEmpty()) {
+    if (!ast.typeArgs().isEmpty()) {
       say("<");
-      printList(", ", typeArgs);
+      printList(", ", ast.typeArgs());
       say(">");
     }
     say(" ");
-    expr.eval(this);
+    ast.expr().eval(this);
     semi();
   }
 
 
-  @Override
-  public void see(
-    TypeDecl typeDecl,
-    ImmutableList<Attribute> attr,
-    boolean finite,
-    String name,
-    ImmutableList<AtomId> typeArgs,
-    Type type
-  ) {
+  @Override public void see(TypeDecl ast) {
     say("type ");
-    printList(" ", attr);
+    printList(" ", ast.attr());
     switch (boogieVersion) {
       case TWO:
-        if (finite) {
+        if (ast.finite()) {
           say("finite");
           say(" ");
         }
         break;
     }
-    say(name);
+    say(ast.name());
     // TODO: print space-separated typeArgs
-    if (type != null) {
+    if (ast.type ()!= null) {
       say(" = ");
-      type.eval(this);
+      ast.type().eval(this);
     }
     semi();
   }
 
-  @Override
-  public void see(UnaryOp unaryOp, UnaryOp.Op op, Expr e) {
-    say(unRep.get(op));
-    e.eval(this);
+  @Override public void see(UnaryOp ast) {
+    say(unRep.get(ast.op()));
+    ast.e().eval(this);
   }
 
-  @Override
-  public void see(
-      UserType userType,
-      String name,
-      ImmutableList<Type> typeArgs
-  ) {
-    say(name);
+  @Override public void see(UserType ast) {
+    say(ast.name());
     // TODO: print space-separated typeArgs
   }
 
-  @Override
-  public void see(
-    VariableDecl variableDecl, 
-    ImmutableList<Attribute> attr,
-    String name, 
-    Type type, 
-    ImmutableList<AtomId> typeVars,
-    Expr where
-  ) {
+  @Override public void see(VariableDecl ast) {
     if (skipVar==0) say("var ");
-    printList(" ", attr);
+    printList(" ", ast.attr());
     say(name);
-    if (!typeVars.isEmpty()) {
+    if (!ast.typeVars().isEmpty()) {
       say("<");
-      printList(", ", typeVars);
+      printList(", ", ast.typeVars());
       say(">");
     }
     say(" : ");
-    type.eval(this);
-    if (where != null) {
+    ast.type().eval(this);
+    if (ast.where ()!= null) {
       say(" ");
       say("where");
       say(" ");
-      where.eval(this);
+      ast.where().eval(this);
     }
     if (skipVar==0) semi();
   }
   
-  @Override
-  public void see(
-      Attribute attribute, 
-      String type, 
-      ImmutableList<Expr> exprs
-  ) {
+  @Override public void see(Attribute ast) {
     say("{");
-    say(":"); say(type);
+    say(":"); say(ast.type());
     say(" ");
-    printList(" ", exprs);
+    printList(" ", ast.exprs());
     say("} ");
   }
 
-  @Override public void see(
-      GotoCmd gotoCmd, 
-      ImmutableList<String> labels,
-      ImmutableList<String> successors
-  ) {
-    for (String l : labels) {
+  @Override public void see(GotoCmd ast) {
+    for (String l : ast.labels()) {
       say(l);
       say(": ");
     }
-    if (successors.isEmpty())
+    if (ast.successors().isEmpty())
       say("return");
     else {
       say("goto ");
-      for (int i = 0; i < successors.size(); ++i) {
+      for (int i = 0; i < ast.successors().size(); ++i) {
         if (i != 0) say(", ");
-        say(successors.get(i));
+        say(ast.successors().get(i));
       }
     }
     semi();
   }
 
-  @Override public void see(
-      WhileCmd whileCmd, 
-      ImmutableList<String> labels,
-      Expr condition,
-      ImmutableList<LoopInvariant> inv,
-      Block body
-  ) {
+  @Override public void see(WhileCmd ast) {
     assert false : "not implemented";
   }
-
 }

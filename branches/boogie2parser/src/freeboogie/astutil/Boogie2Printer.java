@@ -52,33 +52,20 @@ public class Boogie2Printer extends PrettyPrinter {
   // === Overriden see methods ===
 
 
-  @Override
-  public void see(
-    AtomFun atomFun, 
-    String function, 
-    ImmutableList<Type> types, 
-    ImmutableList<Expr> args
-  ) {
-    say(function);
+  @Override public void see(AtomFun atomFun) {
+    say(ast.function());
     say("(");
-    printList(", ", args);
+    printList(", ", ast.args());
     say(")");
   }
 
-  @Override
-  public void see(
-    AtomQuant atomQuant, 
-    AtomQuant.QuantType quant, 
-    ImmutableList<VariableDecl> vars, 
-    ImmutableList<Attribute> attr, 
-    Expr e
-  ) {
+  @Override public void see(AtomQuant atomQuant) {
     ++skipVar;
     say("(");
-    if (quant == AtomQuant.QuantType.FORALL) {
+    if (ast.quant() == AtomQuant.QuantType.FORALL) {
       say("forall");
       boolean addAny = Iterables.any(
-          vars, 
+          ast.vars(), 
           new Predicate<VariableDecl>() {
             @Override public boolean apply(VariableDecl vd) {
               return anyFinder.get(vd);
@@ -88,124 +75,83 @@ public class Boogie2Printer extends PrettyPrinter {
       }
     } else say("exists");
     say(" ");
-    printList(", ", vars);
+    printList(", ", ast.vars());
     say(" :: ");
-    printList(" ", attr);
-    e.eval(this);
+    printList(" ", ast.attr());
+    ast.e().eval(this);
     say(")");
     --skipVar;
   }
 
-  @Override
-  public void see(AtomId atomId, String id, ImmutableList<Type> types) {
-    say(id);
+  @Override public void see(AtomId atomId) {
+    say(ast.id());
   }
 
-  @Override
-  public void see(
-    Axiom axiom, 
-    ImmutableList<Attribute> attr,
-    String name,
-    ImmutableList<AtomId> typeVars, 
-    Expr expr
-  ) {
+  @Override public void see(Axiom axiom) {
     say("axiom ");
-    expr.eval(this);
+    ast.expr().eval(this);
     semi();
   }
 
-  @Override
-  public void see(AtomCast atomCast, Expr e, Type type) {
-    e.eval(this);
+  @Override public void see(AtomCast atomCast) {
+    ast.e().eval(this);
   }
 
-  @Override
-  public void see(
-    Signature signature, 
-    String name, 
-    ImmutableList<AtomId> typeArgs,
-    ImmutableList<VariableDecl> args, 
-    ImmutableList<VariableDecl> results
-  ) {
+  @Override public void see(Signature signature) {
     ++skipVar;
-    say(name);
-    if (anyFinder.get(signature)) {
+    say(ast.name());
+    if (anyFinder.get(ast.signature())) {
       say("<"); say("any"); say(">");
     }
     say("(");
-    printList(", ", args);
+    printList(", ", ast.args());
     say(")");
-    if (results != null) {
+    if (ast.results ()!= null) {
       say(" returns (");
-      printList(", ", results);
+      printList(", ", ast.results());
       say(")");
     }
     --skipVar;
   }
 
-  @Override
-  public void see(
-      ModifiesSpec modifiesSpec, 
-      boolean free,
-      ImmutableList<AtomId> ids
-  ) {
-    if (free) say("free ");
+  @Override public void see(ModifiesSpec modifiesSpec) {
+    if (ast.free()) say("free ");
     say("modifies ");
-    printList(", ", ids);
+    printList(", ", ast.ids());
     semi();
   }
 
-  @Override
-  public void see(
-      PostSpec postSpec, 
-      boolean free,
-      ImmutableList<AtomId> typeArgs,
-      Expr expr
-  ) {
-    if (free) say("free ");
+  @Override public void see(PostSpec postSpec) {
+    if (ast.free()) say("free ");
     say("ensures ");
-    expr.eval(this);
+    ast.expr().eval(this);
     semi();
   }
 
-  @Override
-  public void see(
-      PreSpec preSpec, 
-      boolean free,
-      ImmutableList<AtomId> typeArgs,
-      Expr expr
-  ) {
-    if (free) say("free ");
+  @Override public void see(PreSpec preSpec) {
+    if (ast.free()) say("free ");
     say("requires ");
-    expr.eval(this);
+    ast.expr().eval(this);
     semi();
   }
 
-  @Override
-  public void see(
-      VariableDecl variableDecl, 
-      ImmutableList<Attribute> attr,
-      String name, 
-      Type type, 
-      ImmutableList<AtomId> typeArgs,
-      Expr where
-  ) {
+  @Override public void see(VariableDecl variableDecl) {
     if (skipVar==0) say("var ");
-    say(name);
+    say(ast.name());
     say(" : ");
-    if (typeArgs != null) {
+    if (ast.typeArgs ()!= null) {
       say("<");
-      printList(", ", typeArgs);
+      printList(", ", ast.typeArgs());
       say(">");
     }
-    type.eval(this);
-    if (where != null) {
+    ast.type().eval(this);
+    if (ast.where ()!= null) {
       say(" ");
       say("where");
       say(" ");
-      where.eval(this);
+      ast.where().eval(this);
     }
-  if (skipVar==0) semi();
+    if (skipVar==0) semi();
   }
   
 }

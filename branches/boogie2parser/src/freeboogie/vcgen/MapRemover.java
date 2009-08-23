@@ -115,12 +115,7 @@ public class MapRemover extends Transformer {
     return TypeUtils.internalTypecheck(p, tc);
   }
 
-  @Override
-  public AtomFun eval(
-      AtomMapSelect atomMapSelect,
-      Atom atom,
-      ImmutableList<Expr> idx
-  ) {
+  @Override public AtomFun eval(AtomMapSelect atomMapSelect) {
     atom = (Atom) atom.eval(this);
     idx = AstUtils.evalListOfExpr(idx, this);
     int n = idx.size();
@@ -130,13 +125,7 @@ public class MapRemover extends Transformer {
         ImmutableList.<Expr>builder().add(atom).addAll(idx).build());
   }
 
-  @Override
-  public AtomFun eval(
-      AtomMapUpdate atomMapUpdate,
-      Atom atom,
-      ImmutableList<Expr> idx,
-      Expr val
-  ) {
+  @Override public AtomFun eval(AtomMapUpdate atomMapUpdate) {
     atom = (Atom)atom.eval(this);
     idx = AstUtils.evalListOfExpr(idx, this);
     val = (Expr)val.eval(this);

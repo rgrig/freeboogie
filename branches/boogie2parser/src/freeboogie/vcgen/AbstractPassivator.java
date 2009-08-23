@@ -148,17 +148,7 @@ public abstract class AbstractPassivator extends Transformer {
   // === transformers ===
 
   // visits ONLY implementations and then adds new globals
-  @Override public Program eval(
-      Program program,
-      String fileName,
-      ImmutableList<TypeDecl> types,
-      ImmutableList<Axiom> axioms,
-      ImmutableList<VariableDecl> variables,
-      ImmutableList<ConstDecl> constants, 
-      ImmutableList<FunctionDecl> functions,
-      ImmutableList<Procedure> procedures,
-      ImmutableList<Implementation> implementations
-  ) {
+  @Override public Program eval(Program program) {
     readIdx = Maps.newHashMap();
     writeIdx = Maps.newHashMap();
     newVarsCnt = Maps.newHashMap();
@@ -194,13 +184,7 @@ public abstract class AbstractPassivator extends Transformer {
         program.loc());
   }
 
-  @Override
-  public Implementation eval(
-      Implementation implementation,
-      ImmutableList<Attribute> attr, 
-      Signature sig,
-      Body body
-  ) {
+  @Override public Implementation eval(Implementation implementation) {
     currentFG = tc.flowGraph(body);
     if (currentFG.hasCycle()) {
       Err.warning("" + implementation.loc() + ": Implementation " + 
@@ -243,13 +227,7 @@ public abstract class AbstractPassivator extends Transformer {
     return Implementation.mk(attr, sig, body);
   }
 
-  @Override public Signature eval(
-      Signature signature,
-      String name,
-      ImmutableList<AtomId> typeArgs,
-      ImmutableList<VariableDecl> args,
-      ImmutableList<VariableDecl> results
-  ) {
+  @Override public Signature eval(Signature signature) {
     AstUtils.evalListOfVariableDecl(args, this);
     assert !inResults : "There shouldn't be nesting here.";
     inResults = true;
@@ -258,11 +236,7 @@ public abstract class AbstractPassivator extends Transformer {
     return Signature.mk(name, typeArgs, args, results);
   }
 
-  @Override public Body eval(
-      Body body, 
-      ImmutableList<VariableDecl> vars,
-      Block block
-  ) {
+  @Override public Body eval(Body body) {
     endOfBodyCommands.clear();
     block = (Block) block.eval(this);
     ImmutableList<Command> cmds = block.commands();
@@ -278,7 +252,7 @@ public abstract class AbstractPassivator extends Transformer {
         Block.mk(newCommands.build(), block.loc()), body.loc());
   }
 
-  @Override public Block eval(Block block, ImmutableList<Command> commands) {
+  @Override public Block eval(Block block) {
     ImmutableList.Builder<Command> newCommands = ImmutableList.builder();
     for (Command c : commands) {
       trailingCommands.clear();
@@ -290,12 +264,7 @@ public abstract class AbstractPassivator extends Transformer {
 
   // === visitors ===
   // Note the return type
-  @Override public AssertAssumeCmd eval(
-      AssignmentCmd cmd, 
-      ImmutableList<String> labels,
-      AtomId lhs, 
-      Expr rhs
-  ) {
+  @Override public AssertAssumeCmd eval(AssignmentCmd cmd) {
     trailingCommands = getCopyCommands(
         cmd, 
         currentFG.to(cmd).iterator().next());
@@ -314,13 +283,7 @@ public abstract class AbstractPassivator extends Transformer {
         cmd.loc());
   }
 
-  @Override public AssertAssumeCmd eval(
-      AssertAssumeCmd assertAssumeCmd, 
-      ImmutableList<String> labels,
-      AssertAssumeCmd.CmdType type,
-      ImmutableList<AtomId> typeArgs,
-      Expr expr
-  ) {
+  @Override public AssertAssumeCmd eval(AssertAssumeCmd assertAssumeCmd) {
     trailingCommands = getCopyCommands(
         assertAssumeCmd, 
         currentFG.to(assertAssumeCmd).iterator().next());
@@ -335,11 +298,7 @@ public abstract class AbstractPassivator extends Transformer {
     return assertAssumeCmd;
   }
 
-  @Override public GotoCmd eval(
-      GotoCmd gotoCmd, 
-      ImmutableList<String> labels,
-      ImmutableList<String> successors
-  ) {
+  @Override public GotoCmd eval(GotoCmd gotoCmd) {
     ImmutableList.Builder<String> newSuccessors = ImmutableList.builder();
     for (Command succCmd : currentFG.to(gotoCmd)) {
       String oldTarget = succCmd.labels().get(0);
@@ -357,11 +316,7 @@ public abstract class AbstractPassivator extends Transformer {
     return GotoCmd.mk(labels, newSuccessors.build(), gotoCmd.loc());
   }
 
-  @Override public HavocCmd eval(
-      HavocCmd havocCmd, 
-      ImmutableList<String> labels,
-      ImmutableList<AtomId> ids
-  ) {
+  @Override public HavocCmd eval(HavocCmd havocCmd) {
     trailingCommands = getCopyCommands(
         havocCmd, 
         currentFG.to(havocCmd).iterator().next());
@@ -375,14 +330,7 @@ public abstract class AbstractPassivator extends Transformer {
     return havocCmd;
   }
 
-  @Override public CallCmd eval(
-      CallCmd callCmd, 
-      ImmutableList<String> labels,
-      String procedure,
-      ImmutableList<Type> types,
-      ImmutableList<AtomId> results,
-      ImmutableList<Expr> args
-  ) {
+  @Override public CallCmd eval(CallCmd callCmd) {
     trailingCommands = getCopyCommands(
         callCmd,
         currentFG.to(callCmd).iterator().next());
@@ -399,16 +347,14 @@ public abstract class AbstractPassivator extends Transformer {
     return callCmd;
   }
 
-  @Override
-  public Expr eval(AtomOld atomOld, Expr e) {
+  @Override public Expr eval(AtomOld atomOld) {
     ++belowOld;
     e = (Expr)e.eval(this);
     --belowOld;
     return e;
   }
 
-  @Override
-  public AtomId eval(AtomId atomId, String id, ImmutableList<Type> types) {
+  @Override public AtomId eval(AtomId atomId) {
     if (currentCommand == null) return atomId;
     IdDecl d = tc.st().ids.def(atomId);
     if (!(d instanceof VariableDecl)) return atomId;
@@ -418,15 +364,7 @@ public abstract class AbstractPassivator extends Transformer {
     return AtomId.mk(name(id, idx), types, atomId.loc());
   }
 
-  @Override
-  public VariableDecl eval(
-      VariableDecl variableDecl,
-      ImmutableList<Attribute> attr,
-      String name,
-      Type type,
-      ImmutableList<AtomId> typeArgs,
-      Expr where
-  ) {
+  @Override public VariableDecl eval(VariableDecl variableDecl) {
     Integer last = newVarsCnt.get(variableDecl);
     if (last == null) last = 0;
     newVarsCnt.remove(variableDecl);
