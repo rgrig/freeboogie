@@ -39,14 +39,8 @@ import freeboogie.ast.*;
  * NOTE: Free modifies are ignored.
  */
 public class CallDesugarer extends CommandDesugarer {
-  @Override public Command eval(
-      CallCmd callCmd, 
-      ImmutableList<String> labels,
-      String procedure, 
-      ImmutableList<Type> types, 
-      ImmutableList<AtomId> results, 
-      ImmutableList<Expr> args
-  ) {
+  @Override public Command eval(CallCmd callCmd) {
+    ImmutableList<String> labels = callCmd.labels();
     Procedure p = tc.st().procs.def(callCmd);
     Signature sig = p.sig();
     prepareToSubstitute(sig.results(), results);

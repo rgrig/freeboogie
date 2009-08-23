@@ -149,6 +149,8 @@ public abstract class AbstractPassivator extends Transformer {
 
   // visits ONLY implementations and then adds new globals
   @Override public Program eval(Program program) {
+    ImmutableList<Implementation> implementations = program.implementations();
+    ImmutableList<VariableDecl> variables = program.variables();
     readIdx = Maps.newHashMap();
     writeIdx = Maps.newHashMap();
     newVarsCnt = Maps.newHashMap();
@@ -173,18 +175,20 @@ public abstract class AbstractPassivator extends Transformer {
       variables = newVariables.build();
     }
     return Program.mk(
-        fileName,
-        types,
-        axioms,
+        program.fileName(),
+        program.types(),
+        program.axioms(),
         variables,
-        constants,
-        functions,
-        procedures,
+        program.constants(),
+        program.functions(),
+        program.procedures(),
         implementations,
         program.loc());
   }
 
   @Override public Implementation eval(Implementation implementation) {
+    ImmutableList<Body> body = implementation.body();
+    ImmutableList<Signature> sig = implementation.sig();
     currentFG = tc.flowGraph(body);
     if (currentFG.hasCycle()) {
       Err.warning("" + implementation.loc() + ": Implementation " + 
@@ -224,19 +228,31 @@ public abstract class AbstractPassivator extends Transformer {
     sig = (Signature) sig.eval(this); // adds to newLocals
     newLocals.addAll(body.vars());
     body = Body.mk(newLocals.build(), body.block(), body.loc());
-    return Implementation.mk(attr, sig, body);
+    return Implementation.mk(
+        implementation.attributes(), 
+        sig, 
+        body,
+        implementation.loc());
   }
 
   @Override public Signature eval(Signature signature) {
+    ImmutableList<VariableDecl> args = signature.args();
+    ImmutableList<VariableDecl> results = signature.results();
     AstUtils.evalListOfVariableDecl(args, this);
     assert !inResults : "There shouldn't be nesting here.";
     inResults = true;
     results = AstUtils.evalListOfVariableDecl(results, this);
     inResults = false;
-    return Signature.mk(name, typeArgs, args, results);
+    return Signature.mk(
+        signature.name(), 
+        signature.typeArgs(), 
+        args, 
+        results,
+        signature.loc());
   }
 
   @Override public Body eval(Body body) {
+    Block block = body.block();
     endOfBodyCommands.clear();
     block = (Block) block.eval(this);
     ImmutableList<Command> cmds = block.commands();
@@ -248,13 +264,14 @@ public abstract class AbstractPassivator extends Transformer {
 
     // NOTE: eval(Implementation) will add newLocals to vars
     return Body.mk(
-        vars, 
-        Block.mk(newCommands.build(), block.loc()), body.loc());
+        body.vars(), 
+        Block.mk(newCommands.build(), block.loc()),
+        body.loc());
   }
 
   @Override public Block eval(Block block) {
     ImmutableList.Builder<Command> newCommands = ImmutableList.builder();
-    for (Command c : commands) {
+    for (Command c : block.commands()) {
       trailingCommands.clear();
       Command nc = (Command) c.eval(this);
       newCommands.add(nc).addAll(trailingCommands);
@@ -265,13 +282,14 @@ public abstract class AbstractPassivator extends Transformer {
   // === visitors ===
   // Note the return type
   @Override public AssertAssumeCmd eval(AssignmentCmd cmd) {
+    Expr lhs = cmd.lhs();
     trailingCommands = getCopyCommands(
         cmd, 
         currentFG.to(cmd).iterator().next());
     Expr value = (Expr)rhs.eval(this);
     VariableDecl vd = (VariableDecl)tc.st().ids.def(lhs);
     return AssertAssumeCmd.mk(
-        labels,
+        cmd.labels(),
         AssertAssumeCmd.CmdType.ASSUME, 
         AstUtils.ids(),
         BinaryOp.mk(BinaryOp.Op.EQ,
@@ -290,10 +308,10 @@ public abstract class AbstractPassivator extends Transformer {
     assert currentCommand == null; // no nesting
     currentCommand = assertAssumeCmd;
     assertAssumeCmd = AssertAssumeCmd.mk(
-        labels,
-        type,
-        typeArgs,
-        (Expr) expr.eval(this));
+        assertAssumeCmd.labels(),
+        assertAssumeCmd.type(),
+        assertAssumeCmd.typeArgs(),
+        (Expr) assertAssumeCmd.expr().eval(this));
     currentCommand = null;
     return assertAssumeCmd;
   }
@@ -313,7 +331,7 @@ public abstract class AbstractPassivator extends Transformer {
         newSuccessors.add(endOfBodyCommands.peekFirst().labels().get(0));
       }
     }
-    return GotoCmd.mk(labels, newSuccessors.build(), gotoCmd.loc());
+    return GotoCmd.mk(gotoCmd.labels(), newSuccessors.build(), gotoCmd.loc());
   }
 
   @Override public HavocCmd eval(HavocCmd havocCmd) {
@@ -323,8 +341,8 @@ public abstract class AbstractPassivator extends Transformer {
     assert currentCommand == null; // no nesting
     currentCommand = havocCmd;
     havocCmd = HavocCmd.mk(
-        labels, 
-        AstUtils.evalListOfAtomId(ids, this),
+        havocCmd.labels(), 
+        AstUtils.evalListOfAtomId(havocCmd.ids(), this),
         havocCmd.loc());
     currentCommand = null;
     return havocCmd;
@@ -337,21 +355,22 @@ public abstract class AbstractPassivator extends Transformer {
     assert currentCommand == null; // no nesting
     currentCommand = callCmd;
     callCmd = CallCmd.mk(
-        labels,
-        procedure,
-        types,
-        AstUtils.evalListOfAtomId(results, this),
-        AstUtils.evalListOfExpr(args, this),
+        callCmd.labels(),
+        callCmd.procedure(),
+        callCmd.types(),
+        AstUtils.evalListOfAtomId(callCmd.results(), this),
+        AstUtils.evalListOfExpr(callCmd.args(), this),
         callCmd.loc());
     currentCommand = null;
     return callCmd;
   }
 
   @Override public Expr eval(AtomOld atomOld) {
+    Expr expr = atomOld.expr();
     ++belowOld;
-    e = (Expr)e.eval(this);
+    expr = (Expr)expr.eval(this);
     --belowOld;
-    return e;
+    return expr;
   }
 
   @Override public AtomId eval(AtomId atomId) {
@@ -361,7 +380,7 @@ public abstract class AbstractPassivator extends Transformer {
     VariableDecl vd = (VariableDecl) d;
     int idx = getIdx(readIdx, vd);
     if (idx == 0) return atomId;
-    return AtomId.mk(name(id, idx), types, atomId.loc());
+    return AtomId.mk(name(atomId.id(), idx), atomId.types(), atomId.loc());
   }
 
   @Override public VariableDecl eval(VariableDecl variableDecl) {
@@ -371,10 +390,10 @@ public abstract class AbstractPassivator extends Transformer {
     if (inResults) {
       variableDecl = VariableDecl.mk(
           ImmutableList.<Attribute>of(),
-          name(name, last),
-          type,
-          typeArgs,
-          where,
+          name(variableDecl.name(), last),
+          variableDecl.type(),
+          variableDecl.typeArgs(),
+          variableDecl.where(),
           variableDecl.loc());
     }
     int start = 1;
@@ -385,10 +404,11 @@ public abstract class AbstractPassivator extends Transformer {
     for (int i = start; i <= last; ++i) {
       newLocals.add(VariableDecl.mk(
           ImmutableList.<Attribute>of(),
-          name(name, i),
-          type.clone(), 
-          AstUtils.cloneListOfAtomId(typeArgs),
-          where));
+          name(variableDecl.name(), i),
+          variableDecl.type().clone(), 
+          AstUtils.cloneListOfAtomId(variableDecl.typeArgs()),
+          variableDecl.where(),
+          variableDecl.loc()));
     }
     return variableDecl;
   }
