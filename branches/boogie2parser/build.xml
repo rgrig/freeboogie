@@ -84,41 +84,8 @@
 
   <!-- Compilation and documentation targets -->
   <target
-      name="compile_ast"
-      depends="generate_code"
-      description="compiles the AST">
-    <javac
-        srcdir="${ast-dir}" 
-        sourcepath="src"
-        destdir="classes"
-        optimize="yes" 
-        debug="${debug}">
-      <classpath refid="classpath" />
-      <compilerarg value="-Xlint:all" />
-      <compilerarg value="-Xmaxerrs" /><compilerarg value="10" />
-      <compilerarg value="-Xmaxwarns" /><compilerarg value="10" />
-    </javac>
-  </target>
-
-  <target
-      name="compile_parser"
-      depends="compile_ast,generate_code"
-      description="compiles the parser with warnings turned off">
-    <javac 
-        srcdir="${parser-dir}" 
-        sourcepath="src" 
-        destdir="classes" 
-        optimize="yes" 
-        debug="yes">
-      <classpath refid="classpath" /> 
-      <compilerarg value="-Xmaxerrs" /><compilerarg value="10" />
-      <compilerarg value="-Xmaxwarns" /><compilerarg value="10" />
-    </javac>
-  </target>
-
-  <target
       name="compile"
-      depends="compile_parser,compile_ast,generate_code"
+      depends="generate_code"
       description="compile the source ">
     <javac 
         srcdir="src"
