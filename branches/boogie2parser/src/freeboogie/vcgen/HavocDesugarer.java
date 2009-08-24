@@ -42,12 +42,12 @@ import freeboogie.tc.TypeUtils;
  */
 public class HavocDesugarer extends CommandDesugarer {
   @Override public HavocCmd eval(HavocCmd havocCmd) {
-    Expr e = AtomLit.mk(AtomLit.AtomType.TRUE, havocCmd.loc());
-    for (AtomId id : havocCmd.ids()) {
+    Expr e = BooleanLiteral.mk(BooleanLiteral.Type.TRUE, havocCmd.loc());
+    for (Identifier id : havocCmd.ids()) {
       VariableDecl vd = (VariableDecl)tc.st().ids.def(id);
       VariableDecl vd2 = tc.paramMap().def(vd);
       if (vd2 != null) vd = vd2;
-      AtomId fresh = AtomId.mk(
+      Identifier fresh = Identifier.mk(
           Id.get("fresh"), 
           ImmutableList.<Type>of(), 
           id.loc());
@@ -70,13 +70,13 @@ public class HavocDesugarer extends CommandDesugarer {
           ImmutableList.<Attribute>of(),
           fresh.id(),
           vd.type().clone(),
-          AstUtils.cloneListOfAtomId(vd.typeArgs()),
+          AstUtils.cloneListOfIdentifier(vd.typeArgs()),
           null));
     }
     addEquivalentCommand(AssertAssumeCmd.mk(
         noString,
         AssertAssumeCmd.CmdType.ASSUME,
-        ImmutableList.<AtomId>of(),
+        ImmutableList.<Identifier>of(),
         e,
         havocCmd.loc()));
     return null;

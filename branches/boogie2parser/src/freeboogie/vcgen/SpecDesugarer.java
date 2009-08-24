@@ -47,7 +47,7 @@ import freeboogie.tc.*;
 public class SpecDesugarer extends Transformer {
   private UsageToDefMap<Implementation, Procedure> implProc;
   private UsageToDefMap<VariableDecl, VariableDecl> paramMap;
-  private Map<VariableDecl, AtomId> toSubstitute = Maps.newLinkedHashMap();
+  private Map<VariableDecl, Identifier> toSubstitute = Maps.newLinkedHashMap();
   private List<Expr> preconditions = Lists.newArrayList();
   private List<Expr> postconditions = Lists.newArrayList();
 
@@ -70,12 +70,12 @@ public class SpecDesugarer extends Transformer {
     for (VariableDecl ad : sig.args()) {
       toSubstitute.put(
           paramMap.def(ad), 
-          AtomId.mk(ad.name(), ImmutableList.<Type>of()));
+          Identifier.mk(ad.name(), ImmutableList.<Type>of()));
     }
     for (VariableDecl rd : sig.results()) {
       toSubstitute.put(
           paramMap.def(rd), 
-          AtomId.mk(rd.name(), ImmutableList.<Type>of()));
+          Identifier.mk(rd.name(), ImmutableList.<Type>of()));
     }
 
     // collect preconditions and postconditions
@@ -101,9 +101,9 @@ public class SpecDesugarer extends Transformer {
     return implementation;
   }
 
-  @Override public AtomId eval(AtomId atomId) {
+  @Override public Identifier eval(Identifier atomId) {
     IdDecl d = tc.st().ids.def(atomId);
-    AtomId s = toSubstitute.get(d);
+    Identifier s = toSubstitute.get(d);
     return s == null? atomId : s.clone();
   }
 
@@ -122,7 +122,7 @@ public class SpecDesugarer extends Transformer {
         ImmutableList.of("$$post"),
         AssertAssumeCmd.CmdType.ASSUME,
         AstUtils.ids(),
-        AtomLit.mk(AtomLit.AtomType.TRUE)));
+        BooleanLiteral.mk(BooleanLiteral.Type.TRUE)));
     for (Expr e : postconditions) {
       newCommands.add(AssertAssumeCmd.mk(
           noString,

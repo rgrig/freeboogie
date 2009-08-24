@@ -70,20 +70,20 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   private UsageToDefMap<VariableDecl, VariableDecl> paramMap;
 
   // maps type variables to their binding types
-  private StackedHashMap<AtomId, Type> typeVar;
+  private StackedHashMap<Identifier, Type> typeVar;
 
   // used for (randomized) union-find
   private static final Random rand = new Random(123);
 
   // implicitSpec.get(x) contains the mappings of type variables
   // to types that were inferred (and used) while type-checking x
-  private Map<Ast, Map<AtomId, Type>> implicitSpec;
+  private Map<Ast, Map<Identifier, Type>> implicitSpec;
 
   // used as a stack of sets; this must be updated whenever
   // we decend into something parametrized by a generic type
   // that can contain expressions (e.g., functions, axioms,
   // procedure, implementation)
-  private StackedHashMap<AtomId, AtomId> enclosingTypeVar;
+  private StackedHashMap<Identifier, Identifier> enclosingTypeVar;
 
   // accept deprecated constructs
   private boolean acceptOld;
@@ -110,7 +110,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
    * specialization performed for an ID then you should find the
    * mappings of type variables stored for ALL parents of the ID.
    */
-  public Map<Ast, Map<AtomId, Type>> implicitSpec() {
+  public Map<Ast, Map<Identifier, Type>> implicitSpec() {
     return implicitSpec;
   }
   
@@ -121,13 +121,12 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     tvLevel = 0; // DBG
     boolType = PrimitiveType.mk(PrimitiveType.Ptype.BOOL, -1);
     intType = PrimitiveType.mk(PrimitiveType.Ptype.INT, -1);
-    refType = PrimitiveType.mk(PrimitiveType.Ptype.REF, -1);
     errType = PrimitiveType.mk(PrimitiveType.Ptype.ERROR, -1);
     
     typeOf = new HashMap<Expr, Type>();
-    typeVar = new StackedHashMap<AtomId, Type>();
-    implicitSpec = new HashMap<Ast, Map<AtomId, Type>>();
-    enclosingTypeVar = new StackedHashMap<AtomId, AtomId>();
+    typeVar = new StackedHashMap<Identifier, Type>();
+    implicitSpec = new HashMap<Ast, Map<Identifier, Type>>();
+    enclosingTypeVar = new StackedHashMap<Identifier, Identifier>();
     
     // build symbol table
     StbInterface stb = new SymbolTableBuilder();
@@ -186,9 +185,9 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   private void typeVarEnter(Ast ast) { typeVar.push(); ++tvLevel; }
  
   private void typeVarExit(Ast ast) {
-    Map<AtomId, Type> lis = Maps.newHashMap();
+    Map<Identifier, Type> lis = Maps.newHashMap();
     implicitSpec.put(ast, lis);
-    for (Map.Entry<AtomId, Type> e : typeVar.peek().entrySet())
+    for (Map.Entry<Identifier, Type> e : typeVar.peek().entrySet())
       if (!isTypeVar(e.getValue())) lis.put(e.getKey(), e.getValue());
     typeVar.pop();
     --tvLevel;
@@ -272,12 +271,6 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     a = stripTuple(a);
     b = stripTuple(b);
     
-    // check if b is ANY
-    if (b instanceof PrimitiveType) {
-      PrimitiveType sb = (PrimitiveType)b;
-      if (sb.ptype() == PrimitiveType.Ptype.ANY) return true;
-    }
-
     // handle type variables
     a = realType(a);
     b = realType(b);
@@ -306,12 +299,12 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     return tt.types().get(0);
   }
 
-  private void collectEnclosingTypeVars(ImmutableList<AtomId> ids) {
-    for (AtomId i : ids) enclosingTypeVar.put(i, i);
+  private void collectEnclosingTypeVars(ImmutableList<Identifier> ids) {
+    for (Identifier i : ids) enclosingTypeVar.put(i, i);
   }
 
   private Type realType(Type t) {
-    AtomId ai;
+    Identifier ai;
     Type nt;
     while (true) {
       ai = getTypeVarDecl(t);
@@ -366,11 +359,11 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
 
   private boolean isTypeVar(Type t) {
-    AtomId ai = getTypeVarDecl(t);
+    Identifier ai = getTypeVarDecl(t);
     return ai != null && enclosingTypeVar.get(ai) == null;
   }
 
-  private AtomId getTypeVarDecl(Type t) {
+  private Identifier getTypeVarDecl(Type t) {
     if (!(t instanceof UserType)) return null;
     return st.typeVars.def((UserType)t);
   }
@@ -386,7 +379,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     if (!isTypeVar(a) || (isTypeVar(b)  && rand.nextBoolean())) {
       Type t = a; a = b; b = t;
     }
-    AtomId ai = getTypeVarDecl(a);
+    Identifier ai = getTypeVarDecl(a);
     if (getTypeVarDecl(b) != ai) {
       log.fine("TC: typevar " + ai.id() + "@" + ai.loc() +
         " == type " + TypeUtils.typeToString(b));
@@ -396,7 +389,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
 
   private void mapExplicitGenerics(
-      ImmutableList<AtomId> tvl, 
+      ImmutableList<Identifier> tvl, 
       ImmutableList<Type> tl
   ) {
     if (tvl.size() < tl.size()) {
@@ -404,7 +397,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       return;
     }
     assert tvLevel > 0;
-    UnmodifiableIterator<AtomId> itv = tvl.iterator();
+    UnmodifiableIterator<Identifier> itv = tvl.iterator();
     UnmodifiableIterator<Type> it = tl.iterator();
     while (it.hasNext()) typeVar.put(itv.next(), it.next());
   }
@@ -503,7 +496,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
   
   // === visiting atoms ===
-  @Override public Type eval(AtomId atomId) {
+  @Override public Type eval(Identifier atomId) {
     IdDecl d = st.ids.def(atomId);
     Type t = errType;
     if (d instanceof VariableDecl) {
@@ -519,12 +512,12 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     return t;
   }
 
-  @Override public PrimitiveType eval(AtomNum atomNum) {
+  @Override public PrimitiveType eval(NumberLiteral atomNum) {
     typeOf.put(atomNum, intType);
     return intType;
   }
 
-  @Override public PrimitiveType eval(AtomLit atomLit) {
+  @Override public PrimitiveType eval(BooleanLiteral atomLit) {
     switch (atomLit.val()) {
     case TRUE:
     case FALSE:
@@ -536,13 +529,13 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     }
   }
 
-  @Override public Type eval(AtomOld atomOld) {
+  @Override public Type eval(OldExpr atomOld) {
     Type t = atomOld.expr().eval(this);
     typeOf.put(atomOld, t);
     return t;
   }
 
-  @Override public PrimitiveType eval(AtomQuant atomQuant) {
+  @Override public PrimitiveType eval(Quantifier atomQuant) {
     Expr e = atomQuant.expression();
     Type t = atomQuant.expression().eval(this);
     check(t, boolType, e);
@@ -550,7 +543,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     return boolType;
   }
 
-  @Override public Type eval(AtomFun atomFun) {
+  @Override public Type eval(FunctionApp atomFun) {
     FunctionDecl d = st.funcs.def(atomFun);
     Signature sig = d.sig();
     ImmutableList<VariableDecl> fargs = sig.args();
@@ -567,14 +560,8 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     return rt;
   }
 
-  @Override public Type eval(AtomCast atomCast) {
-    atomCast.expr().eval(this);
-    typeOf.put(atomCast, atomCast.type());
-    return atomCast.type();
-  }
-
-  @Override public Type eval(AtomMapSelect atomMapSelect) {
-    Atom atom = atomMapSelect.atom();
+  @Override public Type eval(MapSelect atomMapSelect) {
+    Expr atom = atomMapSelect.map();
     Type t = atom.eval(this);
     if (t == errType) return errType;
     if (!(t instanceof MapType)) {
@@ -593,9 +580,9 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     return et;
   }
   
-  @Override public Type eval(AtomMapUpdate atomMapUpdate) {
+  @Override public Type eval(MapUpdate atomMapUpdate) {
     typeVarEnter(atomMapUpdate);
-    Atom atom = atomMapUpdate.atom();
+    Expr atom = atomMapUpdate.map();
     ImmutableList<Expr> index = atomMapUpdate.idx();
     Expr val = atomMapUpdate.val();
     Type t = atom.eval(this);
@@ -658,7 +645,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
   
   // === visit various things that must have boolean params ===
-  private Type checkBool(ImmutableList<AtomId> tv, Expr e) {
+  private Type checkBool(ImmutableList<Identifier> tv, Expr e) {
     enclosingTypeVar.push();
     collectEnclosingTypeVars(tv);
     check(e.eval(this), boolType, e);

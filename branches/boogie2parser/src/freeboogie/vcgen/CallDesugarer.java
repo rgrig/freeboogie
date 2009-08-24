@@ -50,7 +50,7 @@ public class CallDesugarer extends CommandDesugarer {
       addEquivalentCommand(AssertAssumeCmd.mk(
           labels,
           AssertAssumeCmd.CmdType.ASSERT,
-          ImmutableList.<AtomId>of(),
+          ImmutableList.<Identifier>of(),
           (Expr) pre.expr().eval(this).clone(),
           callCmd.loc()));
       labels = ImmutableList.of();
@@ -58,7 +58,7 @@ public class CallDesugarer extends CommandDesugarer {
     for (ModifiesSpec m : p.modifies()) {
       addEquivalentCommand(HavocCmd.mk(
           labels,
-          AstUtils.cloneListOfAtomId(AstUtils.evalListOfAtomId(m.ids(), this)), 
+          AstUtils.cloneListOfIdentifier(AstUtils.evalListOfIdentifier(m.ids(), this)), 
           callCmd.loc()));
       labels = ImmutableList.of();
     }
@@ -66,7 +66,7 @@ public class CallDesugarer extends CommandDesugarer {
       addEquivalentCommand(AssertAssumeCmd.mk(
         labels,
         AssertAssumeCmd.CmdType.ASSUME,
-        ImmutableList.<AtomId>of(),
+        ImmutableList.<Identifier>of(),
         (Expr) post.expr().eval(this).clone(),
         callCmd.loc()));
       labels = ImmutableList.of();
@@ -75,8 +75,8 @@ public class CallDesugarer extends CommandDesugarer {
       addEquivalentCommand(AssertAssumeCmd.mk(
           labels,
           AssertAssumeCmd.CmdType.ASSUME,
-          ImmutableList.<AtomId>of(),
-          AtomLit.mk(AtomLit.AtomType.TRUE),
+          ImmutableList.<Identifier>of(),
+          BooleanLiteral.mk(BooleanLiteral.Type.TRUE),
           callCmd.loc()));
     }
     return null;

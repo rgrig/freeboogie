@@ -99,8 +99,7 @@
     </javac>
   </target>
   
-  <target name="doc" description="generate javadoc" 
-    depends="generate_ast,generate_parser">
+  <target name="doc" description="generate javadoc" depends="generate_code">
     <javadoc destdir="docs/api" sourcepath="src">
       <package name="freeboogie.*" />
       <classpath refid="classpath" />

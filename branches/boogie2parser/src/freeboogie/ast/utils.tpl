@@ -36,20 +36,20 @@ public class AstUtils {
   }
 }
 
-  public static ImmutableList<AtomId> ids(String... ss) {
-    ImmutableList.Builder<AtomId> r = ImmutableList.builder();
-    for (String s : ss) r.add(AtomId.mk(s, ImmutableList.<Type>of()));
+  public static ImmutableList<Identifier> ids(String... ss) {
+    ImmutableList.Builder<Identifier> r = ImmutableList.builder();
+    for (String s : ss) r.add(Identifier.mk(s, ImmutableList.<Type>of()));
     return r.build();
   }
 
-  public static ImmutableList<AtomId> ids(Iterable<String> ss) {
-    ImmutableList.Builder<AtomId> r = ImmutableList.builder();
-    for (String s : ss) r.add(AtomId.mk(s, ImmutableList.<Type>of()));
+  public static ImmutableList<Identifier> ids(Iterable<String> ss) {
+    ImmutableList.Builder<Identifier> r = ImmutableList.builder();
+    for (String s : ss) r.add(Identifier.mk(s, ImmutableList.<Type>of()));
     return r.build();
   }
 
-  public static AtomId mkId(String name) {
-    return AtomId.mk(name, ImmutableList.<Type>of());
+  public static Identifier mkId(String name) {
+    return Identifier.mk(name, ImmutableList.<Type>of());
   }
 
   public static BinaryOp mkNotEq(Expr lhs, Expr rhs) {

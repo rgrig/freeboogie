@@ -38,8 +38,8 @@ public class PrettyPrinter extends Transformer {
   
   // ready made strings to be printed for enums
   protected HashMap<AssertAssumeCmd.CmdType,String> cmdRep ;
-  protected HashMap<AtomLit.AtomType,String> atomRep;
-  protected HashMap<AtomQuant.QuantType,String> quantRep;
+  protected HashMap<BooleanLiteral.Type,String> atomRep;
+  protected HashMap<Quantifier.QuantType,String> quantRep;
   protected HashMap<BinaryOp.Op,String> binRep;
   protected HashMap<PrimitiveType.Ptype,String> typeRep;
   protected HashMap<UnaryOp.Op,String> unRep;
@@ -54,10 +54,10 @@ public class PrettyPrinter extends Transformer {
 
     cmdRep.put(AssertAssumeCmd.CmdType.ASSERT, "assert ");
     cmdRep.put(AssertAssumeCmd.CmdType.ASSUME, "assume ");
-    atomRep.put(AtomLit.AtomType.FALSE, "false");
-    atomRep.put(AtomLit.AtomType.TRUE, "true");
-    quantRep.put(AtomQuant.QuantType.EXISTS, "exists ");
-    quantRep.put(AtomQuant.QuantType.FORALL, "forall ");
+    atomRep.put(BooleanLiteral.Type.FALSE, "false");
+    atomRep.put(BooleanLiteral.Type.TRUE, "true");
+    quantRep.put(Quantifier.QuantType.EXISTS, "exists ");
+    quantRep.put(Quantifier.QuantType.FORALL, "forall ");
     binRep.put(BinaryOp.Op.AND, " && ");
     binRep.put(BinaryOp.Op.DIV, " / ");
     binRep.put(BinaryOp.Op.EQ, " == ");
@@ -74,11 +74,8 @@ public class PrettyPrinter extends Transformer {
     binRep.put(BinaryOp.Op.OR, " || ");
     binRep.put(BinaryOp.Op.PLUS, " + ");
     binRep.put(BinaryOp.Op.SUBTYPE, " <: ");
-    typeRep.put(PrimitiveType.Ptype.ANY, "any");
     typeRep.put(PrimitiveType.Ptype.BOOL, "bool");
     typeRep.put(PrimitiveType.Ptype.INT, "int");
-    typeRep.put(PrimitiveType.Ptype.NAME, "name");
-    typeRep.put(PrimitiveType.Ptype.REF, "ref");
     typeRep.put(PrimitiveType.Ptype.ERROR, "?");
     unRep.put(UnaryOp.Op.MINUS, "-");
     unRep.put(UnaryOp.Op.NOT, "!");
@@ -153,15 +150,7 @@ public class PrettyPrinter extends Transformer {
     semi();
   }
 
-  @Override public void see(AtomCast ast) {
-    say("cast(");
-    ast.expr().eval(this);
-    say(", ");
-    ast.type().eval(this);
-    say(")");
-  }
-
-  @Override public void see(AtomFun ast) {
+  @Override public void see(FunctionApp ast) {
     say(ast.function());
     if (!ast.types().isEmpty()) {
       say("<");
@@ -176,7 +165,7 @@ public class PrettyPrinter extends Transformer {
     say(")");
   }
 
-  @Override public void see(AtomId ast) {
+  @Override public void see(Identifier ast) {
     say(ast.id());
     if (!ast.types().isEmpty()) {
       say("<");
@@ -188,15 +177,15 @@ public class PrettyPrinter extends Transformer {
     }
   }
 
-  @Override public void see(AtomMapSelect ast) {
-    ast.atom().eval(this);
+  @Override public void see(MapSelect ast) {
+    ast.map().eval(this);
     say("[");
     printList(", ", ast.idx());
     say("]");
   }
 
-  @Override public void see(AtomMapUpdate ast) {
-    ast.atom().eval(this);
+  @Override public void see(MapUpdate ast) {
+    ast.map().eval(this);
     say("[");
     printList(", ", ast.idx());
     say(" := ");
@@ -204,21 +193,21 @@ public class PrettyPrinter extends Transformer {
     say("]");
   }
 
-  @Override public void see(AtomLit ast) {
+  @Override public void see(BooleanLiteral ast) {
     say(atomRep.get(ast.val()));
   }
 
-  @Override public void see(AtomNum ast) {
-    say(ast.val().toString());
+  @Override public void see(NumberLiteral ast) {
+    say(ast.value().toString());
   }
 
-  @Override public void see(AtomOld ast) {
+  @Override public void see(OldExpr ast) {
     say("old(");
     ast.expr().eval(this);
     say(")");
   }
 
-  @Override public void see(AtomQuant ast) {
+  @Override public void see(Quantifier ast) {
     ++skipVar;
     say("(");
     say(quantRep.get(ast.quant()));

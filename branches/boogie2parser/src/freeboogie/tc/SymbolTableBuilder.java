@@ -18,7 +18,7 @@ import freeboogie.ast.*;
 @SuppressWarnings("unused") // lots of unused parameters
 public class SymbolTableBuilder extends Transformer implements StbInterface {
   private StackedHashMap<String, VariableDecl> localVarDecl;
-  private StackedHashMap<String, AtomId> typeVarDecl;
+  private StackedHashMap<String, Identifier> typeVarDecl;
 
   private Program p;
   private SymbolTable symbolTable;
@@ -39,7 +39,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   @Override
   public List<FbError> process(Program p) {
     localVarDecl = new StackedHashMap<String, VariableDecl>();
-    typeVarDecl = new StackedHashMap<String, AtomId>();
+    typeVarDecl = new StackedHashMap<String, Identifier>();
     symbolTable = new SymbolTable();
     gc = new GlobalsCollector();
     lookInLocalScopes = true;
@@ -68,10 +68,10 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   }
 
   private void collectTypeVars(
-      Map<String, AtomId> tv, 
-      ImmutableList<AtomId> ids
+      Map<String, Identifier> tv, 
+      ImmutableList<Identifier> ids
   ) {
-    for (AtomId ai : ids) {
+    for (Identifier ai : ids) {
       if (tv.get(ai.id()) != null)
         errors.add(new FbError(FbError.Type.TV_ALREADY_DEF, ai, ai.id()));
       symbolTable.typeVars.seenDef(ai);
@@ -83,7 +83,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   
   @Override public void see(UserType userType) {
     String name = userType.name();
-    AtomId tv = typeVarDecl.get(name);
+    Identifier tv = typeVarDecl.get(name);
     if (tv != null)
       symbolTable.typeVars.put(userType, tv);
     else
@@ -94,18 +94,18 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
     String p = callCmd.procedure();
     symbolTable.procs.put(callCmd, check(gc.procDef(p), p, callCmd));
     AstUtils.evalListOfType(callCmd.types(), this);
-    AstUtils.evalListOfAtomId(callCmd.results(), this);
+    AstUtils.evalListOfIdentifier(callCmd.results(), this);
     AstUtils.evalListOfExpr(callCmd.args(), this);
   }
 
-  @Override public void see(AtomFun atomFun) {
+  @Override public void see(FunctionApp atomFun) {
     String f = atomFun.function();
     symbolTable.funcs.put(atomFun, check(gc.funDef(f), f, atomFun));
     AstUtils.evalListOfType(atomFun.types(), this);
     AstUtils.evalListOfExpr(atomFun.args(), this);
   }
 
-  @Override public void see(AtomId atomId) {
+  @Override public void see(Identifier atomId) {
     symbolTable.ids.put(atomId, lookup(atomId.id(), atomId));
     AstUtils.evalListOfType(atomId.types(), this);
   }
@@ -170,7 +170,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
     typeVarDecl.pop();
   }
   
-  @Override public void see(AtomQuant atomQuant) {
+  @Override public void see(Quantifier atomQuant) {
     localVarDecl.push();
     AstUtils.evalListOfVariableDecl(atomQuant.vars(), this);
     AstUtils.evalListOfAttribute(atomQuant.attributes(), this);
@@ -197,7 +197,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   @Override public void see(ModifiesSpec modifiesSpec) {
     assert lookInLocalScopes : "no nesting of modifies";
     lookInLocalScopes = false;
-    AstUtils.evalListOfAtomId(modifiesSpec.ids(), this);
+    AstUtils.evalListOfIdentifier(modifiesSpec.ids(), this);
     lookInLocalScopes = true;
   }
 

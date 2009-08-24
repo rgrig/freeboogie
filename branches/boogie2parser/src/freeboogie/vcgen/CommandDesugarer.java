@@ -19,7 +19,7 @@ import freeboogie.ast.*;
   used; otherwise the returned value is appended after the
   equivalent commands.
 
-  Also provides a default implementation of {@code eval(AtomId)}
+  Also provides a default implementation of {@code eval(Identifier)}
   that executes substitutions registered thru {@code
   addSubstitution(IdDecl, Expr)}. The set of registered
   substitutions is reset before each command is visited.
@@ -68,7 +68,7 @@ public class CommandDesugarer extends Transformer {
     return block;
   }
  
-  @Override public Expr eval(AtomId atomId) {
+  @Override public Expr eval(Identifier atomId) {
     Expr e = toSubstitute.get(tc.st().ids.def(atomId));
     return e == null? atomId : e;
   }

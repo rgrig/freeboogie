@@ -44,24 +44,16 @@ public class FormulaOfExpr<T extends Term<T>> extends Evaluator<T> {
     termOfExpr.setTypeChecker(tc);
   }
 
-  @Override public T eval(AtomCast atomCast) {
-    if (TypeUtils.isBool(atomCast.type()))
-      return formulaOfTerm(atomCast.eval(termOfExpr));
-    Err.internal(
-      "Typechecking should have failed: non-bool in a bool's place.");
-    return null;
-  }
-
-  @Override public T eval(AtomFun atomFun) {
+  @Override public T eval(FunctionApp atomFun) {
     return formulaOfTerm(atomFun.eval(termOfExpr));
   }
 
-  @Override public T eval(AtomId atomId) {
+  @Override public T eval(Identifier atomId) {
     // TODO check that atomId's boogie type is bool
     return term.mk("var_formula", atomId.id());
   }
 
-  @Override public T eval(AtomLit atomLit) {
+  @Override public T eval(BooleanLiteral atomLit) {
     switch (atomLit.val()) {
     case TRUE:
       return term.mk("literal_formula", Boolean.valueOf(true));
@@ -73,11 +65,11 @@ public class FormulaOfExpr<T extends Term<T>> extends Evaluator<T> {
     }
   }
 
-  @Override public T eval(AtomMapSelect atomMapSelect) {
+  @Override public T eval(MapSelect atomMapSelect) {
     return formulaOfTerm(atomMapSelect.eval(termOfExpr));
   }
 
-  @Override public T eval(AtomQuant atomQuant) {
+  @Override public T eval(Quantifier atomQuant) {
     T result = atomQuant.expression().eval(this);
     for (VariableDecl vd : atomQuant.vars())
       result = term.mk("forall", term.mk("var", "term$$" + vd.name()), result);

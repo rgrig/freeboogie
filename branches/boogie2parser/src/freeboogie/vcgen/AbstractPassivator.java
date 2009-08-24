@@ -168,7 +168,7 @@ public abstract class AbstractPassivator extends Transformer {
               ImmutableList.<Attribute>of(),
               name(e.getKey().name(), i),
               e.getKey().type().clone(), 
-              AstUtils.cloneListOfAtomId(e.getKey().typeArgs()),
+              AstUtils.cloneListOfIdentifier(e.getKey().typeArgs()),
               null));
         }
       }
@@ -282,7 +282,7 @@ public abstract class AbstractPassivator extends Transformer {
   // === visitors ===
   // Note the return type
   @Override public AssertAssumeCmd eval(AssignmentCmd cmd) {
-    AtomId lhs = cmd.lhs();
+    Identifier lhs = cmd.lhs();
     Expr rhs = cmd.rhs();
     trailingCommands = getCopyCommands(
         cmd, 
@@ -294,7 +294,7 @@ public abstract class AbstractPassivator extends Transformer {
         AssertAssumeCmd.CmdType.ASSUME, 
         AstUtils.ids(),
         BinaryOp.mk(BinaryOp.Op.EQ,
-            AtomId.mk(
+            Identifier.mk(
                 name(lhs.id(), getIdx(writeIdx, vd)),
                 lhs.types(), 
                 lhs.loc()),
@@ -343,7 +343,7 @@ public abstract class AbstractPassivator extends Transformer {
     currentCommand = havocCmd;
     havocCmd = HavocCmd.mk(
         havocCmd.labels(), 
-        AstUtils.evalListOfAtomId(havocCmd.ids(), this),
+        AstUtils.evalListOfIdentifier(havocCmd.ids(), this),
         havocCmd.loc());
     currentCommand = null;
     return havocCmd;
@@ -359,14 +359,14 @@ public abstract class AbstractPassivator extends Transformer {
         callCmd.labels(),
         callCmd.procedure(),
         callCmd.types(),
-        AstUtils.evalListOfAtomId(callCmd.results(), this),
+        AstUtils.evalListOfIdentifier(callCmd.results(), this),
         AstUtils.evalListOfExpr(callCmd.args(), this),
         callCmd.loc());
     currentCommand = null;
     return callCmd;
   }
 
-  @Override public Expr eval(AtomOld atomOld) {
+  @Override public Expr eval(OldExpr atomOld) {
     Expr expr = atomOld.expr();
     ++belowOld;
     expr = (Expr)expr.eval(this);
@@ -374,14 +374,14 @@ public abstract class AbstractPassivator extends Transformer {
     return expr;
   }
 
-  @Override public AtomId eval(AtomId atomId) {
+  @Override public Identifier eval(Identifier atomId) {
     if (currentCommand == null) return atomId;
     IdDecl d = tc.st().ids.def(atomId);
     if (!(d instanceof VariableDecl)) return atomId;
     VariableDecl vd = (VariableDecl) d;
     int idx = getIdx(readIdx, vd);
     if (idx == 0) return atomId;
-    return AtomId.mk(name(atomId.id(), idx), atomId.types(), atomId.loc());
+    return Identifier.mk(name(atomId.id(), idx), atomId.types(), atomId.loc());
   }
 
   @Override public VariableDecl eval(VariableDecl variableDecl) {
@@ -407,7 +407,7 @@ public abstract class AbstractPassivator extends Transformer {
           ImmutableList.<Attribute>of(),
           name(variableDecl.name(), i),
           variableDecl.type().clone(), 
-          AstUtils.cloneListOfAtomId(variableDecl.typeArgs()),
+          AstUtils.cloneListOfIdentifier(variableDecl.typeArgs()),
           variableDecl.where(),
           variableDecl.loc()));
     }
@@ -441,7 +441,7 @@ public abstract class AbstractPassivator extends Transformer {
       result.add(AssertAssumeCmd.mk(
           labels,
           AssertAssumeCmd.CmdType.ASSUME,
-          ImmutableList.<AtomId>of(),
+          ImmutableList.<Identifier>of(),
           BinaryOp.mk(
               BinaryOp.Op.EQ,
               AstUtils.mkId(name(v.name(), ri)),

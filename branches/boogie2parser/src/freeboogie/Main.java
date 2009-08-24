@@ -60,9 +60,9 @@ public class Main {
   private FlowGraphDumper flowGraphDumper = new FlowGraphDumper();
 
   // used for dumping the symbol table
-  private static Function<AtomId, String> nameOfAtomId =
-    new Function<AtomId, String>() {
-      @Override public String apply(AtomId d) { return d.id(); }
+  private static Function<Identifier, String> nameOfAtomId =
+    new Function<Identifier, String>() {
+      @Override public String apply(Identifier d) { return d.id(); }
     };
   private static Function<TypeDecl, String> nameOfType =
     new Function<TypeDecl, String>() {

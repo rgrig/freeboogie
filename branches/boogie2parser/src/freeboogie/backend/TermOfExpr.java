@@ -118,16 +118,7 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
     this.typeOf = tc.types();
   }
 
-  @Override public T eval(AtomCast atomCast) {
-    T result = atomCast.expr().eval(this);
-    if (TypeUtils.isInt(atomCast.type()))
-      return term.mk("cast_to_int", result);
-    if (TypeUtils.isBool(atomCast.type()))
-      return term.mk("cast_to_bool", result);
-    return result;
-  }
-
-  @Override public T eval(AtomFun atomFun) {
+  @Override public T eval(FunctionApp atomFun) {
     String prefix = "funT_";
     if (TypeUtils.isInt(typeOf.get(atomFun)))
       prefix = "funI_";
@@ -136,7 +127,7 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
     return term.mk(prefix + atomFun.function(), tuple(atomFun.args()));
   }
 
-  @Override public T eval(AtomId atomId) {
+  @Override public T eval(Identifier atomId) {
     Type t = st.ids.def(atomId).type();
     if (TypeUtils.isInt(t)) {
       // this prefix is needed for z3, but not simplify
@@ -156,7 +147,7 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
     }
   }
 
-  @Override public T eval(AtomLit atomLit) {
+  @Override public T eval(BooleanLiteral atomLit) {
     switch (atomLit.val()) {
     case TRUE:
       return mk("literal_bool", true);
@@ -168,31 +159,31 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
     }
   }
 
-  @Override public T eval(AtomMapSelect atomMapSelect) {
+  @Override public T eval(MapSelect atomMapSelect) {
     Type t = typeOf.get(atomMapSelect);
     String termId = "map_select";
     if (TypeUtils.isInt(t)) termId = "map_select_int";
     if (TypeUtils.isBool(t)) termId = "map_select_bool";
     return term.mk(
         termId, 
-        atomMapSelect.atom().eval(this), 
+        atomMapSelect.map().eval(this), 
         term.mk("tuple", tuple(atomMapSelect.idx())));
   }
 
-  @Override public T eval(AtomMapUpdate atomMapUpdate) {
+  @Override public T eval(MapUpdate atomMapUpdate) {
     return term.mk(
       "map_update", 
       ImmutableList.of(
-          atomMapUpdate.atom().eval(this), 
+          atomMapUpdate.map().eval(this), 
           term.mk("tuple", tuple(atomMapUpdate.idx())),
           atomMapUpdate.val().eval(this)));
   }
 
-  @Override public T eval(AtomNum atomNum) {
-    return term.mk("literal_int", atomNum.val());
+  @Override public T eval(NumberLiteral atomNum) {
+    return term.mk("literal_int", atomNum.value());
   }
 
-  @Override public T eval(AtomQuant atomQuant) {
+  @Override public T eval(Quantifier atomQuant) {
     // TODO can this be done without HOL?
     Err.internal("Quantifiers are not supported in this position.");
     return null;
