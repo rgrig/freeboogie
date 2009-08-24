@@ -53,13 +53,8 @@ public class HavocMaker extends CommandDesugarer {
     return TypeUtils.internalTypecheck(ast, tc);
   }
 
-  @Override
-  public Implementation eval(
-    Implementation implementation,
-    ImmutableList<Attribute> attr,
-    Signature sig,
-    Body body
-  ) {
+  @Override public Implementation eval(Implementation implementation) {
+    Body body = implementation.body();
     flowGraph = tc.flowGraph(body);
     seen.clear(); seen.add(null); dfs2order.clear();
     dfs1(body.block().commands().get(0));
@@ -77,64 +72,56 @@ public class HavocMaker extends CommandDesugarer {
     }
 
     Body newBody = (Body) body.eval(this);
-    if (newBody != body)
-      implementation = Implementation.mk(attr, sig, newBody);
+    if (newBody != body) {
+      implementation = Implementation.mk(
+          implementation.attributes(), 
+          implementation.sig(), 
+          newBody,
+          implementation.loc());
+    }
     return implementation;
   }
 
-  @Override public AssignmentCmd eval(
-      AssignmentCmd cmd, 
-      ImmutableList<String> labels,
-      AtomId lhs,
-      Expr rhs
-  ) {
+  @Override public AssignmentCmd eval(AssignmentCmd cmd) {
     if (entryPoint(cmd)) 
-      cmd = AssignmentCmd.mk(noString, lhs, rhs, cmd.loc());
+      cmd = AssignmentCmd.mk(noString, cmd.lhs(), cmd.rhs(), cmd.loc());
     return cmd;
   }
 
-  @Override public AssertAssumeCmd eval(
-      AssertAssumeCmd cmd, 
-      ImmutableList<String> labels,
-      AssertAssumeCmd.CmdType type,
-      ImmutableList<AtomId> typeArgs,
-      Expr expr
-  ) {
-    if (entryPoint(cmd))
-      cmd = AssertAssumeCmd.mk(noString, type, typeArgs, expr, cmd.loc());
+  @Override public AssertAssumeCmd eval(AssertAssumeCmd cmd) {
+    if (entryPoint(cmd)) {
+      cmd = AssertAssumeCmd.mk(
+          noString, 
+          cmd.type(), 
+          cmd.typeArgs(), 
+          cmd.expr(), 
+          cmd.loc());
+    }
     return cmd;
   }
 
-  @Override public GotoCmd eval(
-      GotoCmd cmd, 
-      ImmutableList<String> labels,
-      ImmutableList<String> successors
-  ) {
+  @Override public GotoCmd eval(GotoCmd cmd) {
     if (entryPoint(cmd))
-      cmd = GotoCmd.mk(noString, successors, cmd.loc());
+      cmd = GotoCmd.mk(noString, cmd.successors(), cmd.loc());
     return cmd;
   }
 
-  @Override public HavocCmd eval(
-      HavocCmd cmd, 
-      ImmutableList<String> labels,
-      ImmutableList<AtomId> ids
-  ) {
+  @Override public HavocCmd eval(HavocCmd cmd) {
     if (entryPoint(cmd))
-      cmd = HavocCmd.mk(noString, ids, cmd.loc());
+      cmd = HavocCmd.mk(noString, cmd.ids(), cmd.loc());
     return cmd;
   }
 
-  @Override public CallCmd eval(
-      CallCmd cmd, 
-      ImmutableList<String> labels,
-      String procedure,
-      ImmutableList<Type> types,
-      ImmutableList<AtomId> results,
-      ImmutableList<Expr> args
-  ) {
-    if (entryPoint(cmd))
-      cmd = CallCmd.mk(noString, procedure, types, results, args, cmd.loc());
+  @Override public CallCmd eval(CallCmd cmd) {
+    if (entryPoint(cmd)) {
+      cmd = CallCmd.mk(
+          noString, 
+          cmd.procedure(), 
+          cmd.types(), 
+          cmd.results(), 
+          cmd.args(), 
+          cmd.loc());
+    }
     return cmd;
   }
 

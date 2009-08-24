@@ -140,7 +140,7 @@ public class FlowGraphMaker extends Transformer {
   }
 
   @Override public void see(GotoCmd gotoCmd) {
-    for (String s : successors) {
+    for (String s : gotoCmd.successors()) {
       Command next = labelsCollector.getCommand(currentBody, s);
       if (next == null)
         errors.add(new FbError(FbError.Type.MISSING_BLOCK, gotoCmd, s));

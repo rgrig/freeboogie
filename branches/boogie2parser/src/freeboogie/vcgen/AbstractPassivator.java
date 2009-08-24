@@ -187,8 +187,8 @@ public abstract class AbstractPassivator extends Transformer {
   }
 
   @Override public Implementation eval(Implementation implementation) {
-    ImmutableList<Body> body = implementation.body();
-    ImmutableList<Signature> sig = implementation.sig();
+    Body body = implementation.body();
+    Signature sig = implementation.sig();
     currentFG = tc.flowGraph(body);
     if (currentFG.hasCycle()) {
       Err.warning("" + implementation.loc() + ": Implementation " + 
@@ -282,7 +282,8 @@ public abstract class AbstractPassivator extends Transformer {
   // === visitors ===
   // Note the return type
   @Override public AssertAssumeCmd eval(AssignmentCmd cmd) {
-    Expr lhs = cmd.lhs();
+    AtomId lhs = cmd.lhs();
+    Expr rhs = cmd.rhs();
     trailingCommands = getCopyCommands(
         cmd, 
         currentFG.to(cmd).iterator().next());

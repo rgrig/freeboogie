@@ -47,9 +47,6 @@ ARGS::
   ProverCommandLineOpt :{"--prover-command-line", "-pcl"} :{string}
     :"Configure the command line used to start a prover. The default
       depends on the selected prover."
-  BoogieVersionOpt :{"--boogie-version", "-bv"} :{enum}
-    :[choices="1(ONE),2(TWO)", default="2"]
-    :"Configure the version of the Boogie language."
 
   ReportOn :{"--report-on", "--out-categories", "-oc"} :{enum-list}
     :[choices="MAIN,PARSER",default="MAIN"]

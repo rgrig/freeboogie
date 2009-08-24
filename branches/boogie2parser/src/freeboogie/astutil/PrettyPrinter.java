@@ -13,7 +13,6 @@ import genericutils.Err;
 
 import freeboogie.Main;
 import freeboogie.ast.*;
-import static freeboogie.cli.FbCliOptionsInterface.BoogieVersionOpt;
 
 /**
  * Prints AST nodes in a readable (and parseable) way.
@@ -45,8 +44,6 @@ public class PrettyPrinter extends Transformer {
   protected HashMap<PrimitiveType.Ptype,String> typeRep;
   protected HashMap<UnaryOp.Op,String> unRep;
 
-  protected BoogieVersionOpt boogieVersion;
-  
   private void initConstants() {
     cmdRep = Maps.newHashMap();
     atomRep = Maps.newHashMap();
@@ -59,7 +56,6 @@ public class PrettyPrinter extends Transformer {
     cmdRep.put(AssertAssumeCmd.CmdType.ASSUME, "assume ");
     atomRep.put(AtomLit.AtomType.FALSE, "false");
     atomRep.put(AtomLit.AtomType.TRUE, "true");
-    atomRep.put(AtomLit.AtomType.NULL, "null");
     quantRep.put(AtomQuant.QuantType.EXISTS, "exists ");
     quantRep.put(AtomQuant.QuantType.FORALL, "forall ");
     binRep.put(BinaryOp.Op.AND, " && ");
@@ -101,11 +97,6 @@ public class PrettyPrinter extends Transformer {
     this.writer = writer;
   }
 
-  public void boogieVersion(BoogieVersionOpt boogieVersion) {
-    Preconditions.checkNotNull(boogieVersion);
-    this.boogieVersion = boogieVersion;
-  }
-  
   /** Swallow exceptions. */
   protected void say(String s) {
     try {
@@ -131,7 +122,7 @@ public class PrettyPrinter extends Transformer {
   @Override public void see(MapType ast) {
     say("[");
     assert !prefixByBq;
-    printList(", ", ast.idxType());
+    printList(", ", ast.idxTypes());
     say("]");
     ast.elemType().eval(this);
   }
@@ -142,9 +133,9 @@ public class PrettyPrinter extends Transformer {
       say(": ");
     }
     say(cmdRep.get(ast.type()));
-    if (!ast.typeVars().isEmpty()) {
+    if (!ast.typeArgs().isEmpty()) {
       say("<");
-      printList(", ", ast.typeVars());
+      printList(", ", ast.typeArgs());
       say(">");
     }
     ast.expr().eval(this);
@@ -164,7 +155,7 @@ public class PrettyPrinter extends Transformer {
 
   @Override public void see(AtomCast ast) {
     say("cast(");
-    ast.e().eval(this);
+    ast.expr().eval(this);
     say(", ");
     ast.type().eval(this);
     say(")");
@@ -223,7 +214,7 @@ public class PrettyPrinter extends Transformer {
 
   @Override public void see(AtomOld ast) {
     say("old(");
-    ast.e().eval(this);
+    ast.expr().eval(this);
     say(")");
   }
 
@@ -234,23 +225,17 @@ public class PrettyPrinter extends Transformer {
     printList(", ", ast.vars());
     say(" :: ");
     printList(" ", ast.attributes());
-    ast.e().eval(this);
+    ast.expression().eval(this);
     say(")");
     --skipVar;
   }
 
   @Override public void see(Axiom ast) {
     say("axiom");
-    switch (boogieVersion) {
-      case TWO: say(" "); say(ast.name()); break;
-    }
     if (!ast.typeArgs().isEmpty()) {
       say("<");
       printList(", ", ast.typeArgs());
       say(">");
-    }
-    switch (boogieVersion) {
-      case TWO: say(":"); break;
     }
     say(" ");
     ast.expr().eval(this); semi();
@@ -354,7 +339,7 @@ public class PrettyPrinter extends Transformer {
   @Override public void see(Procedure ast) {
     say("procedure ");
     printList(" ", ast.attributes());
-    sig.eval(this);
+    ast.sig().eval(this);
     say(";");
     printSpecs(ast.preconditions());
     printSpecs(ast.modifies());
@@ -427,14 +412,10 @@ public class PrettyPrinter extends Transformer {
 
   @Override public void see(TypeDecl ast) {
     say("type ");
-    printList(" ", ast.attr());
-    switch (boogieVersion) {
-      case TWO:
-        if (ast.finite()) {
-          say("finite");
-          say(" ");
-        }
-        break;
+    printList(" ", ast.attributes());
+    if (ast.finite()) {
+      say("finite");
+      say(" ");
     }
     say(ast.name());
     // TODO: print space-separated typeArgs
@@ -447,7 +428,7 @@ public class PrettyPrinter extends Transformer {
 
   @Override public void see(UnaryOp ast) {
     say(unRep.get(ast.op()));
-    ast.e().eval(this);
+    ast.expr().eval(this);
   }
 
   @Override public void see(UserType ast) {
@@ -457,11 +438,11 @@ public class PrettyPrinter extends Transformer {
 
   @Override public void see(VariableDecl ast) {
     if (skipVar==0) say("var ");
-    printList(" ", ast.attr());
-    say(name);
-    if (!ast.typeVars().isEmpty()) {
+    printList(" ", ast.attributes());
+    say(ast.name());
+    if (!ast.typeArgs().isEmpty()) {
       say("<");
-      printList(", ", ast.typeVars());
+      printList(", ", ast.typeArgs());
       say(">");
     }
     say(" : ");

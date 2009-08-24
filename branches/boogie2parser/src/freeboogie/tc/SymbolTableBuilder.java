@@ -91,6 +91,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   }
 
   @Override public void see(CallCmd callCmd) {
+    String p = callCmd.procedure();
     symbolTable.procs.put(callCmd, check(gc.procDef(p), p, callCmd));
     AstUtils.evalListOfType(callCmd.types(), this);
     AstUtils.evalListOfAtomId(callCmd.results(), this);
@@ -98,14 +99,15 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   }
 
   @Override public void see(AtomFun atomFun) {
+    String f = atomFun.function();
     symbolTable.funcs.put(atomFun, check(gc.funDef(f), f, atomFun));
     AstUtils.evalListOfType(atomFun.types(), this);
     AstUtils.evalListOfExpr(atomFun.args(), this);
   }
 
   @Override public void see(AtomId atomId) {
-    symbolTable.ids.put(atomId, lookup(id, atomId));
-    AstUtils.evalListOfType(atomid.types(), this);
+    symbolTable.ids.put(atomId, lookup(atomId.id(), atomId));
+    AstUtils.evalListOfType(atomId.types(), this);
   }
 
   // === collect info from local scopes ===
@@ -113,7 +115,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
     String name = variableDecl.name();
     symbolTable.ids.seenDef(variableDecl);
     typeVarDecl.push();
-    collectTypeVars(typeVarDecl.peek(), typeVars);
+    collectTypeVars(typeVarDecl.peek(), variableDecl.typeArgs());
     Map<String, VariableDecl> scope = localVarDecl.peek();
     if (localVarDecl.frames() > 0 && name != null) {
       // we are in a local scope
@@ -145,8 +147,8 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
     localVarDecl.push();
     typeVarDecl.push();
     procedure.sig().eval(this);
-    AstUtils.evalListOfPreSpec(procedure.pre(), this);
-    AstUtils.evalListOfPostSpec(procedure.post(), this);
+    AstUtils.evalListOfPreSpec(procedure.preconditions(), this);
+    AstUtils.evalListOfPostSpec(procedure.postconditions(), this);
     AstUtils.evalListOfModifiesSpec(procedure.modifies(), this);
     typeVarDecl.pop();
     localVarDecl.pop();
@@ -185,7 +187,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   
   @Override public void see(AssertAssumeCmd assertAssumeCmd) {
     typeVarDecl.push();
-    collectTypeVars(typeVarDecl.peek(), assertAssumeCmd.typeVars());
+    collectTypeVars(typeVarDecl.peek(), assertAssumeCmd.typeArgs());
     assertAssumeCmd.expr().eval(this);
     typeVarDecl.pop();
   }

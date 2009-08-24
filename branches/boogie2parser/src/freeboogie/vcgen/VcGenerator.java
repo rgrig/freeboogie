@@ -152,16 +152,11 @@ public class VcGenerator extends Transformer {
     return program;
   }
 
-  @Override
-  public void see(
-      Implementation implementation, 
-      ImmutableList<Attribute> attr, 
-      Signature sig, 
-      Body body
-  ) {
+  @Override public void see(Implementation implementation) {
+    Signature sig = implementation.sig();
     log("Checking implementation " + sig.name() + " at " + sig.loc());
 //System.out.println("body " + (vcgen.typeChecker() != null));
-    vcgen.setCurrentBody(body);
+    vcgen.setCurrentBody(implementation.body());
     SmtTerm vc = vcgen.vc();
     lowLevelAxiomBag.clear();
     vc.collectAxioms(lowLevelAxiomBag);
@@ -176,9 +171,9 @@ public class VcGenerator extends Transformer {
       reinitialize();
     }
     sb.append(": ");
-    sb.append(sig.name());
+    sb.append(implementation.sig().name());
     sb.append(" at ");
-    sb.append(sig.loc().toString());
+    sb.append(implementation.sig().loc().toString());
     out.say(ReportOn.MAIN, ReportLevel.QUIET, sb.toString());
   }
 }

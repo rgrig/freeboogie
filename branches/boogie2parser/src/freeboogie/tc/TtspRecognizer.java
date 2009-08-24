@@ -101,14 +101,10 @@ private static void print(HashMap<Integer,HashSet<Integer>> h) {
   public static void check(final Program program, final TcInterface tc) {
     program.eval(new Transformer() {
       @Override
-      public void see(
-        Implementation impl,
-        ImmutableList<Attribute> attr,
-        Signature sig, 
-        Body body
-      ) {
+      public void see(Implementation impl) {
+        Body body = impl.body();
         System.out.print(this + " " + impl.loc() + ": Implementation " + 
-          sig.name() + " SPG check...");
+          impl.sig().name() + " SPG check...");
         if (body.block().commands().isEmpty()) {
           System.out.println("SUCCESS (empty).");
           return;

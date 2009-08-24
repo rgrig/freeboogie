@@ -143,10 +143,7 @@ public class Main {
 
   private void initialize() {
     // Initialize typechecker.
-    switch (opt.getBoogieVersionOpt()) {
-      case ONE: tc = new ForgivingTc(); break;
-      default: tc = new TypeChecker(); break;
-    }
+    tc = new TypeChecker();
 
     // Initialize the Boogie transformers.
     stages = Lists.newArrayList();
@@ -169,9 +166,6 @@ public class Main {
       vcgen.initialize(opt);
       stages.add(vcgen);
     }
-
-    // Initialize other stuff.
-    prettyPrinter.boogieVersion(opt.getBoogieVersionOpt());
   }
 
   private void parse(File f) {

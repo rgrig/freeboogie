@@ -61,13 +61,10 @@ public class SpecDesugarer extends Transformer {
     return TypeUtils.internalTypecheck(p, tc);
   }
 
-  @Override
-  public Implementation eval(
-    Implementation implementation,
-    ImmutableList<Attribute> attr,
-    Signature sig,
-    Body body
-  ) {
+  @Override public Implementation eval(Implementation implementation) {
+    Signature sig = implementation.sig();
+    Body body = implementation.body();
+
     // prepare substitutions to be applied to preconditions and postconditions
     toSubstitute.clear();
     for (VariableDecl ad : sig.args()) {
@@ -96,7 +93,7 @@ public class SpecDesugarer extends Transformer {
     Body newBody = (Body)body.eval(this);
     if (newBody != body) {
       implementation = Implementation.mk(
-          attr, 
+          implementation.attributes(), 
           sig, 
           newBody, 
           implementation.loc());
@@ -104,19 +101,13 @@ public class SpecDesugarer extends Transformer {
     return implementation;
   }
 
-  @Override
-  public AtomId eval(AtomId atomId, String id, ImmutableList<Type> types) {
+  @Override public AtomId eval(AtomId atomId) {
     IdDecl d = tc.st().ids.def(atomId);
     AtomId s = toSubstitute.get(d);
     return s == null? atomId : s.clone();
   }
 
-  @Override
-  public Body eval(
-      Body body, 
-      ImmutableList<VariableDecl> vars,
-      Block block
-  ) {
+  @Override public Body eval(Body body) {
     ImmutableList.Builder<Command> newCommands = ImmutableList.builder();
     for (Expr e : preconditions) {
       newCommands.add(AssertAssumeCmd.mk(
@@ -125,7 +116,8 @@ public class SpecDesugarer extends Transformer {
           AstUtils.ids(),
           e));
     }
-    newCommands.addAll(AstUtils.evalListOfCommand(block.commands(), this));
+    newCommands.addAll(AstUtils.evalListOfCommand(
+        body.block().commands(), this));
     newCommands.add(AssertAssumeCmd.mk(
         ImmutableList.of("$$post"),
         AssertAssumeCmd.CmdType.ASSUME,
@@ -140,17 +132,17 @@ public class SpecDesugarer extends Transformer {
     }
     newCommands.add(GotoCmd.mk(noString, noString, body.loc()));
     return Body.mk(
-        vars, 
-        Block.mk(newCommands.build(), block.loc()), body.loc());
+        body.vars(), 
+        Block.mk(newCommands.build(), body.block().loc()), body.loc());
   }
 
-  @Override public GotoCmd eval(
-      GotoCmd gotoCmd, 
-      ImmutableList<String> labels,
-      ImmutableList<String> successors
-  ) {
-    if (successors.isEmpty())
-      return GotoCmd.mk(labels, ImmutableList.of("$$post"), gotoCmd.loc());
+  @Override public GotoCmd eval(GotoCmd gotoCmd) {
+    if (gotoCmd.successors().isEmpty()) {
+      return GotoCmd.mk(
+          gotoCmd.labels(), 
+          ImmutableList.of("$$post"), 
+          gotoCmd.loc());
+    }
     return gotoCmd;
   }
 }

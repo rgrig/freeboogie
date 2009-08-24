@@ -25,69 +25,40 @@ public class LoopCutter extends CommandDesugarer {
 
   // === transformer methods ===
 
-  @Override public Body eval(
-      Body body,
-      ImmutableList<VariableDecl> vars,
-      Block block
-  ) {
+  @Override public Body eval(Body body) {
+    Block block = body.block();
     seen.clear();
     done.clear();
     toRemove.clear();
     currentFG = tc.flowGraph(body);
     dfs(block.commands().get(0));
     block = (Block) block.eval(this);
-    return Body.mk(vars, block, body.loc());
+    return Body.mk(body.vars(), block, body.loc());
   }
 
 
-  @Override public GotoCmd eval(
-      GotoCmd cmd, 
-      ImmutableList<String> labels,
-      ImmutableList<String> successors
-  ) {
+  @Override public GotoCmd eval(GotoCmd cmd) {
     ImmutableList.Builder<String> newSuccessors = ImmutableList.builder();
     for (Command c : currentFG.to(cmd)) {
       if (!toRemove.contains(Pair.of(cmd, c))) 
         newSuccessors.add(c.labels().get(0));
     }
-    return GotoCmd.mk(labels, newSuccessors.build(), cmd.loc());
+    return GotoCmd.mk(cmd.labels(), newSuccessors.build(), cmd.loc());
   }
 
-  @Override public Command eval(
-      AssertAssumeCmd assertAssumeCmd, 
-      ImmutableList<String> labels,
-      AssertAssumeCmd.CmdType type,
-      ImmutableList<AtomId> typeArgs,
-      Expr expr
-  ) {
+  @Override public Command eval(AssertAssumeCmd assertAssumeCmd) {
     return processCommand(assertAssumeCmd);
   }
 
-  @Override public Command eval(
-      AssignmentCmd assignmentCmd, 
-      ImmutableList<String> labels,
-      AtomId lhs,
-      Expr rhs
-  ) {
+  @Override public Command eval(AssignmentCmd assignmentCmd) {
     return processCommand(assignmentCmd);
   }
 
-  @Override public Command eval(
-      CallCmd callCmd, 
-      ImmutableList<String> labels,
-      String procedure,
-      ImmutableList<Type> types,
-      ImmutableList<AtomId> results,
-      ImmutableList<Expr> args
-  ) {
+  @Override public Command eval(CallCmd callCmd) {
     return processCommand(callCmd);
   }
 
-  @Override public Command eval(
-      HavocCmd havocCmd, 
-      ImmutableList<String> labels,
-      ImmutableList<AtomId> ids
-  ) {
+  @Override public Command eval(HavocCmd havocCmd) {
     return processCommand(havocCmd);
   }
 
@@ -101,13 +72,7 @@ public class LoopCutter extends CommandDesugarer {
     return command;
   }
 
-  @Override public void see(
-      WhileCmd whileCmd, 
-      ImmutableList<String> labels,
-      Expr condition,
-      ImmutableList<LoopInvariant> inv,
-      Block body
-  ) {
+  @Override public void see(WhileCmd whileCmd) {
     Err.internal("While commands should have been desugared.");
   }
 

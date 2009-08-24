@@ -162,7 +162,7 @@ Atom :>
   AtomOld,
   AtomQuant;
 AtomLit = 
-  enum(AtomType: FALSE, TRUE, NULL) val;
+  enum(AtomType: FALSE, TRUE) val;
 AtomNum = 
   BigInteger val;
 AtomId = 

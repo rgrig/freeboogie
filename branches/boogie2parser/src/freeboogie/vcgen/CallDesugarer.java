@@ -43,8 +43,8 @@ public class CallDesugarer extends CommandDesugarer {
     ImmutableList<String> labels = callCmd.labels();
     Procedure p = tc.st().procs.def(callCmd);
     Signature sig = p.sig();
-    prepareToSubstitute(sig.results(), results);
-    prepareToSubstitute(sig.args(), args);
+    prepareToSubstitute(sig.results(), callCmd.results());
+    prepareToSubstitute(sig.args(), callCmd.args());
 
     for (PreSpec pre : p.preconditions()) {
       addEquivalentCommand(AssertAssumeCmd.mk(

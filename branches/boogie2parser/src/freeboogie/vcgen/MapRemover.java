@@ -1,7 +1,6 @@
 package freeboogie.vcgen;
 
 import java.util.HashSet;
-import java.util.logging.Logger;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
@@ -17,7 +16,6 @@ import static freeboogie.ast.AstUtils.*;
  * <tt>select</tt> and <tt>update</tt>.
  */
 public class MapRemover extends Transformer {
-  private static final Logger log = Logger.getLogger("freeboogie.vcgen");
   private HashSet<Integer> arities = Sets.newHashSet();
 
   // TODO move in eval(Program...)
@@ -116,6 +114,8 @@ public class MapRemover extends Transformer {
   }
 
   @Override public AtomFun eval(AtomMapSelect atomMapSelect) {
+    Atom atom = atomMapSelect.atom();
+    ImmutableList<Expr> idx = atomMapSelect.idx();
     atom = (Atom) atom.eval(this);
     idx = AstUtils.evalListOfExpr(idx, this);
     int n = idx.size();
@@ -126,6 +126,9 @@ public class MapRemover extends Transformer {
   }
 
   @Override public AtomFun eval(AtomMapUpdate atomMapUpdate) {
+    Atom atom = atomMapUpdate.atom();
+    ImmutableList<Expr> idx = atomMapUpdate.idx();
+    Expr val = atomMapUpdate.val();
     atom = (Atom)atom.eval(this);
     idx = AstUtils.evalListOfExpr(idx, this);
     val = (Expr)val.eval(this);

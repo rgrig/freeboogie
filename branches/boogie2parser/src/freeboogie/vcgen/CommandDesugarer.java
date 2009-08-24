@@ -48,15 +48,15 @@ public class CommandDesugarer extends Transformer {
 
   @Override public Body eval(Body body) {
     newVars = ImmutableList.builder();
-    Block nb = (Block) block.eval(this);
-    newVars.addAll(vars);
+    Block nb = (Block) body.block().eval(this);
+    newVars.addAll(body.vars());
     return Body.mk(newVars.build(), nb, body.loc());
   }
 
   @Override public Block eval(Block block) {
     ImmutableList.Builder<Command> newCommands = ImmutableList.builder();
     boolean same = true;
-    for (Command c : commands) {
+    for (Command c : block.commands()) {
         equivCmds.clear();
         toSubstitute.clear();
         Command nc = (Command) c.eval(this);

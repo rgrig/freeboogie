@@ -130,7 +130,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     enclosingTypeVar = new StackedHashMap<AtomId, AtomId>();
     
     // build symbol table
-    StbInterface stb = acceptOld ? new ForgivingStb() : new SymbolTableBuilder();
+    StbInterface stb = new SymbolTableBuilder();
     errors = stb.process(ast);
     if (!errors.isEmpty()) return errors;
     ast = stb.ast();
@@ -434,7 +434,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   @Override public PrimitiveType eval(UnaryOp unaryOp) {
     Expr expr = unaryOp.expr();
     Type t = expr.eval(this);
-    switch (op) {
+    switch (unaryOp.op()) {
     case MINUS:
       check(t, intType, expr);
       typeOf.put(unaryOp, intType);
@@ -509,7 +509,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     if (d instanceof VariableDecl) {
       VariableDecl vd = (VariableDecl)d;
       typeVarEnter(atomId);
-      mapExplicitGenerics(vd.typeArgs(), types);
+      mapExplicitGenerics(vd.typeArgs(), atomId.types());
       t = checkRealType(vd.type(), atomId);
       typeVarExit(atomId);
     } else if (d instanceof ConstDecl) {
@@ -530,9 +530,6 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     case FALSE:
       typeOf.put(atomLit, boolType);
       return boolType;
-    case NULL:  // TODO(radugrigore): remove the null constant completely
-      typeOf.put(atomLit, refType);
-      return refType;
     default:
       assert false;
       return errType; // dumb compiler 
@@ -546,7 +543,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
 
   @Override public PrimitiveType eval(AtomQuant atomQuant) {
-    Expr e = AtomQuant.expression();
+    Expr e = atomQuant.expression();
     Type t = atomQuant.expression().eval(this);
     check(t, boolType, e);
     typeOf.put(atomQuant, boolType);
@@ -670,15 +667,15 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
 
   @Override public Type eval(PostSpec postSpec) {
-    return checkBool(typeArgs, expr);
+    return checkBool(postSpec.typeArgs(), postSpec.expr());
   }
 
   @Override public Type eval(PreSpec preSpec) {
-    return checkBool(typeArgs, expr);
+    return checkBool(preSpec.typeArgs(), preSpec.expr());
   }
 
   @Override public Type eval(Axiom axiom) {
-    return checkBool(typeVars, expr);
+    return checkBool(axiom.typeArgs(), axiom.expr());
   }
 
   // === keep track of formal generics (see also eval(Axiom...) and eval(AssertAssumeCmd...)) ===
@@ -693,7 +690,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
 
   @Override public Type eval(Procedure procedure) {
     enclosingTypeVar.push();
-    collectEnclosingTypeVars(implementation.sig().typeArgs());
+    collectEnclosingTypeVars(procedure.sig().typeArgs());
     AstUtils.evalListOfPreSpec(procedure.preconditions(), this);
     AstUtils.evalListOfPostSpec(procedure.postconditions(), this);
     AstUtils.evalListOfModifiesSpec(procedure.modifies(), this);

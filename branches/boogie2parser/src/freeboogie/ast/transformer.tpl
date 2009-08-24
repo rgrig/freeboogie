@@ -63,7 +63,7 @@ public class Transformer extends Evaluator<Ast> {
             \memberName = AstUtils.evalListOf\MemberType(
                 \className.\memberName(), this);
           }{
-            \memberName = \memberName == null? 
+            \memberName = \className.\memberName() == null? 
               null :
               (\MemberType) \className.\memberName().eval(this);
           }

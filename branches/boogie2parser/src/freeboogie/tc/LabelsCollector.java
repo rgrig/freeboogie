@@ -59,15 +59,15 @@ public class LabelsCollector extends Transformer {
   }
 
   @Override public void see(HavocCmd havocCmd) {
-    recordLabels(havoccmd);
+    recordLabels(havocCmd);
   }
 
   @Override public void see(WhileCmd whileCmd) {
     recordLabels(whileCmd);
-    body.eval(this);
+    whileCmd.body().eval(this);
   }
 
-  private recordLabels(Command c) {
+  private void recordLabels(Command c) {
     commands.add(c);
     for (String l : c.labels()) commandByLabel.put(l,c);
   }

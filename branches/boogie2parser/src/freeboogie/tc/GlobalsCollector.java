@@ -153,23 +153,23 @@ public class GlobalsCollector extends Transformer {
   
   // === the visiting functions ===
   @Override public void see(TypeDecl typeDecl) {
-    addTypeDef(name, typeDecl);
+    addTypeDef(typeDecl.name(), typeDecl);
   }
 
   @Override public void see(ConstDecl constDecl) {
-    addConstDef(id, constDecl);
+    addConstDef(constDecl.name(), constDecl);
   }
 
   @Override public void see(FunctionDecl function) {
-    addFunDef(sig.name(), function);
+    addFunDef(function.sig().name(), function);
   }
 
   @Override public void see(VariableDecl variableDecl) {
-    addVarDef(name, variableDecl);
+    addVarDef(variableDecl.name(), variableDecl);
   }
 
   @Override public void see(Procedure procedure) {
-    addProcDef(sig.name(), procedure);
+    addProcDef(procedure.sig().name(), procedure);
   }
   
   // === visit methods that skip places that might contain local variable decls ===

@@ -38,12 +38,8 @@ public class FunctionRegisterer extends Transformer {
     return ast;
   }
 
-  @Override
-  public void see(
-    FunctionDecl function,
-    ImmutableList<Attribute> attr,
-    Signature sig
-  ) {
+  @Override public void see(FunctionDecl function) {
+    Signature sig = function.sig();
     argSorts.clear();
     getArgSorts(sig.args());
     Sort[] asa = argSorts.toArray(sortArray);

@@ -39,12 +39,12 @@ public class AxiomSender<T extends Term<T>> extends Transformer {
   }
 
   @Override public void see(Axiom axiom) {
-    T a = term.of(expr);
+    T a = term.of(axiom.expr());
     axioms.add(a);
     a.collectAxioms(axioms);
   }
 
   @Override public void see(ConstDecl constDecl) {
-    if (uniq) uniqConst.add(id);
+    if (constDecl.uniq()) uniqConst.add(constDecl.name());
   }
 }

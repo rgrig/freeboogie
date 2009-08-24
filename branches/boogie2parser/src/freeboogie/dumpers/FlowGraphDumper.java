@@ -36,13 +36,8 @@ public class FlowGraphDumper extends Transformer {
     return sw.toString();
   }
 
-  @Override
-  public void see(
-    Implementation impl,
-    ImmutableList<Attribute> attr,
-    Signature sig,
-    Body body
-  ) {
+  @Override public void see(Implementation impl) {
+    Body body = impl.body();
     String name = 
       impl.sig().name() + 
       "_at_" + 

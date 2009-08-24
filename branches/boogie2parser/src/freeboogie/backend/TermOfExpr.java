@@ -118,121 +118,96 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
     this.typeOf = tc.types();
   }
 
-  @Override
-  public T eval(AtomCast atomCast, Expr e, Type type) {
-    T result = e.eval(this);
-    if (TypeUtils.isInt(type))
+  @Override public T eval(AtomCast atomCast) {
+    T result = atomCast.expr().eval(this);
+    if (TypeUtils.isInt(atomCast.type()))
       return term.mk("cast_to_int", result);
-    if (TypeUtils.isBool(type))
+    if (TypeUtils.isBool(atomCast.type()))
       return term.mk("cast_to_bool", result);
     return result;
   }
 
-  @Override
-  public T eval(
-      AtomFun atomFun,
-      String function,
-      ImmutableList<Type> types,
-      ImmutableList<Expr> args
-  ) {
+  @Override public T eval(AtomFun atomFun) {
     String prefix = "funT_";
     if (TypeUtils.isInt(typeOf.get(atomFun)))
       prefix = "funI_";
     if (TypeUtils.isBool(typeOf.get(atomFun)))
       prefix = "funB_";
-    return term.mk(prefix + function, tuple(args));
+    return term.mk(prefix + atomFun.function(), tuple(atomFun.args()));
   }
 
-  @Override
-  public T eval(AtomId atomId, String id, ImmutableList<Type> types) {
+  @Override public T eval(AtomId atomId) {
     Type t = st.ids.def(atomId).type();
     if (TypeUtils.isInt(t)) {
       // this prefix is needed for z3, but not simplify
-      return mk("var_int", "term$$" + id);
+      return mk("var_int", "term$$" + atomId.id());
     } else if (TypeUtils.isBool(t)) {
       // add axiom that connects terms to formulas
-      T result = mk("var_bool", "term$$" + id);
+      T result = mk("var_bool", "term$$" + atomId.id());
       result.addAxiom(term.mk("iff",
-        term.mk("var_formula", id),
+        term.mk("var_formula", atomId.id()),
         term.mk("eq_bool",
-          term.mk("var_bool", "term$$" + id),
+          term.mk("var_bool", "term$$" + atomId.id()),
           term.mk("literal_bool", true))));
       return result;
     } else {
       // this prefix is needed for z3, but not simplify
-      return mk("var", "term$$" + id);
+      return mk("var", "term$$" + atomId.id());
     }
   }
 
-  @Override
-  public T eval(AtomLit atomLit, AtomLit.AtomType val) {
-    switch (val) {
+  @Override public T eval(AtomLit atomLit) {
+    switch (atomLit.val()) {
     case TRUE:
       return mk("literal_bool", true);
     case FALSE:
       return mk("literal_bool", false);
-    case NULL:
-      return mk("literal", "$$null");
     default:
       assert false;
       return null;
     }
   }
 
-  @Override
-  public T eval(
-      AtomMapSelect atomMapSelect,
-      Atom atom, 
-      ImmutableList<Expr> idx
-  ) {
+  @Override public T eval(AtomMapSelect atomMapSelect) {
     Type t = typeOf.get(atomMapSelect);
     String termId = "map_select";
     if (TypeUtils.isInt(t)) termId = "map_select_int";
     if (TypeUtils.isBool(t)) termId = "map_select_bool";
-    return term.mk(termId, atom.eval(this), term.mk("tuple", tuple(idx)));
+    return term.mk(
+        termId, 
+        atomMapSelect.atom().eval(this), 
+        term.mk("tuple", tuple(atomMapSelect.idx())));
   }
 
-  @Override
-  public T eval(
-      AtomMapUpdate atomMapUpdate,
-      Atom atom,
-      ImmutableList<Expr> idx,
-      Expr val
-  ) {
+  @Override public T eval(AtomMapUpdate atomMapUpdate) {
     return term.mk(
       "map_update", 
       ImmutableList.of(
-          atom.eval(this), 
-          term.mk("tuple", tuple(idx)),
-          val.eval(this)));
+          atomMapUpdate.atom().eval(this), 
+          term.mk("tuple", tuple(atomMapUpdate.idx())),
+          atomMapUpdate.val().eval(this)));
   }
 
-  @Override
-  public T eval(AtomNum atomNum, BigInteger val) {
-    return term.mk("literal_int", val);
+  @Override public T eval(AtomNum atomNum) {
+    return term.mk("literal_int", atomNum.val());
   }
 
-  @Override
-  public T eval(
-    AtomQuant atomQuant, 
-    AtomQuant.QuantType quant, 
-    ImmutableList<VariableDecl> vars, 
-    ImmutableList<Attribute> attr, 
-    Expr e
-  ) {
+  @Override public T eval(AtomQuant atomQuant) {
     // TODO can this be done without HOL?
     Err.internal("Quantifiers are not supported in this position.");
     return null;
   }
 
-  @Override
-  public T eval(BinaryOp binaryOp, BinaryOp.Op op, Expr left, Expr right) {
+  @Override public T eval(BinaryOp binaryOp) {
+    Expr left = binaryOp.left();
+    Expr right = binaryOp.right();
+
     String termId = "***unknown***";
     Type lt = typeOf.get(left);
     Type rt = typeOf.get(right);
     T l = left.eval(this);
     T r = right.eval(this);
-    switch (op) {
+    switch (binaryOp.op()) {
     case PLUS:
       return mk("+", l, r);
     case MINUS:
@@ -281,12 +256,16 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
     }
   }
 
-  @Override
-  public T eval(UnaryOp unaryOp, UnaryOp.Op op, Expr e) {
+  @Override public T eval(UnaryOp unaryOp) {
     String termId = "***unknown***";
-    switch (op) {
-    case MINUS: return mk("-", mk("literal_int", new BigInteger("0")), e.eval(this));
-    case NOT: return not(e.eval(this));
+    switch (unaryOp.op()) {
+    case MINUS: 
+      return mk(
+          "-", 
+          mk("literal_int", new BigInteger("0")), 
+          unaryOp.expr().eval(this));
+    case NOT: 
+      return not(unaryOp.expr().eval(this));
     default: assert false; return null;
     }
   }

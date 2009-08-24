@@ -44,34 +44,25 @@ public class FormulaOfExpr<T extends Term<T>> extends Evaluator<T> {
     termOfExpr.setTypeChecker(tc);
   }
 
-  @Override
-  public T eval(AtomCast atomCast, Expr e, Type type) {
-    if (TypeUtils.isBool(type))
+  @Override public T eval(AtomCast atomCast) {
+    if (TypeUtils.isBool(atomCast.type()))
       return formulaOfTerm(atomCast.eval(termOfExpr));
     Err.internal(
       "Typechecking should have failed: non-bool in a bool's place.");
     return null;
   }
 
-  @Override
-  public T eval(
-      AtomFun atomFun,
-      String function, 
-      ImmutableList<Type> types, 
-      ImmutableList<Expr> args
-  ) {
+  @Override public T eval(AtomFun atomFun) {
     return formulaOfTerm(atomFun.eval(termOfExpr));
   }
 
-  @Override
-  public T eval(AtomId atomId, String id, ImmutableList<Type> types) {
+  @Override public T eval(AtomId atomId) {
     // TODO check that atomId's boogie type is bool
-    return term.mk("var_formula", id);
+    return term.mk("var_formula", atomId.id());
   }
 
-  @Override
-  public T eval(AtomLit atomLit, AtomLit.AtomType val) {
-    switch (val) {
+  @Override public T eval(AtomLit atomLit) {
+    switch (atomLit.val()) {
     case TRUE:
       return term.mk("literal_formula", Boolean.valueOf(true));
     case FALSE:
@@ -82,35 +73,25 @@ public class FormulaOfExpr<T extends Term<T>> extends Evaluator<T> {
     }
   }
 
-  @Override
-  public T eval(
-      AtomMapSelect atomMapSelect, 
-      Atom atom, 
-      ImmutableList<Expr> idx
-  ) {
+  @Override public T eval(AtomMapSelect atomMapSelect) {
     return formulaOfTerm(atomMapSelect.eval(termOfExpr));
   }
 
-  @Override
-  public T eval(
-    AtomQuant atomQuant,
-    AtomQuant.QuantType quant,
-    ImmutableList<VariableDecl> vars,
-    ImmutableList<Attribute> attr,
-    Expr e
-  ) {
-    T result = e.eval(this);
-    for (VariableDecl vd : vars)
+  @Override public T eval(AtomQuant atomQuant) {
+    T result = atomQuant.expression().eval(this);
+    for (VariableDecl vd : atomQuant.vars())
       result = term.mk("forall", term.mk("var", "term$$" + vd.name()), result);
     return result;
   }
 
-  @Override
-  public T eval(BinaryOp binaryOp, BinaryOp.Op op, Expr left, Expr right) {
+  @Override public T eval(BinaryOp binaryOp) {
+    Expr left = binaryOp.left();
+    Expr right = binaryOp.right();
+
     String termId = "***unknown***";
     Type lt = typeOf.get(left);
     Type rt = typeOf.get(right);
-    switch (op) {
+    switch (binaryOp.op()) {
     case EQ: 
       // TODO figure out when EQ can be treated as EQUIV
       if (TypeUtils.isInt(lt) && TypeUtils.isInt(rt)) 
@@ -149,11 +130,10 @@ public class FormulaOfExpr<T extends Term<T>> extends Evaluator<T> {
     }
   }
 
-  @Override
-  public T eval(UnaryOp unaryOp, UnaryOp.Op op, Expr e) {
+  @Override public T eval(UnaryOp unaryOp) {
     String termId = "***unknown***";
-    switch (op) {
-    case NOT: return term.mk("not", e.eval(this));
+    switch (unaryOp.op()) {
+    case NOT: return term.mk("not", unaryOp.expr().eval(this));
     default: 
       Err.internal("Attempting to make formula out of a unary op other than NOT.");
       return null;

@@ -31,12 +31,8 @@ extends AssociativeEvaluator<Pair<CSeq<VariableDecl>,CSeq<VariableDecl>>> {
     context.addFirst(false);
   }
  
-  @Override
-  public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> eval(
-      AtomId atomId, 
-      String id, 
-      ImmutableList<Type> types
-  ) {
+  @Override public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>>
+  eval(AtomId atomId) {
     IdDecl d = st.ids.def(atomId);
     CSeq<VariableDecl> r, w;
     r = w = CSeq.mk();
@@ -48,64 +44,44 @@ extends AssociativeEvaluator<Pair<CSeq<VariableDecl>,CSeq<VariableDecl>>> {
     return memo(atomId, Pair.of(r, w));
   }
 
-  @Override
-  public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> eval(
-      CallCmd callCmd, 
-      ImmutableList<String> labels,
-      String procedure, 
-      ImmutableList<Type> types, 
-      ImmutableList<AtomId> results, 
-      ImmutableList<Expr> args
-  ) {
+  @Override public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>>
+  eval(CallCmd callCmd) {
     assert !context.getFirst();
     Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> r = assocOp.zero();
     context.addFirst(true);
-    for (AtomId id : results) r = assocOp.plus(r, id.eval(this));
+    for (AtomId id : callCmd.results()) r = assocOp.plus(r, id.eval(this));
     context.removeFirst();
-    for (Expr e : args) r = assocOp.plus(r, e.eval(this));
+    for (Expr e : callCmd.args()) r = assocOp.plus(r, e.eval(this));
     return memo(callCmd, r);
   }
 
-  @Override
-  public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> eval(
-      AssignmentCmd assignmentCmd, 
-      ImmutableList<String> labels,
-      AtomId lhs, 
-      Expr rhs
-  ) {
+  @Override public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>>
+  eval(AssignmentCmd assignmentCmd) {
     assert !context.getFirst();
     Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> r = assocOp.zero();
     context.addFirst(true);
-    r = assocOp.plus(r, lhs.eval(this));
+    r = assocOp.plus(r, assignmentCmd.lhs().eval(this));
     context.removeFirst();
-    r = assocOp.plus(r, rhs.eval(this));
+    r = assocOp.plus(r, assignmentCmd.rhs().eval(this));
     return memo(assignmentCmd, r);
   }
 
-  @Override
-  public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> eval(
-      HavocCmd havocCmd, 
-      ImmutableList<String> labels,
-      ImmutableList<AtomId> ids
-  ) {
+  @Override public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>>
+  eval(HavocCmd havocCmd) {
     assert !context.getFirst();
     Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> r = assocOp.zero();
     context.addFirst(true);
-    for (AtomId id : ids) r = assocOp.plus(r, id.eval(this));
+    for (AtomId id : havocCmd.ids()) r = assocOp.plus(r, id.eval(this));
     context.removeFirst();
     return memo(havocCmd, r);
   }
 
-  @Override
-  public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> eval(
-      AtomMapSelect atomIdx, 
-      Atom atom, 
-      ImmutableList<Expr> idx
-  ) {
+  @Override public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>>
+  eval(AtomMapSelect atomIdx) {
     Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> r = assocOp.zero();
-    r = assocOp.plus(r, atom.eval(this));
+    r = assocOp.plus(r, atomIdx.atom().eval(this));
     context.addFirst(false);
-    for (Expr e : idx) r = assocOp.plus(r, e.eval(this));
+    for (Expr e : atomIdx.idx()) r = assocOp.plus(r, e.eval(this));
     context.removeFirst();
     return memo(atomIdx, r);
   }
