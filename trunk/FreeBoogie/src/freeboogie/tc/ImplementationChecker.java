@@ -87,7 +87,7 @@ public class ImplementationChecker extends Transformer {
     while (ia.hasNext()) {
       VariableDecl va = ia.next();
       VariableDecl vb = ib.next();
-      if (!TypeUtils.eq(TypeUtils.stripDep(va.type()), TypeUtils.stripDep(vb.type()))) {
+      if (!TypeUtils.eq(va.type(), vb.type())) {
         errors.add(new FbError(FbError.Type.EXACT_TYPE, va,
               TypeUtils.typeToString(vb.type())));
         return;
@@ -99,20 +99,16 @@ public class ImplementationChecker extends Transformer {
   // report an error if there is any dependent type
   private void depCheck(ImmutableList<VariableDecl> a) {
     for (VariableDecl vd : a) {
+      /* TODO(radugrigore): use 'where' from VariableDecl
       if (TypeUtils.hasDep(vd.type()))
-        errors.add(new FbError(FbError.Type.DEP_IMPL_SIG, vd));
+        errors.add(new FbError(FbError.Type.DEP_IMPL_SIG, vd)); */
     }
   }
   
   // === visiting implementations ===
 
-  @Override
-  public void see(
-    Implementation implementation,
-    ImmutableList<Attribute> attr,
-    Signature sig,
-    Body body
-  ) {
+  @Override public void see(Implementation implementation) {
+    Signature sig = implementation.sig();
     String name = sig.name();
     Procedure p = gc.procDef(name);
     if (p == null) {

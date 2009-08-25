@@ -24,7 +24,7 @@ public class Substitutor extends Transformer {
   }
 
   \classes{\if_terminal{
-    @Override public Ast eval(\ClassName \className,\mtn_list) {
+    @Override public Ast eval(\ClassName \className) {
       Ast r = subst.get(\className);
       return r == null ? \className : r;
     }

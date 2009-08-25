@@ -12,7 +12,7 @@ Program =
   [list] Implementation implementations;
 
 // Provide a common class for AST nodes that can act as a
-// definition for an AtomId.
+// definition for an Identifier.
 IdDecl :> 
   ConstDecl, 
   VariableDecl;
@@ -34,14 +34,15 @@ Declaration =
 TypeDecl = 
   boolean finite, 
   String! name,
-  [list] AtomId typeArgs,
+  [list] Identifier typeArgs, // TODO(radugrigore): remane to typeVars
   Type type; // non-null when this is a type synonym
 Axiom =
   String! name,
-  [list] AtomId typeArgs,
+  [list] Identifier typeArgs,
   Expr! expr;
 VariableDecl =
-  [list] AtomId typeArgs;
+  [list] Identifier typeArgs,
+  Expr where;
 ConstDecl = 
   boolean uniq;
 FunctionDecl = 
@@ -57,24 +58,16 @@ Implementation =
 
 // Types and constants
 Type :> 
-  DepType,
-  IndexedType, 
   MapType, 
   PrimitiveType, 
   TupleType,
   UserType;
-DepType = 
-  Type! type, 
-  Expr! pred;
-IndexedType = 
-  Type! param, 
-  Type! type;
 MapType = 
   [list] Type idxTypes,
   Type! elemType;
 PrimitiveType = 
-  enum(Ptype: BOOL, INT, REF, NAME, ANY, BV, ERROR) ptype,
-  int bits;
+  enum(Ptype: BOOL, INT, ERROR) ptype,
+  int bits;  // if -1, then it's a mathematical integer
 TupleType =
   [list] Type types;
 UserType = 
@@ -84,7 +77,7 @@ UserType =
 // Signatures are used to represent uninterpreted functions
 Signature = 
   String! name, 
-  [list] AtomId typeArgs,
+  [list] Identifier typeArgs,
   [list] VariableDecl args,
   [list] VariableDecl results;
 
@@ -98,43 +91,53 @@ PrePostSpec :>
   PreSpec,
   PostSpec;
 PrePostSpec =
-  [list] AtomId typeArgs,
+  [list] Identifier typeArgs,
   Expr! expr;
 ModifiesSpec =
-  [list] AtomId ids;
+  [list] Identifier ids;
 Body = 
   [list] VariableDecl vars,
-  [list] Block blocks;
-Block = 
-  String! name, 
-  Command cmd, 
-  [list] AtomId successors; // successors.isEmpty() means that we return
+  Block! block;
+Block =
+  [list] Command commands; 
 
 // Commands
 Command :> 
-  AssignmentCmd, 
   AssertAssumeCmd, 
-  HavocCmd, 
+  AssignmentCmd, 
   CallCmd, 
+  GotoCmd,
+  HavocCmd,
+  IfCmd,
   WhileCmd;
+Command =
+  [list] String labels;
 AssignmentCmd = 
-  AtomId! lhs, 
-  Expr! rhs;
+  ImmutableList<OneAssignment> assignments;
+OneAssignment =
+  Identifier lhs,
+  Expr rhs;
 AssertAssumeCmd = 
   enum(CmdType: ASSERT, ASSUME) type, 
-  [list] AtomId typeArgs, 
+  [list] Identifier typeArgs, 
   Expr! expr;
+GotoCmd =
+  [list] String successors; // if successors.isEmpty() then it's "return"
 HavocCmd = 
-  [list] AtomId ids;
+  [list] Identifier ids;
 CallCmd = 
   String! procedure, 
   [list] Type types, 
-  [list] AtomId results,
+  [list] Identifier results,
   [list] Expr args;
 WhileCmd = 
   Expr condition, 
   [list] LoopInvariant inv, 
-  [list] Block body;
+  Block body;
+IfCmd =
+  Expr! condition,
+  Block! yes,
+  Block no;
 LoopInvariant = 
   boolean free, 
   Expr! expr;
@@ -146,59 +149,68 @@ Attribute =
 // Expressions
 Expr :> 
   BinaryOp, 
-  UnaryOp, 
-  Atom;
+  BooleanLiteral,
+  Cast,
+  FunctionApp,
+  Identifier,
+  MapSelect,
+  MapUpdate,
+  NumberLiteral,
+  OldExpr,
+  Quantifier,
+  Slice,
+  UnaryOp;
 BinaryOp = 
-  enum(Op:PLUS,MINUS,MUL,DIV,MOD,EQ,NEQ,LT,LE,GE,GT,SUBTYPE,EQUIV,IMPLIES,AND,OR) op,
+  enum(Op:
+    PLUS,MINUS,
+    MUL,DIV,MOD,
+    EQ,NEQ,LT,LE,GE,GT,
+    SUBTYPE,
+    EQUIV,IMPLIES,
+    AND,OR,
+    CONCAT) op,
   Expr! left, 
   Expr! right;
+Cast =
+  Expr! expr,
+  Type! type;
 UnaryOp = 
   enum(Op: MINUS, NOT) op, 
-  Expr! e;
-Atom :> 
-  AtomCast,
-  AtomFun,
-  AtomId,
-  AtomLit,
-  AtomMapSelect,
-  AtomMapUpdate,
-  AtomNum,
-  AtomOld,
-  AtomQuant;
-AtomLit = 
-  enum(AtomType: FALSE, TRUE, NULL) val;
-AtomNum = 
-  BigInteger val;
-AtomId = 
+  Expr! expr;
+BooleanLiteral = 
+  enum(Type: FALSE, TRUE) val;
+NumberLiteral = 
+  FbInteger value;
+Identifier = 
   String! id, 
   [list] Type types;
-AtomFun = 
+FunctionApp = 
   String! function, 
   [list] Type types, 
   [list] Expr args;
-AtomOld = 
-  Expr! e;
-AtomCast = 
-  Expr! e, 
-  Type! type;
-AtomQuant =
+OldExpr = 
+  Expr! expr;
+Quantifier =
   enum(QuantType: EXISTS, FORALL) quant,
   [list] VariableDecl vars,
   [list] Attribute attributes,
-  Expr! e;
-AtomMapSelect = 
-  Atom! atom, 
+  Expr! expression;
+MapSelect = 
+  Expr! map, 
   [list] Expr idx;
-AtomMapUpdate = 
-  Atom! atom, 
+MapUpdate = 
+  Expr! map, 
   [list] Expr idx, 
   Expr! val;
+Slice =
+  Expr! bv,
+  NumberLiteral! low,
+  NumberLiteral! high;
 
 // the invariants
-AtomMapSelect: !idx.isEmpty()
-AtomMapUpdate: !idx.isEmpty()
+MapSelect: !idx.isEmpty()
+MapUpdate: !idx.isEmpty()
 HavocCmd: !ids.isEmpty()
-PrimitiveType: ptype == Ptype.BV || bits == -1
-Specification: type != SpecType.MODIFIES || (expr instanceof AtomId)
-Body: !blocks.isEmpty()
+Body: !block.commands().isEmpty() && block.commands().get(block.commands.size()-1) instanceof GotoCmd
 
+// TODO(radugrigore): rename using whole words

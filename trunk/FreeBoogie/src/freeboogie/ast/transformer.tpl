@@ -3,7 +3,8 @@ vim:filetype=java:
 \def{smt}{\if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}}
 \def{mt}{\if_tagged{list}{ImmutableList<}{}\smt\if_tagged{list}{>}{}}
 \def{mtn}{\mt \memberName}
-\def{mtn_list}{\members[,]{\mtn}}
+\def{mtn_list}{\members[,
+      ]{\mtn}}
 
 \file{Transformer.java}
 /** Do NOT edit. See transformer.tpl instead. */
@@ -32,9 +33,12 @@ import freeboogie.tc.TypeUtils;
   @see freeboogie.ast.Evaluator
  */
 public class Transformer extends Evaluator<Ast> {
-  private final Ast NULL = AtomId.mk("<NULL>", ImmutableList.<Type>of());
+  private final Ast NULL = Identifier.mk("<NULL>", ImmutableList.<Type>of());
   private Deque<Ast> result = new ArrayDeque<Ast>();
   protected TcInterface tc;
+
+  // short name to be used by subclasses
+  protected static ImmutableList<String> noString = ImmutableList.of();
 
   /** Returns the name of this transformer. */
   public String name() {
@@ -47,35 +51,38 @@ public class Transformer extends Evaluator<Ast> {
   }
 
   \classes{\if_terminal{
-    public void see(\ClassName \className,\mtn_list) {
+    public void see(\ClassName \className) {
       Preconditions.checkNotNull(\className);
       boolean sameChildren = true;
       \members{
-        \mt new\MemberName;
+        \mt \memberName;
         \if_primitive{
-          new\MemberName = \memberName;
+          \memberName = \className.\memberName();
         }{
           \if_tagged{list}{
-            new\MemberName = AstUtils.evalListOf\MemberType(\memberName, this);
+            \memberName = AstUtils.evalListOf\MemberType(
+                \className.\memberName(), this);
           }{
-            new\MemberName = \memberName == null ? null :(\MemberType)\memberName.eval(this);
+            \memberName = \className.\memberName() == null? 
+              null :
+              (\MemberType) \className.\memberName().eval(this);
           }
-          sameChildren &= new\MemberName == \memberName;
+          sameChildren &= \memberName == \className.\memberName();
         }
       }
 
       if (!sameChildren) {
         result.removeFirst();
-        result.addFirst(\ClassName.mk(\members[,]{new\MemberName},\className.loc()));
+        result.addFirst(\ClassName.mk(\members[,]{\memberName},\className.loc()));
       }
     }
     
     @Override
-    public Ast eval(\ClassName \className,\mtn_list) {
+    public Ast eval(\ClassName \className) {
       // Deque<> doesn't support null elements
       result.addFirst(\className == null ? NULL : \className);
       enterNode(\className);
-      see(\className,\members[,]{\memberName});
+      see(\className);
       exitNode(\className);
       Ast r = result.removeFirst();
       return r == NULL ? null : r;
@@ -87,19 +94,15 @@ public class Transformer extends Evaluator<Ast> {
 // You can copy and paste the text below when you define a visitor that
 // needs to override most functions on the base class.
 
-\classes{\if_terminal{  @Override
-  public void see(\ClassName \className, \mtn_list) {
+\classes{\if_terminal{  @Override public void see(\ClassName \className) {
     assert false : "not implemented";
   }
 }{}}
 
 // *********
 
-\classes{\if_terminal{  @Override
-  public \ClassName see(\ClassName \className, \mtn_list) {
+\classes{\if_terminal{  @Override public \ClassName eval(\ClassName \className) {
     assert false : "not implemented";
     return null;
   }
 }{}}
-
-

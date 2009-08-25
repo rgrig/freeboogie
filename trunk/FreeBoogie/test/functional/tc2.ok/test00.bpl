@@ -16,7 +16,7 @@ implementation NewFavorite(n : Wicket) {
 
 // from krml178, Section 2
 type Barrel alpha;
-type finite RGBColor;
+type finite RGBColor;  // Boogie 2.0 doesn't accept 'finite'
 const unique red : RGBColor;
 const unique green : RGBColor;
 const unique blue : RGBColor;
@@ -56,10 +56,10 @@ function cylinderVolume(radius : int, height : int) returns (int) {
 axiom (forall x:int, y:int :: {x%y} x%y == x-x/y*y);
 axiom (forall x:int, y:int :: {x%y}
   (0 < y ==> 0 <= x%y && x%y < y) &&
-  (y < 0 ==> y < x%y %% x%y <= 0)); 
+  (y < 0 ==> y < x%y && x%y <= 0)); 
   // todo: allow a<b<c as a shortcut a<b && b<c
 
-const a : [int, RGBColor] Wicket;
+const aa : [int, RGBColor] Wicket;
  // todo: check that maps aren't extensional
 
 procedure foobar() returns () {
@@ -87,7 +87,7 @@ function C.m(heap:<alpha>[Ref,Field alpha]alpha, this:Ref) returns (bool);
 var ObjStore : [Ref]<alpha>[Field alpha]alpha;
 function D.m(this:Ref, dataRecord:<alpha>[Field alpha]alpha) returns (bool);
 
-procedure foobar2() returns () 
+procedure foobar2(p : Ref) returns () 
   modifies Heap;
   ensures (forall<alpha> o:Ref, f:Field alpha ::
     Heap[o,f]==old(Heap)[o,f] ||
@@ -106,10 +106,10 @@ procedure foobar3(N:int, X:int) returns () {
   x,a[i]:=x+1,x;
   // err: a[i],a[j]:=a[j],a[i]; // two a-s on the left
   b[i][x,y]:=10;
-  b:=b[i:=b[i][m,n:=10]];
+  b:=b[i:=b[i][m,n:=10]]; // Boogie typechecker fails here but it seems OK
   i:=0;
   while (i<N) {
-    if (a[i]==X) {break;} // why doesn't break this out of an if?
+    if (a[i]==X) {break;} // by default, break out of the innermost while
     i:=i+1;
   }
   i:=0;

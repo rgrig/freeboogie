@@ -152,76 +152,32 @@ public class GlobalsCollector extends Transformer {
   
   
   // === the visiting functions ===
-  @Override
-  public void see(
-    TypeDecl typeDecl,
-    ImmutableList<Attribute> attr,
-    boolean finite,
-    String name,
-    ImmutableList<AtomId> typeArgs,
-    Type type
-  ) {
-    addTypeDef(name, typeDecl);
+  @Override public void see(TypeDecl typeDecl) {
+    addTypeDef(typeDecl.name(), typeDecl);
   }
 
-  @Override
-  public void see(
-    ConstDecl constDecl,
-    ImmutableList<Attribute> attr, 
-    String id,
-    Type type,
-    boolean uniq
-  ) {
-    addConstDef(id, constDecl);
+  @Override public void see(ConstDecl constDecl) {
+    addConstDef(constDecl.name(), constDecl);
   }
 
-  @Override
-  public void see(
-    FunctionDecl function,
-    ImmutableList<Attribute> attr,
-    Signature sig
-  ) {
-    addFunDef(sig.name(), function);
+  @Override public void see(FunctionDecl function) {
+    addFunDef(function.sig().name(), function);
   }
 
-  @Override public void see(
-    VariableDecl variableDecl,
-    ImmutableList<Attribute> attr,
-    String name,
-    Type type,
-    ImmutableList<AtomId> typeArgs
-  ) {
-    addVarDef(name, variableDecl);
+  @Override public void see(VariableDecl variableDecl) {
+    addVarDef(variableDecl.name(), variableDecl);
   }
 
-  @Override
-  public void see(
-    Procedure procedure,
-    ImmutableList<Attribute> attr,
-    Signature sig,
-    ImmutableList<PreSpec> pre,
-    ImmutableList<PostSpec> post,
-    ImmutableList<ModifiesSpec> modifies
-  ) {
-    addProcDef(sig.name(), procedure);
+  @Override public void see(Procedure procedure) {
+    addProcDef(procedure.sig().name(), procedure);
   }
   
   // === visit methods that skip places that might contain local variable decls ===
-  @Override public void see(
-      Program program, 
-      String fileName,
-      ImmutableList<TypeDecl> types,
-      ImmutableList<Axiom> axioms,
-      ImmutableList<VariableDecl> variables,
-      ImmutableList<ConstDecl> constants,
-      ImmutableList<FunctionDecl> functions,
-      ImmutableList<Procedure> procedures,
-      ImmutableList<Implementation> implementations
-  ) {
-    AstUtils.evalListOfTypeDecl(types, this);
-    AstUtils.evalListOfVariableDecl(variables, this);
-    AstUtils.evalListOfConstDecl(constants, this);
-    AstUtils.evalListOfFunctionDecl(functions, this);
-    AstUtils.evalListOfProcedure(procedures, this);
+  @Override public void see(Program program) {
+    AstUtils.evalListOfTypeDecl(program.types(), this);
+    AstUtils.evalListOfVariableDecl(program.variables(), this);
+    AstUtils.evalListOfConstDecl(program.constants(), this);
+    AstUtils.evalListOfFunctionDecl(program.functions(), this);
+    AstUtils.evalListOfProcedure(program.procedures(), this);
   }
 }

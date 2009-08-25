@@ -1,7 +1,39 @@
-Shoudn'd (const h) and (const i) in section 2.1 fail because of
+Shouldn't (const h) and (const i) in section 2.1 fail because of
 the same reason?
 
-In section 4.3 it's not clear if old(x) affects input argments x.
-(The text suggests 'no', but why not?)
+In section 4.3 it's not clear if old(x) affects input arguments
+x. (The text suggests 'no', but why not?)
 
 The last equation in 4.4 is should have 'exists', not 'forall'.
+
+The grammar rules for types might be easier to read in the
+following form (antlr syntax, note user_type, ignore the uglier
+syntax for lists):
+
+The grammar rules for types might be easier to read if you
+introduce a 'user defined type':
+  user_type: ID (ID | type_atom)* map_type?;
+and the other rules for completeness (antlr syntax):
+  type: type_atom | map_type | user_type;
+  type_atom: primitive_type | '(' type ')';
+  primitive_type: 'bool' | 'int' | BIT_VECTOR;
+  map_type: type_args '[' non_empty_list_comma_type ']' type;
+  type_args: ('<' comma_id_list '>')?;
+  non_empty_list_comma_type returns: type (',' type)*;
+  BIT_VECTOR: 'bv' '0'..'9'+;
+
+The grammar doesn't let you write
+  a || b || c
+or
+  a <==> b <==> c
+but does let you write
+  a ++ b ++ c
+even if all three operators are associative AFAICT. Is that 
+intended?
+
+The "cast" (expr ';' type) seems undocumented.
+
+The formal grammar says that there is at least one id after
+'forall' but Boogie/Spec# have 0 sometimes: 
+  (forall<T> :: expr)
+

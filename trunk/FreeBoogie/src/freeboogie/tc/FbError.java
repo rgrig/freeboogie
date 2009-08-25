@@ -28,7 +28,7 @@ public class FbError {
     TV_ALREADY_DEF("Type variable % already defined."),
     ALREADY_DEF("Variable % already defined"),
     GB_ALREADY_DEF("Identifier % was already defined."),
-    MISSING_BLOCK("Inexistent block %."),
+    MISSING_BLOCK("Inexistent label %."),
     IP_CNT_MISMATCH("Implementation-Procedure parameter count mismatch."),
     DEP_IMPL_SIG("Dependent type in implementation signature."),
     PROC_MISSING("Implementation without procedure."),

@@ -8,6 +8,7 @@ import genericutils.Logger;
 import genericutils.StackedHashMap;
 
 import freeboogie.ast.Expr;
+import freeboogie.ast.FbInteger;
 import freeboogie.tc.TcInterface;
 
 import static freeboogie.cli.FbCliOptionsInterface.LogCategories;
@@ -50,7 +51,7 @@ public abstract class TermBuilder<T extends Term<T>> {
     def("var_formula", String.class, Sort.VARFORMULA);
 
     def("literal", String.class, Sort.TERM);
-    def("literal_int", BigInteger.class, Sort.INT);
+    def("literal_int", FbInteger.class, Sort.INT);
     def("literal_bool", Boolean.class, Sort.BOOL);
     def("literal_formula", Boolean.class, Sort.FORMULA);
 

@@ -18,7 +18,7 @@ import freeboogie.ast.*;
 @SuppressWarnings("unused") // lots of unused parameters
 public class SymbolTableBuilder extends Transformer implements StbInterface {
   private StackedHashMap<String, VariableDecl> localVarDecl;
-  private StackedHashMap<String, AtomId> typeVarDecl;
+  private StackedHashMap<String, Identifier> typeVarDecl;
 
   private Program p;
   private SymbolTable symbolTable;
@@ -39,7 +39,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   @Override
   public List<FbError> process(Program p) {
     localVarDecl = new StackedHashMap<String, VariableDecl>();
-    typeVarDecl = new StackedHashMap<String, AtomId>();
+    typeVarDecl = new StackedHashMap<String, Identifier>();
     symbolTable = new SymbolTable();
     gc = new GlobalsCollector();
     lookInLocalScopes = true;
@@ -68,10 +68,10 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   }
 
   private void collectTypeVars(
-      Map<String, AtomId> tv, 
-      ImmutableList<AtomId> ids
+      Map<String, Identifier> tv, 
+      ImmutableList<Identifier> ids
   ) {
-    for (AtomId ai : ids) {
+    for (Identifier ai : ids) {
       if (tv.get(ai.id()) != null)
         errors.add(new FbError(FbError.Type.TV_ALREADY_DEF, ai, ai.id()));
       symbolTable.typeVars.seenDef(ai);
@@ -81,63 +81,41 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   
   // === visit methods ===
   
-  @Override
-  public void see(
-      UserType userType, 
-      String name, 
-      ImmutableList<Type> typeArgs
-  ) {
-    AtomId tv = typeVarDecl.get(name);
+  @Override public void see(UserType userType) {
+    String name = userType.name();
+    Identifier tv = typeVarDecl.get(name);
     if (tv != null)
       symbolTable.typeVars.put(userType, tv);
     else
       symbolTable.types.put(userType, check(gc.typeDef(name), name, userType));
   }
 
-  @Override
-  public void see(
-      CallCmd callCmd, 
-      String p, 
-      ImmutableList<Type> types, 
-      ImmutableList<AtomId> results, 
-      ImmutableList<Expr> args
-  ) {
+  @Override public void see(CallCmd callCmd) {
+    String p = callCmd.procedure();
     symbolTable.procs.put(callCmd, check(gc.procDef(p), p, callCmd));
-    AstUtils.evalListOfType(types, this);
-    AstUtils.evalListOfAtomId(results, this);
-    AstUtils.evalListOfExpr(args, this);
+    AstUtils.evalListOfType(callCmd.types(), this);
+    AstUtils.evalListOfIdentifier(callCmd.results(), this);
+    AstUtils.evalListOfExpr(callCmd.args(), this);
   }
 
-  @Override
-  public void see(
-      AtomFun atomFun, 
-      String f, 
-      ImmutableList<Type> types, 
-      ImmutableList<Expr> args
-  ) {
+  @Override public void see(FunctionApp atomFun) {
+    String f = atomFun.function();
     symbolTable.funcs.put(atomFun, check(gc.funDef(f), f, atomFun));
-    AstUtils.evalListOfType(types, this);
-    AstUtils.evalListOfExpr(args, this);
+    AstUtils.evalListOfType(atomFun.types(), this);
+    AstUtils.evalListOfExpr(atomFun.args(), this);
   }
 
-  @Override
-  public void see(AtomId atomId, String id, ImmutableList<Type> types) {
-    symbolTable.ids.put(atomId, lookup(id, atomId));
-    AstUtils.evalListOfType(types, this);
+  @Override public void see(Identifier atomId) {
+    symbolTable.ids.put(atomId, lookup(atomId.id(), atomId));
+    AstUtils.evalListOfType(atomId.types(), this);
   }
 
   // === collect info from local scopes ===
-  @Override
-  public void see(
-    VariableDecl variableDecl,
-    ImmutableList<Attribute> attr,
-    String name,
-    Type type,
-    ImmutableList<AtomId> typeVars
-  ) {
+  @Override public void see(VariableDecl variableDecl) {
+    String name = variableDecl.name();
     symbolTable.ids.seenDef(variableDecl);
     typeVarDecl.push();
-    collectTypeVars(typeVarDecl.peek(), typeVars);
+    collectTypeVars(typeVarDecl.peek(), variableDecl.typeArgs());
     Map<String, VariableDecl> scope = localVarDecl.peek();
     if (localVarDecl.frames() > 0 && name != null) {
       // we are in a local scope
@@ -147,171 +125,93 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
       else 
         scope.put(name, variableDecl);
     }
-    type.eval(this);
+    variableDecl.type().eval(this);
     typeVarDecl.pop();
   }
 
-  @Override
-  public void see(
-    ConstDecl constDecl,
-    ImmutableList<Attribute> attr,
-    String id,
-    Type type,
-    boolean uniq
-  ) {
+  @Override public void see(ConstDecl constDecl) {
     symbolTable.ids.seenDef(constDecl);
-    type.eval(this);
+    constDecl.type().eval(this);
   }
   
-  @Override
-  public void see(
-    Signature signature,
-    String name,
-    ImmutableList<AtomId> typeArgs,
-    ImmutableList<VariableDecl> args,
-    ImmutableList<VariableDecl> results
-  ) {
-    collectTypeVars(typeVarDecl.peek(), typeArgs);
-    AstUtils.evalListOfVariableDecl(args, this);
-    AstUtils.evalListOfVariableDecl(results, this);
+  @Override public void see(Signature signature) {
+    collectTypeVars(typeVarDecl.peek(), signature.typeArgs());
+    AstUtils.evalListOfVariableDecl(signature.args(), this);
+    AstUtils.evalListOfVariableDecl(signature.results(), this);
   }
 
   
   // === keep track of local scopes ===
-  @Override
-  public void see(
-    Procedure procedure,
-    ImmutableList<Attribute> attr,
-    Signature sig,
-    ImmutableList<PreSpec> pre,
-    ImmutableList<PostSpec> post,
-    ImmutableList<ModifiesSpec> modifies
-  ) {
+  @Override public void see(Procedure procedure) {
     symbolTable.procs.seenDef(procedure);
     localVarDecl.push();
     typeVarDecl.push();
-    sig.eval(this);
-    AstUtils.evalListOfPreSpec(pre, this);
-    AstUtils.evalListOfPostSpec(post, this);
-    AstUtils.evalListOfModifiesSpec(modifies, this);
+    procedure.sig().eval(this);
+    AstUtils.evalListOfPreSpec(procedure.preconditions(), this);
+    AstUtils.evalListOfPostSpec(procedure.postconditions(), this);
+    AstUtils.evalListOfModifiesSpec(procedure.modifies(), this);
     typeVarDecl.pop();
     localVarDecl.pop();
   }
 
-  @Override
-  public void see(
-    Implementation implementation,
-    ImmutableList<Attribute> attr,
-    Signature sig,
-    Body body
-  ) {
+  @Override public void see(Implementation implementation) {
     localVarDecl.push();
     typeVarDecl.push();
-    sig.eval(this);
-    body.eval(this);
+    implementation.sig().eval(this);
+    implementation.body().eval(this);
     typeVarDecl.pop();
     localVarDecl.pop();
   }
 
-  @Override
-  public void see(
-    FunctionDecl function,
-    ImmutableList<Attribute> attr,
-    Signature sig
-  ) {
+  @Override public void see(FunctionDecl function) {
     symbolTable.funcs.seenDef(function);
     typeVarDecl.push();
-    sig.eval(this);
+    function.sig().eval(this);
     typeVarDecl.pop();
   }
   
-  @Override
-  public void see(
-    AtomQuant atomQuant,
-    AtomQuant.QuantType quant,
-    ImmutableList<VariableDecl> vars,
-    ImmutableList<Attribute> attr,
-    Expr e
-  ) {
+  @Override public void see(Quantifier atomQuant) {
     localVarDecl.push();
-    AstUtils.evalListOfVariableDecl(vars, this);
-    AstUtils.evalListOfAttribute(attr, this);
-    e.eval(this);
+    AstUtils.evalListOfVariableDecl(atomQuant.vars(), this);
+    AstUtils.evalListOfAttribute(atomQuant.attributes(), this);
+    atomQuant.expression().eval(this);
     localVarDecl.pop();
   }
   
-  @Override
-  public void see(
-    Axiom axiom,
-    ImmutableList<Attribute> attr, 
-    String name,
-    ImmutableList<AtomId> typeArgs,
-    Expr expr
-  ) {
+  @Override public void see(Axiom axiom) {
     typeVarDecl.push();
-    collectTypeVars(typeVarDecl.peek(), typeArgs);
-    expr.eval(this);
+    collectTypeVars(typeVarDecl.peek(), axiom.typeArgs());
+    axiom.expr().eval(this);
     typeVarDecl.pop();
   }
   
-  @Override
-  public void see(
-      AssertAssumeCmd assertAssumeCmd, 
-      AssertAssumeCmd.CmdType type, 
-      ImmutableList<AtomId> typeVars, 
-      Expr expr
-  ) {
+  @Override public void see(AssertAssumeCmd assertAssumeCmd) {
     typeVarDecl.push();
-    collectTypeVars(typeVarDecl.peek(), typeVars);
-    expr.eval(this);
+    collectTypeVars(typeVarDecl.peek(), assertAssumeCmd.typeArgs());
+    assertAssumeCmd.expr().eval(this);
     typeVarDecl.pop();
   }
   
   // === remember if we are below a modifies spec ===
   
-  @Override public void see(
-      ModifiesSpec modifiesSpec, 
-      boolean free,
-      ImmutableList<AtomId> ids
-  ) {
+  @Override public void see(ModifiesSpec modifiesSpec) {
     assert lookInLocalScopes : "no nesting of modifies";
     lookInLocalScopes = false;
-    AstUtils.evalListOfAtomId(ids, this);
+    AstUtils.evalListOfIdentifier(modifiesSpec.ids(), this);
     lookInLocalScopes = true;
   }
 
-  @Override public void see(
-      PostSpec postSpec, 
-      boolean free,
-      ImmutableList<AtomId> typeArgs,
-      Expr expr
-  ) {
+  @Override public void see(PostSpec postSpec) {
     typeVarDecl.push();
-    collectTypeVars(typeVarDecl.peek(), typeArgs);
-    expr.eval(this);
+    collectTypeVars(typeVarDecl.peek(), postSpec.typeArgs());
+    postSpec.expr().eval(this);
     typeVarDecl.pop();
   }
 
-  @Override public void see(
-      PreSpec preSpec, 
-      boolean free,
-      ImmutableList<AtomId> typeArgs,
-      Expr expr
-  ) {
+  @Override public void see(PreSpec preSpec) {
     typeVarDecl.push();
-    collectTypeVars(typeVarDecl.peek(), typeArgs);
-    expr.eval(this);
+    collectTypeVars(typeVarDecl.peek(), preSpec.typeArgs());
+    preSpec.expr().eval(this);
     typeVarDecl.pop();
-  }
- 
-  // === do not look at goto-s ===
-  @Override
-  public void see(
-      Block block, 
-      String name, 
-      Command cmd, 
-      ImmutableList<AtomId> succ
-  ) {
-    if (cmd != null) cmd.eval(this);
   }
 }

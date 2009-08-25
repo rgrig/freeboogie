@@ -2,6 +2,7 @@ package freeboogie.vcgen;
 
 import java.util.HashMap;
 
+import com.google.common.collect.Maps;
 import genericutils.Logger;
 import genericutils.SimpleGraph;
 
@@ -24,11 +25,10 @@ public abstract class ACalculus<T extends Term<T>> {
     Logger.<LogCategories, LogLevel>get("log");
 
   /** the preconditions of each command. */
-  protected final HashMap<Block, T> preCache = new HashMap<Block, T>();
+  protected final HashMap<Command, T> preCache = Maps.newHashMap();
 
   /** the postconditions of each command. */
-  protected final HashMap<Block, T> postCache = new HashMap<Block, T>();
-
+  protected final HashMap<Command, T> postCache = Maps.newHashMap();
   
   /** builds terms for a specific theorem prover. */
   protected TermBuilder<T> term;
@@ -36,7 +36,7 @@ public abstract class ACalculus<T extends Term<T>> {
   protected T trueTerm;
   
   /** the control flow graph currently being processed. */
-  protected SimpleGraph<Block> flow;
+  protected SimpleGraph<Command> flow;
 
   protected boolean assumeAsserts;
   
@@ -81,24 +81,20 @@ public abstract class ACalculus<T extends Term<T>> {
   public abstract T vc();
   
   // === helpers ===
-  public static boolean is(Block b, AssertAssumeCmd.CmdType t) {
-    if (b == null) return false;
-    Command c = b.cmd();
+  public static boolean is(Command c, AssertAssumeCmd.CmdType t) {
     if (!(c instanceof AssertAssumeCmd)) return false;
     return ((AssertAssumeCmd)c).type() == t;
   }
 
-  public static boolean isAssume(Block b) {
-    return is(b, AssertAssumeCmd.CmdType.ASSUME);
+  public static boolean isAssume(Command c) {
+    return is(c, AssertAssumeCmd.CmdType.ASSUME);
   }
 
-  public static boolean isAssert(Block b) {
-    return is(b, AssertAssumeCmd.CmdType.ASSERT);
+  public static boolean isAssert(Command c) {
+    return is(c, AssertAssumeCmd.CmdType.ASSERT);
   }
 
-  public T term(Block b) {
-    if (b == null) return trueTerm;
-    Command c = b.cmd();
+  public T term(Command c) {
     if (!(c instanceof AssertAssumeCmd)) return trueTerm;
     return term.of(((AssertAssumeCmd)c).expr());
   }

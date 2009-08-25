@@ -17,14 +17,14 @@ public class SymbolTable {
     = new UsageToDefMap<CallCmd, Procedure>();
   
   /** Functions. */
-  public UsageToDefMap<AtomFun, FunctionDecl> funcs
-    = new UsageToDefMap<AtomFun, FunctionDecl>();
+  public UsageToDefMap<FunctionApp, FunctionDecl> funcs
+    = new UsageToDefMap<FunctionApp, FunctionDecl>();
   
   /** Identifiers. */
-  public UsageToDefMap<AtomId, IdDecl> ids
-    = new UsageToDefMap<AtomId, IdDecl>();
+  public UsageToDefMap<Identifier, IdDecl> ids
+    = new UsageToDefMap<Identifier, IdDecl>();
 
   /** Type variables. */
-  public UsageToDefMap<UserType, AtomId> typeVars
-    = new UsageToDefMap<UserType, AtomId>();
+  public UsageToDefMap<UserType, Identifier> typeVars
+    = new UsageToDefMap<UserType, Identifier>();
 }

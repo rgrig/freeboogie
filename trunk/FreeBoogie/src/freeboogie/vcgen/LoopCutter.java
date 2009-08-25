@@ -1,113 +1,89 @@
 package freeboogie.vcgen;
 
 import java.util.HashSet;
-import java.util.logging.Logger;
+import java.util.Set;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
-import genericutils.*;
+import genericutils.Err;
+import genericutils.Pair;
+import genericutils.SimpleGraph;
 
 import freeboogie.ast.*;
-import freeboogie.tc.TcInterface;
-import freeboogie.tc.TypeUtils;
 
 /**
- * Cuts back edges and removes unreachable blocks. (Back edges
+ * Cuts back edges and removes unreachable commands. (Back edges
  * according to some arbitrary DFS.)
  */
-public class LoopCutter extends Transformer {
-  private static final Logger log = Logger.getLogger("freeboogie.vcgen");
+public class LoopCutter extends CommandDesugarer {
+  private SimpleGraph<Command> currentFG;
 
-  private SimpleGraph<Block> currentFG;
-
-  private HashSet<Block> seen = Sets.newHashSet();
-  private HashSet<Block> done = Sets.newHashSet();
-  private HashSet<Pair<Block, String>> toRemove = Sets.newHashSet();
-  private String stuckName;
+  private HashSet<Command> seen = Sets.newHashSet();
+  private HashSet<Command> done = Sets.newHashSet();
+  private HashSet<Pair<Command, Command>> toRemove = Sets.newHashSet();
   private boolean hasStuck;
 
   // === transformer methods ===
 
-  @Override
-  public Implementation eval(
-    Implementation implementation,
-    ImmutableList<Attribute> attr,
-    Signature sig,
-    Body body
-  ) {
-    currentFG = tc.flowGraph(implementation);
-    seen.clear(); done.clear(); toRemove.clear();
-    dfs(body.blocks().get(0));
-    hasStuck = false;
-    stuckName = Id.get("stuck");
-    Body newBody = (Body) body.eval(this);
-    if (newBody != body)
-      implementation = Implementation.mk(attr, sig, newBody);
-    return implementation;
+  @Override public Body eval(Body body) {
+    Block block = body.block();
+    seen.clear();
+    done.clear();
+    toRemove.clear();
+    currentFG = tc.flowGraph(body);
+    dfs(block.commands().get(0));
+    block = (Block) block.eval(this);
+    return Body.mk(body.vars(), block, body.loc());
   }
 
-  @Override public Body eval(
-      Body body,
-      ImmutableList<VariableDecl> vars,
-      ImmutableList<Block> blocks
-  ) {
-    boolean same = true;
-    ImmutableList.Builder<Block> newBlocks = ImmutableList.builder();
-    for (Block b : blocks) {
-      if (seen.contains(b)) {
-        Block nb = (Block) b.eval(this);
-        same &= nb == b;
-        newBlocks.add(nb);
-      } else same = false;
+
+  @Override public GotoCmd eval(GotoCmd cmd) {
+    ImmutableList.Builder<String> newSuccessors = ImmutableList.builder();
+    for (Command c : currentFG.to(cmd)) {
+      if (!toRemove.contains(Pair.of(cmd, c))) 
+        newSuccessors.add(c.labels().get(0));
     }
-    if (hasStuck) {
-      same = false;
-      newBlocks.add(Block.mk(
-          stuckName,
-          AssertAssumeCmd.mk(
-            AssertAssumeCmd.CmdType.ASSUME,
-            ImmutableList.<AtomId>of(),
-            AtomLit.mk(AtomLit.AtomType.FALSE)),
-          ImmutableList.<AtomId>of()));
-    }
-    if (!same) body = Body.mk(vars, newBlocks.build(), body.loc());
-    return body;
+    return GotoCmd.mk(cmd.labels(), newSuccessors.build(), cmd.loc());
   }
 
-  @Override
-  public Block eval(
-      Block block, 
-      String name, 
-      Command cmd, 
-      ImmutableList<AtomId> succ
-  ) {
-    Pair<Block, String> pair = Pair.of(block, null);
-    int newSuccSize = 0;
-    ImmutableList.Builder<AtomId> newSucc = ImmutableList.builder();
-    for (AtomId s : succ) {
-      pair.second = s.id();
-      if (!toRemove.contains(pair)) {
-        newSucc.add(s);
-        ++newSuccSize;
-      }
+  @Override public Command eval(AssertAssumeCmd assertAssumeCmd) {
+    return processCommand(assertAssumeCmd);
+  }
+
+  @Override public Command eval(AssignmentCmd assignmentCmd) {
+    return processCommand(assignmentCmd);
+  }
+
+  @Override public Command eval(CallCmd callCmd) {
+    return processCommand(callCmd);
+  }
+
+  @Override public Command eval(HavocCmd havocCmd) {
+    return processCommand(havocCmd);
+  }
+
+  private Command processCommand(Command command) {
+    Set<Command> next = currentFG.to(command);
+    assert next.size() == 1;
+    if (toRemove.contains(Pair.of(command, next.iterator().next()))) {
+      addEquivalentCommand(command);
+      return GotoCmd.mk(noString, noString, command.loc());
     }
-    if (!succ.isEmpty() && newSuccSize == 0) {
-      hasStuck = true;
-      newSucc.add(AtomId.mk(stuckName, null));
-    }
-    if (succ.size() != newSuccSize)
-      block = Block.mk(name, cmd, newSucc.build(), block.loc());
-    return block;
+    return command;
+  }
+
+  @Override public void see(WhileCmd whileCmd) {
+    Err.internal("While commands should have been desugared.");
   }
 
   // === depth first search for back edges ===
 
-  private void dfs(Block b) {
+  private void dfs(Command b) {
     seen.add(b);
-    for (Block c : currentFG.to(b)) {
+    for (Command c : currentFG.to(b)) {
       if (done.contains(c)) continue;
       if (seen.contains(c))
-        toRemove.add(Pair.of(b, c.name()));
+        toRemove.add(Pair.of(b, c));
       else
         dfs(c);
     }
