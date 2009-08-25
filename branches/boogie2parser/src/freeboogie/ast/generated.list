@@ -18,6 +18,7 @@ Block.java
 Body.java
 BooleanLiteral.java
 CallCmd.java
+Cast.java
 Command.java
 ConstDecl.java
 Declaration.java
@@ -28,6 +29,7 @@ GotoCmd.java
 HavocCmd.java
 IdDecl.java
 Identifier.java
+IfCmd.java
 Implementation.java
 LoopInvariant.java
 MapSelect.java
@@ -36,6 +38,7 @@ MapUpdate.java
 ModifiesSpec.java
 NumberLiteral.java
 OldExpr.java
+OneAssignment.java
 PostSpec.java
 PrePostSpec.java
 PreSpec.java

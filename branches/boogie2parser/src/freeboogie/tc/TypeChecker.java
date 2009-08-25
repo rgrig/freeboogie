@@ -608,11 +608,16 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
 
   // === visit commands ===
   @Override public Type eval(AssignmentCmd assignmentCmd) {
-    Type lt = assignmentCmd.lhs().eval(this);
-    Type rt = assignmentCmd.rhs().eval(this);
     typeVarEnter(assignmentCmd);
-    check(rt, lt, assignmentCmd);
+    AstUtils.evalListOfOneAssignment(assignmentCmd.assignments(), this);
     typeVarExit(assignmentCmd);
+    return null;
+  }
+
+  @Override public Type eval(OneAssignment oneAssignment) {
+    Type lt = oneAssignment.lhs().eval(this);
+    Type rt = oneAssignment.rhs().eval(this);
+    check(rt, lt, oneAssignment);
     return null;
   }
 

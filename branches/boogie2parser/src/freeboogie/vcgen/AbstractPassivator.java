@@ -282,24 +282,37 @@ public abstract class AbstractPassivator extends Transformer {
   // === visitors ===
   // Note the return type
   @Override public AssertAssumeCmd eval(AssignmentCmd cmd) {
-    Identifier lhs = cmd.lhs();
-    Expr rhs = cmd.rhs();
     trailingCommands = getCopyCommands(
         cmd, 
         currentFG.to(cmd).iterator().next());
-    Expr value = (Expr)rhs.eval(this);
-    VariableDecl vd = (VariableDecl)tc.st().ids.def(lhs);
+    Expr assume = BooleanLiteral.mk(BooleanLiteral.Type.TRUE, cmd.loc());
+    for (OneAssignment oa : cmd.assignments()) {
+      assume = BinaryOp.mk(
+          BinaryOp.Op.AND, 
+          assume, 
+          (Expr) oa.eval(this), 
+          cmd.loc());
+    }
     return AssertAssumeCmd.mk(
         cmd.labels(),
-        AssertAssumeCmd.CmdType.ASSUME, 
+        AssertAssumeCmd.CmdType.ASSUME,
         AstUtils.ids(),
-        BinaryOp.mk(BinaryOp.Op.EQ,
-            Identifier.mk(
-                name(lhs.id(), getIdx(writeIdx, vd)),
-                lhs.types(), 
-                lhs.loc()),
-            value),
+        assume,
         cmd.loc());
+  }
+
+  @Override public Expr eval(OneAssignment oneAssignment) {
+    Identifier lhs = oneAssignment.lhs();
+    Expr value = (Expr) oneAssignment.rhs().eval(this);
+    VariableDecl vd = (VariableDecl)tc.st().ids.def(lhs);
+    return BinaryOp.mk(
+        BinaryOp.Op.EQ,
+        Identifier.mk(
+            name(lhs.id(), getIdx(writeIdx, vd)),
+            lhs.types(),
+            lhs.loc()),
+        value,
+        oneAssignment.loc());
   }
 
   @Override public AssertAssumeCmd eval(AssertAssumeCmd assertAssumeCmd) {

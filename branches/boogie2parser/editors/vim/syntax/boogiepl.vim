@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language:	BoogiePL
-" Version: 0.1
-" Last Change:	2008/12/19
+" Version: 0.2
+" Last Change:	2008/08/25
 " Maintainer:  Radu Grigore <radu.grigore@gmail.com>
 
 if exists("b:current_syntax")
@@ -13,16 +13,17 @@ syn sync lines=250
 
 syn keyword boogieplDeclaration type const unique function axiom var procedure implementation
 syn keyword boogieplSpecification free requires ensures modifies
-syn keyword boogieplCommand assert assume havoc call
-syn keyword boogieplConstant false true null
+syn keyword boogieplCommand assert assume havoc call while if else
+syn keyword boogieplConstant false true
 syn keyword boogieplExpression old cast where
 syn keyword boogieplLogic forall exists
-syn keyword boogieplType bool int ref name any
-syn keyword boogieplFlow return returns goto
+syn keyword boogieplType bool int
+syn keyword boogieplFlow return returns goto break
 syn keyword boogieplAttention contained	TODO BUG HACK NOTE
 
 syn match boogieplComment /\/\/.*/ contains=boogieplAttention
-syn match boogieplLabel /^\s*[a-zA-Z0-9_]\+\s*:\([^=]\|$\)/ 
+syn match boogieplLabel /^\s*[a-zA-Z0-9_'\~#\$\.?\^\\`]\+\s*:\([^=]\|$\)/
+syn match boogieplConstant /[0-9]\+\(bv[0-9]\+\)\?/
 
 syn region boogieplBlock start=/{/ end=/}/ contains=ALL
 syn region boogieplBlockComment start=/\/\*/ end=/\*\// contains=boogieplAttention

@@ -144,9 +144,15 @@ public class PrettyPrinter extends Transformer {
       say(l);
       say(": ");
     }
-    ast.lhs().eval(this);
+    for (int i = 0; i < ast.assignments().size(); ++i) {
+      if (i != 0) say(", ");
+      ast.assignments().get(i).lhs().eval(this);
+    }
     say(" := ");
-    ast.rhs().eval(this);
+    for (int i = 0; i < ast.assignments().size(); ++i) {
+      if (i != 0) say(", ");
+      ast.assignments().get(i).rhs().eval(this);
+    }
     semi();
   }
 

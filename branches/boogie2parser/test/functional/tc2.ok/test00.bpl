@@ -109,7 +109,7 @@ procedure foobar3(N:int, X:int) returns () {
   b:=b[i:=b[i][m,n:=10]]; // Boogie typechecker fails here but it seems OK
   i:=0;
   while (i<N) {
-    if (a[i]==X) {break;} // why doesn't break this out of an if?
+    if (a[i]==X) {break;} // by default, break out of the innermost while
     i:=i+1;
   }
   i:=0;

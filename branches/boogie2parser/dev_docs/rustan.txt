@@ -31,3 +31,9 @@ but does let you write
 even if all three operators are associative AFAICT. Is that 
 intended?
 
+The "cast" (expr ';' type) seems undocumented.
+
+The formal grammar says that there is at least one id after
+'forall' but Boogie/Spec# have 0 sometimes: 
+  (forall<T> :: expr)
+

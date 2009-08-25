@@ -1,10 +1,13 @@
 // vim:ft=java:
 grammar Fb;
 
+// BEGIN prelude {{{
+
 @header {
   package freeboogie.parser; 
 
   import java.math.BigInteger;
+  import java.util.ArrayDeque;
 
   import com.google.common.collect.ImmutableList;
   import com.google.common.collect.Lists;
@@ -30,6 +33,25 @@ grammar Fb;
     }
     @Override public String getMessage() {
       return "Integer " + value + " is too big.";
+    }
+  }
+
+  @SuppressWarnings("serial")
+  private static class LhsRhsMismatchException extends RecognitionException {
+    private int lhsLength;
+    private int rhsLength;
+    public LhsRhsMismatchException(
+        int lhsLength, 
+        int rhsLength, 
+        IntStream input
+    ) {
+      super(input);
+      this.lhsLength = lhsLength;
+      this.rhsLength = rhsLength;
+    }
+    @Override public String getMessage() {
+      return "The left side of assignment contains " + lhsLength +  " items\n"
+          + "    while the right side contains " + rhsLength + " items.";
     }
   }
 
@@ -69,8 +91,28 @@ grammar Fb;
     return fileName + ":" + e.line + ":" + (e.charPositionInLine+1) + ":";
   }
 
-
+  /*
+    Transforms
+      a[b][c][d] := e
+    into
+      a := a[b := a[b] [c := a[b][c][d:=e] ] ]
+    thereby growing quadratically in size.
+   */
+  private OneAssignment desugarMapAssignment(Expr l, Expr r) {
+    if (l instanceof MapSelect) {
+      MapSelect ms = (MapSelect) l;
+      return desugarMapAssignment(
+          ms.map().clone(), 
+          MapUpdate.mk(ms.map(), ms.idx(), r, ms.loc()));
+    } else if (l instanceof Identifier) {
+      Identifier id = (Identifier) l;
+      return OneAssignment.mk(id, r, id.loc());
+    } else
+      assert false : "The parser is too lenient on the LHS of assignments.";
+    return null;
+  }
 }
+// END prelude }}}
 
 // BEGIN top level declarations {{{
 program returns [Program v]:
@@ -143,20 +185,25 @@ axiom_decl:
 
 var_decl:
     'var' v=one_var_decl 
-    { if (ok) variableDeclBuilder.add($v.v); }
-    (',' vv=one_var_decl { if (ok) variableDeclBuilder.add($vv.v);})* ';'
+    { if (ok) variableDeclBuilder.addAll($v.v); }
+    (',' vv=one_var_decl { if (ok) variableDeclBuilder.addAll($vv.v);})* ';'
 ;
 
-one_var_decl returns [VariableDecl v]:
-    ID ':' type ('where' expr)?
+one_var_decl returns [ImmutableList<VariableDecl> v]:
+    id_list colon=':' type ('where' expr)?
     { if (ok) {
-        $v = VariableDecl.mk(
-            ImmutableList.<Attribute>of(),
-            $ID.text,
-            $type.v,
-            AstUtils.ids(),
-            $expr.v,
-            tokLoc($ID)); }}
+        ImmutableList.Builder<VariableDecl> b = ImmutableList.builder();
+        FileLocation loc = tokLoc($colon);
+        for (Identifier id : $id_list.v) {
+          b.add(VariableDecl.mk(
+              ImmutableList.<Attribute>of(),
+              id.id(),
+              $type.v.clone(),
+              AstUtils.ids(),
+              $expr.v == null? null : $expr.v.clone(),
+              id.loc()));
+        }
+        $v  = b.build(); }}
 ;
 
 const_decl:
@@ -290,19 +337,14 @@ scope {
 command	returns [Command v]:
   label_list
   (
-      a=atom_id i=index_list ':=' b=expr ';' 
-        { if(ok) {
-            // a[b][c][d][e]:=f --> a:=a[b:=a[b][c:=a[b][c][d:=a[b][c][d][e:=f]]]]
-            // grows quadratically
-            Expr rhs = $b.v;
-            ArrayList<Expr> lhs = new ArrayList<Expr>();
-            lhs.add($a.v.clone());
-            for (int k = 1; k < $i.v.size(); ++k)
-              lhs.add(MapSelect.mk(lhs.get(k-1).clone(), $i.v.get(k-1)));
-            for (int k = $i.v.size()-1; k>=0; --k)
-              rhs = MapUpdate.mk(lhs.get(k).clone(), ImmutableList.copyOf($i.v.get(k)), rhs);
-            $v=AssignmentCmd.mk($label_list.v,$a.v,rhs,fileLoc($a.v));
-        }}
+      lhs ':=' rhs=expr_list ';'
+        { if (ok) {
+          if ($lhs.v.size() != $rhs.v.size())
+            throw new LhsRhsMismatchException($lhs.v.size(), $rhs.v.size(), input);
+          ImmutableList.Builder<OneAssignment> assignments = ImmutableList.builder();
+          for (int i = 0; i < $lhs.v.size(); ++i)
+            assignments.add(desugarMapAssignment($lhs.v.get(i), $rhs.v.get(i)));
+          $v = AssignmentCmd.mk($label_list.v,assignments.build(), $lhs.v.get(0).loc()); }}
     | t='assert' ae=expr ';'
         { if(ok) $v=AssertAssumeCmd.mk($label_list.v,AssertAssumeCmd.CmdType.ASSERT,AstUtils.ids(),$ae.v,tokLoc($t)); }
     | t='assume' be=expr ';'
@@ -313,7 +355,60 @@ command	returns [Command v]:
         { if(ok) $v=CallCmd.mk($label_list.v,$n.text,ImmutableList.<Type>of(),$call_lhs.v,$r.v,tokLoc($t)); }
     | (t='goto' ll=label_comma_list | t='return') ';'
         { if (ok) { $v = GotoCmd.mk($label_list.v, $ll.v, tokLoc($t)); }}
+    | t='while' '(' c=wildcard_or_expr ')' li=loop_invariants '{' b=block '}'
+        { if (ok) { $v = WhileCmd.mk($label_list.v,$c.v,$li.v,$b.v,tokLoc($t)); }}
+    | t='if' '(' c=wildcard_or_expr ')' '{' yes=block '}' no=else_branch
+        { if (ok) { $v = IfCmd.mk($label_list.v,$c.v,$yes.v,$no.v,tokLoc($t)); }}
+    | t='break' label_comma_list ';' {ok = false;}
   )
+;
+
+// TODO(radugrigore): Handle wildcards *.
+wildcard_or_expr returns [Expr v]: expr { $v = $expr.v; } ;
+
+// TODO(radugrigore): get rid of duplication (perhaps by introducing LStmt)
+else_branch returns [Block v]:
+  | '{' block '}'  {$v = $block.v;}
+  | 'else' loc='if' '(' c=wildcard_or_expr ')' '{' yes=block '}' no=else_branch
+     { if (ok) {
+       $v = Block.mk(ImmutableList.<Command>of(IfCmd.mk(
+          ImmutableList.<String>of(),
+          $c.v,
+          $yes.v,
+          $no.v,
+          tokLoc($loc))), tokLoc($loc)); }}
+;
+
+loop_invariants returns [ImmutableList<LoopInvariant> v]
+scope {
+  ImmutableList.Builder<LoopInvariant> b;
+}:
+    { $loop_invariants::b = ImmutableList.builder(); }
+    ((f='free')? loc='invariant' expr 
+      { if (ok) $loop_invariants::b.add(LoopInvariant.mk(
+            $f!=null,
+            $expr.v,
+            tokLoc($loc))); })*
+    { $v = $loop_invariants::b.build(); }
+;
+
+lhs returns [ImmutableList<Expr> v]
+scope {
+  ImmutableList.Builder<Expr> b;
+}:
+    { $lhs::b = ImmutableList.builder(); }
+    l=one_lhs { if (ok) $lhs::b.add($l.v); }
+    (',' ll=one_lhs {if (ok) $lhs::b.add($ll.v); } )*
+    { $v = $lhs::b.build(); }
+;
+
+one_lhs returns [Expr v]:
+    atom_id index_list
+    { if (ok) {
+      $v = $atom_id.v;
+      for (ImmutableList<Expr> idx : $index_list.v)
+        $v = MapSelect.mk($v, idx, fileLoc($v));
+    }}
 ;
 
 call_lhs returns [ImmutableList<Identifier> v]:
@@ -389,6 +484,11 @@ expr_g returns [Expr v]:
 ;
 
 expr_h returns [Expr v]:
+    expr_i { $v = $expr_i.v; }
+    (':' type { if (ok) $v = Cast.mk($v,$type.v,$v.loc()); })?
+;
+
+expr_i returns [Expr v]:
   atom { $v = $atom.v; }
   (s='[' ((expr_list (':=' expr)?  
     { if (ok) { $v = $expr.v == null?
@@ -475,9 +575,9 @@ scope {
 }
 :
       { $var_decl_list::b_ = ImmutableList.builder(); }
-    ('var' d=one_var_decl {if (ok) $var_decl_list::b_.add($d.v);} 
+    ('var' d=one_var_decl {if (ok) $var_decl_list::b_.addAll($d.v);} 
     ((',' | ';' 'var') dd=one_var_decl 
-      {if (ok) $var_decl_list::b_.add($dd.v);})* ';')?
+      {if (ok) $var_decl_list::b_.addAll($dd.v);})* ';')?
     { $v=$var_decl_list::b_.build(); }
 ;
 
@@ -574,8 +674,8 @@ scope {
   ImmutableList.Builder<VariableDecl> builder;
 }:
     {$id_type_list::builder = ImmutableList.builder();}
-    x=id_type { if(ok) $id_type_list::builder.add($x.v); }
-    (',' xx=id_type {if (ok) $id_type_list::builder.add($xx.v);})*
+    (x=id_type { if(ok) $id_type_list::builder.add($x.v); }
+    (',' xx=id_type {if (ok) $id_type_list::builder.add($xx.v);})*)?
     {$v=$id_type_list::builder.build();}
 ;
 
@@ -591,8 +691,8 @@ id_type returns [VariableDecl v]:
           tokLoc(i)); }}
 ;
 
-index_list returns [ArrayList<ImmutableList<Expr>> v]:
-  { $v = Lists.newArrayList(); }
+index_list returns [ArrayDeque<ImmutableList<Expr>> v]:
+  { $v = new ArrayDeque<ImmutableList<Expr>>(); }
   (i=index {$v.add($i.v);})*
 ;
 	

@@ -56,14 +56,14 @@ extends AssociativeEvaluator<Pair<CSeq<VariableDecl>,CSeq<VariableDecl>>> {
   }
 
   @Override public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>>
-  eval(AssignmentCmd assignmentCmd) {
+  eval(OneAssignment oneAssignment) {
     assert !context.getFirst();
     Pair<CSeq<VariableDecl>, CSeq<VariableDecl>> r = assocOp.zero();
     context.addFirst(true);
-    r = assocOp.plus(r, assignmentCmd.lhs().eval(this));
+    r = assocOp.plus(r, oneAssignment.lhs().eval(this));
     context.removeFirst();
-    r = assocOp.plus(r, assignmentCmd.rhs().eval(this));
-    return memo(assignmentCmd, r);
+    r = assocOp.plus(r, oneAssignment.rhs().eval(this));
+    return memo(oneAssignment, r);
   }
 
   @Override public Pair<CSeq<VariableDecl>, CSeq<VariableDecl>>

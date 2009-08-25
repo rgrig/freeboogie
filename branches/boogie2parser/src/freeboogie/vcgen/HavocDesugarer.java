@@ -54,8 +54,7 @@ public class HavocDesugarer extends CommandDesugarer {
       addSubstitution(vd, fresh);
       addEquivalentCommand(AssignmentCmd.mk(
           havocCmd.labels(), 
-          id, 
-          fresh, 
+          ImmutableList.of(OneAssignment.mk(id, fresh, havocCmd.loc())), 
           havocCmd.loc()));
       /* TODO (radugrigore): use the 'where' part of vd
       if (vd.type() instanceof DepType) {

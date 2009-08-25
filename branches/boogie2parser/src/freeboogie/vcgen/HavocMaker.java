@@ -84,7 +84,7 @@ public class HavocMaker extends CommandDesugarer {
 
   @Override public AssignmentCmd eval(AssignmentCmd cmd) {
     if (entryPoint(cmd)) 
-      cmd = AssignmentCmd.mk(noString, cmd.lhs(), cmd.rhs(), cmd.loc());
+      cmd = AssignmentCmd.mk(noString, cmd.assignments(), cmd.loc());
     return cmd;
   }
 

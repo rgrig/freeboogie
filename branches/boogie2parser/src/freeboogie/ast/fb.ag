@@ -103,17 +103,20 @@ Block =
 
 // Commands
 Command :> 
-  AssignmentCmd, 
   AssertAssumeCmd, 
-  GotoCmd,
-  HavocCmd, 
+  AssignmentCmd, 
   CallCmd, 
+  GotoCmd,
+  HavocCmd,
+  IfCmd,
   WhileCmd;
 Command =
   [list] String labels;
 AssignmentCmd = 
-  Identifier! lhs,  // TODO(radugrigore): transform into lists
-  Expr! rhs;
+  ImmutableList<OneAssignment> assignments;
+OneAssignment =
+  Identifier lhs,
+  Expr rhs;
 AssertAssumeCmd = 
   enum(CmdType: ASSERT, ASSUME) type, 
   [list] Identifier typeArgs, 
@@ -131,6 +134,10 @@ WhileCmd =
   Expr condition, 
   [list] LoopInvariant inv, 
   Block body;
+IfCmd =
+  Expr! condition,
+  Block! yes,
+  Block no;
 LoopInvariant = 
   boolean free, 
   Expr! expr;
@@ -142,16 +149,17 @@ Attribute =
 // Expressions
 Expr :> 
   BinaryOp, 
-  UnaryOp, 
+  BooleanLiteral,
+  Cast,
   FunctionApp,
   Identifier,
-  BooleanLiteral,
   MapSelect,
   MapUpdate,
   NumberLiteral,
   OldExpr,
   Quantifier,
-  Slice;
+  Slice,
+  UnaryOp;
 BinaryOp = 
   enum(Op:
     PLUS,MINUS,
@@ -163,6 +171,9 @@ BinaryOp =
     CONCAT) op,
   Expr! left, 
   Expr! right;
+Cast =
+  Expr! expr,
+  Type! type;
 UnaryOp = 
   enum(Op: MINUS, NOT) op, 
   Expr! expr;
