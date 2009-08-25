@@ -38,27 +38,13 @@ public class AxiomSender<T extends Term<T>> extends Transformer {
     for (T t : axioms) prover.assume(t);
   }
 
-  @Override
-  public void see(
-    Axiom axiom,
-    ImmutableList<Attribute> attr,
-    String name,
-    ImmutableList<AtomId> typeArgs,
-    Expr expr
-  ) {
-    T a = term.of(expr);
+  @Override public void see(Axiom axiom) {
+    T a = term.of(axiom.expr());
     axioms.add(a);
     a.collectAxioms(axioms);
   }
 
-  @Override
-  public void see(
-    ConstDecl constDecl, 
-    ImmutableList<Attribute> attr, 
-    String id,
-    Type type,
-    boolean uniq
-  ) {
-    if (uniq) uniqConst.add(id);
+  @Override public void see(ConstDecl constDecl) {
+    if (constDecl.uniq()) uniqConst.add(constDecl.name());
   }
 }

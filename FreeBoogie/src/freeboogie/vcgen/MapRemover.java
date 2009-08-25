@@ -1,7 +1,6 @@
 package freeboogie.vcgen;
 
 import java.util.HashSet;
-import java.util.logging.Logger;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
@@ -17,7 +16,6 @@ import static freeboogie.ast.AstUtils.*;
  * <tt>select</tt> and <tt>update</tt>.
  */
 public class MapRemover extends Transformer {
-  private static final Logger log = Logger.getLogger("freeboogie.vcgen");
   private HashSet<Integer> arities = Sets.newHashSet();
 
   // TODO move in eval(Program...)
@@ -56,7 +54,7 @@ public class MapRemover extends Transformer {
       //          $$selectN($$updateN(v, m, x1, ..., xN), x1, ..., xN) == v
       //        );
       axioms.add(mkAxiom(
-          ImmutableList.<AtomId>builder()
+          ImmutableList.<Identifier>builder()
               .add(mkId("TV"))
               .addAll(nIds("T", n)).build(),
           ImmutableList.<VariableDecl>builder()
@@ -84,7 +82,7 @@ public class MapRemover extends Transformer {
         //      $$selectN($$updateN(v, m, x1, ..., xN), y1, ..., yN) ==
         //        $$selectN(m, y1, ..., yN));
         axioms.add(mkAxiom(
-          ImmutableList.<AtomId>builder()
+          ImmutableList.<Identifier>builder()
               .add(mkId("TV"))
               .addAll(nIds("T", n)).build(),
             ImmutableList.<VariableDecl>builder()
@@ -115,13 +113,10 @@ public class MapRemover extends Transformer {
     return TypeUtils.internalTypecheck(p, tc);
   }
 
-  @Override
-  public AtomFun eval(
-      AtomMapSelect atomMapSelect,
-      Atom atom,
-      ImmutableList<Expr> idx
-  ) {
-    atom = (Atom) atom.eval(this);
+  @Override public FunctionApp eval(MapSelect atomMapSelect) {
+    Expr atom = atomMapSelect.map();
+    ImmutableList<Expr> idx = atomMapSelect.idx();
+    atom = (Expr) atom.eval(this);
     idx = AstUtils.evalListOfExpr(idx, this);
     int n = idx.size();
     arities.add(n);
@@ -130,14 +125,11 @@ public class MapRemover extends Transformer {
         ImmutableList.<Expr>builder().add(atom).addAll(idx).build());
   }
 
-  @Override
-  public AtomFun eval(
-      AtomMapUpdate atomMapUpdate,
-      Atom atom,
-      ImmutableList<Expr> idx,
-      Expr val
-  ) {
-    atom = (Atom)atom.eval(this);
+  @Override public FunctionApp eval(MapUpdate atomMapUpdate) {
+    Expr atom = atomMapUpdate.map();
+    ImmutableList<Expr> idx = atomMapUpdate.idx();
+    Expr val = atomMapUpdate.val();
+    atom = (Expr)atom.eval(this);
     idx = AstUtils.evalListOfExpr(idx, this);
     val = (Expr)val.eval(this);
     int n = idx.size();
@@ -162,7 +154,7 @@ public class MapRemover extends Transformer {
         ImmutableList.<Attribute>of(),
         Signature.mk(
             name + n,
-            ImmutableList.<AtomId>builder()
+            ImmutableList.<Identifier>builder()
                 .addAll(AstUtils.ids("TV"))
                 .addAll(nIds("T", n)).build(),
             ImmutableList.<VariableDecl>builder()
@@ -173,11 +165,12 @@ public class MapRemover extends Transformer {
                 ImmutableList.<Attribute>of(),
                 "result",
                 resultType,
-                ImmutableList.<AtomId>of()))));
+                ImmutableList.<Identifier>of(),
+                null))));
   }
 
   private Axiom mkAxiom(
-      ImmutableList<AtomId> typeArgs,
+      ImmutableList<Identifier> typeArgs,
       ImmutableList<VariableDecl> vars,
       Expr expr
   ) {
@@ -185,8 +178,8 @@ public class MapRemover extends Transformer {
         ImmutableList.<Attribute>of(),
         Id.get("map"),
         typeArgs,
-        AtomQuant.mk(
-            AtomQuant.QuantType.FORALL,
+        Quantifier.mk(
+            Quantifier.QuantType.FORALL,
             vars,
             ImmutableList.<Attribute>of(),
             expr));
@@ -197,7 +190,8 @@ public class MapRemover extends Transformer {
         ImmutableList.<Attribute>of(), 
         name, 
         type, 
-        ImmutableList.<AtomId>of());
+        ImmutableList.<Identifier>of(),
+        null);
   }
 
   // returns "NAME : [T1,...,TN]TV"
@@ -222,8 +216,8 @@ public class MapRemover extends Transformer {
     for (int i = 1; i <= n; ++i) types.add(mkType("T" + i));
     return types.build();
   }
-  private ImmutableList<AtomId> nIds(String prefix, int n) {
-    ImmutableList.Builder<AtomId> ids = ImmutableList.builder();
+  private ImmutableList<Identifier> nIds(String prefix, int n) {
+    ImmutableList.Builder<Identifier> ids = ImmutableList.builder();
     for (int i = 1; i <= n; ++i) ids.add(mkId(prefix + i));
     return ids.build();
   }
@@ -244,8 +238,8 @@ public class MapRemover extends Transformer {
   }
 
   // returns "NAME(ARGS)" (as a function application)
-  private AtomFun mkFun(String name, Iterable<Expr> args) {
-    return AtomFun.mk(
+  private FunctionApp mkFun(String name, Iterable<Expr> args) {
+    return FunctionApp.mk(
         name, 
         ImmutableList.<Type>of(), 
         ImmutableList.<Expr>builder().addAll(args).build());

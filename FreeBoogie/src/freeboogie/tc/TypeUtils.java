@@ -47,57 +47,15 @@ public final class TypeUtils {
     return a.ptype() == b.ptype();
   }
   
-  private static boolean eq(IndexedType a, IndexedType b) {
-    return eq(a.param(), b.param()) && eq(a.type(), b.type());
-  }
-  
   private static boolean eq(UserType a, UserType b) {
     return a.name().equals(b.name());
   }
   
-  /**
-   * Recursively strip all dependent types from {@code a}.
-   * @param a the type to strip of predicates
-   * @return the type {@code a} striped of predicates
-   */
-  public static Type stripDep(Type a) {
-    if (a instanceof TupleType) {
-      TupleType sa = (TupleType) a;
-      return TupleType.mk(stripDep(sa.types()), sa.loc());
-    } else if (a instanceof MapType) {
-      MapType sa = (MapType)a;
-      return MapType.mk(
-        stripDep(sa.idxTypes()), 
-        stripDep(sa.elemType()));
-    } else if (a instanceof IndexedType) {
-      IndexedType sa = (IndexedType)a;
-      return IndexedType.mk(stripDep(sa.param()), stripDep(sa.type()));
-    } else if (a instanceof DepType) return stripDep(((DepType)a).type());
-    else return a;
-  }
-
-  // map stripDep
-  public static ImmutableList<Type> stripDep(ImmutableList<Type> tl) {
-    ImmutableList.Builder<Type> b = ImmutableList.builder();
-    for (Type t : tl) b.add(stripDep(t));
-    return b.build();
-  }
-
-  public static ImmutableList<VariableDecl> stripDepDecls(
-      ImmutableList<VariableDecl> dl
+  private static ImmutableList<VariableDecl> stripDep(
+      ImmutableList<VariableDecl> vl
   ) {
-    ImmutableList.Builder<VariableDecl> b = ImmutableList.builder();
-    for (VariableDecl d : dl) b.add(stripDep(d));
-    return b.build();
-  }
-  
-  private static VariableDecl stripDep(VariableDecl va) {
-    return VariableDecl.mk(
-        null,
-        va.name(), 
-        stripDep(va.type()),
-        va.typeArgs(),
-        va.loc());
+    // TODO (radugrigore): drop the 'where' part
+    return vl;
   }
 
   /**
@@ -110,8 +68,8 @@ public final class TypeUtils {
     return Signature.mk(
         s.name(),
         s.typeArgs(),
-        stripDepDecls(s.args()), 
-        stripDepDecls(s.results()),
+        stripDep(s.args()), 
+        stripDep(s.results()),
         s.loc());
   }
   
@@ -129,38 +87,12 @@ public final class TypeUtils {
       return eq((MapType)a, (MapType)b);
     else if (a instanceof PrimitiveType && b instanceof PrimitiveType)
       return eq((PrimitiveType)a, (PrimitiveType)b);
-    else if (a instanceof IndexedType && b instanceof IndexedType)
-      return eq((IndexedType)a, (IndexedType)b);
     else if (a instanceof UserType && b instanceof UserType)
       return eq((UserType)a, (UserType)b);
     else if (a instanceof TupleType && b instanceof TupleType)
       return eq((TupleType) a, (TupleType) b);
     else
       return false;
-  }
-
-  /**
-   * Returns whether {@code t} contains a dependent type.
-   * @param t the type to check
-   * @return whether {@code t} contains {@code DepType}
-   */
-  public static boolean hasDep(Type t) {
-    if (t instanceof DepType) return true;
-    else if (t instanceof MapType) {
-      MapType st = (MapType)t;
-      return 
-        hasDep(st.elemType()) || 
-        hasDep(st.idxTypes());
-    } else if (t instanceof IndexedType) {
-      IndexedType st = (IndexedType)t;
-      return hasDep(st.param()) || hasDep(st.type());
-    }
-    return false;
-  }
-
-  public static boolean hasDep(ImmutableList<Type> tl) {
-    for (Type t : tl) if (hasDep(t)) return true;
-    return false;
   }
 
   /**

@@ -25,8 +25,6 @@ import freeboogie.parser.FbParser;
 import freeboogie.tc.*;
 import freeboogie.vcgen.*;
 import static freeboogie.cli.FbCliOptionsInterface.*;
-import static freeboogie.cli.FbCliOptionsInterface.LogCategories;
-import static freeboogie.cli.FbCliOptionsInterface.LogLevel;
 
 /**
   The entry point for FreeBoogie.
@@ -62,9 +60,9 @@ public class Main {
   private FlowGraphDumper flowGraphDumper = new FlowGraphDumper();
 
   // used for dumping the symbol table
-  private static Function<AtomId, String> nameOfAtomId =
-    new Function<AtomId, String>() {
-      @Override public String apply(AtomId d) { return d.id(); }
+  private static Function<Identifier, String> nameOfAtomId =
+    new Function<Identifier, String>() {
+      @Override public String apply(Identifier d) { return d.id(); }
     };
   private static Function<TypeDecl, String> nameOfType =
     new Function<TypeDecl, String>() {
@@ -145,10 +143,7 @@ public class Main {
 
   private void initialize() {
     // Initialize typechecker.
-    switch (opt.getBoogieVersionOpt()) {
-      case ONE: tc = new ForgivingTc(); break;
-      default: tc = new TypeChecker(); break;
-    }
+    tc = new TypeChecker();
 
     // Initialize the Boogie transformers.
     stages = Lists.newArrayList();
@@ -171,9 +166,6 @@ public class Main {
       vcgen.initialize(opt);
       stages.add(vcgen);
     }
-
-    // Initialize other stuff.
-    prettyPrinter.boogieVersion(opt.getBoogieVersionOpt());
   }
 
   private void parse(File f) {

@@ -30,20 +30,11 @@ public interface TcInterface {
   List<FbError> process(Program p);
 
   /**
-   * Returns the flow graph of {@code impl}.
-   *  use {{@link #getFlowGraph(Body)} instead
-   * @param impl the implementation whose flow graph is requested
-   * @return the flow graph of {@code impl}
-   */
-  SimpleGraph<Block> flowGraph(Implementation impl);
-
-
-  /**
    * Returns the flow graph of {@code bdy}.
    * @param bdy the body whose flow graph is requested
    * @return the flow graph of {@code bdy}
    */
-  SimpleGraph<Block> flowGraph(Body bdy);
+  SimpleGraph<Command> flowGraph(Body bdy);
   
   /**
    * Returns the map of expressions to types.

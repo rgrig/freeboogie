@@ -41,7 +41,7 @@ public class Evaluator<R> {
   }
 
   \classes{\if_terminal{
-    public R eval(\ClassName \className,\mtn_list) {
+    public R eval(\ClassName \className) {
       R result_ = evalCache.get(\className);
       if (result_ != null) return result_;
       enterNode(\className);
@@ -72,7 +72,7 @@ public class AssociativeEvaluator<R> extends Evaluator<R> {
     this.assocOp = assocOp;
   }
   \classes{\if_terminal{
-    @Override public R eval(\ClassName \className,\mtn_list) {
+    @Override public R eval(\ClassName \className) {
       R result_ = evalCache.get(\className);
       if (result_ != null) return result_;
       result_ = assocOp.zero();

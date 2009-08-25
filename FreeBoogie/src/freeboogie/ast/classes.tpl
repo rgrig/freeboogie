@@ -11,8 +11,6 @@ This template generates code for AST classes.
 /** Do NOT edit. See normal_classes.tpl instead. */
 package freeboogie.ast;
 
-import java.math.BigInteger; // for AtomNum
-
 import com.google.common.collect.ImmutableList;
 
 /** @author rgrig */
@@ -84,12 +82,12 @@ public \if_terminal{final}{abstract} class \ClassName extends \BaseName {
   // === the Visitor pattern ===
   @Override
   public <R> R eval(Evaluator<R> evaluator) { 
-    return evaluator.eval(this, \members[,]{\memberName}); 
+    return evaluator.eval(this); 
   }
 }{}
 
-  // === others ===
 \if_terminal{
+  // === others ===
   @Override public \ClassName clone() {
     \members{
       \if_primitive{
