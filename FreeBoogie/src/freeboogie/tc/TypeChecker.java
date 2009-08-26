@@ -63,10 +63,6 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   // detected errors
   private List<FbError> errors;
   
-  // maps expressions to their types (caches the results of the
-  // typechecker)
-  private HashMap<Expr, Type> typeOf;
-  
   // maps implementations to procedures
   private UsageToDefMap<Implementation, Procedure> implProc;
   
@@ -77,7 +73,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   private StackedHashMap<Identifier, Type> typeVar;
 
   // used for (randomized) union-find
-  private static final Random rand = new Random(123);
+  private static final Random rand = new Random(0);
 
   // implicitSpec.get(x) contains the mappings of type variables
   // to types that were inferred (and used) while type-checking x
@@ -124,10 +120,9 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
 
     tvLevel = 0; // DBG
     
-    typeOf = new HashMap<Expr, Type>();
     typeVar = new StackedHashMap<Identifier, Type>();
-    implicitSpec = new HashMap<Ast, Map<Identifier, Type>>();
     enclosingTypeVar = new StackedHashMap<Identifier, Identifier>();
+    implicitSpec = Maps.newHashMap();
     
     // build symbol table
     StbInterface stb = new SymbolTableBuilder();
@@ -162,7 +157,10 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   
   @Override
   public Map<Expr, Type> types() {
-    return typeOf;
+    Map<Expr, Type> result = Maps.newHashMap();
+    for (Map.Entry<Ast, Type> e : evalCache.entrySet())
+      result.put((Expr) e.getKey(), e.getValue());
+    return result;
   }
   
   @Override
@@ -425,25 +423,23 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
 
   // === visiting operators ===
-  @Override public PrimitiveType eval(UnaryOp unaryOp) {
+  @Override public Type eval(UnaryOp unaryOp) {
     Expr expr = unaryOp.expr();
     Type t = expr.eval(this);
     switch (unaryOp.op()) {
     case MINUS:
       check(t, intType, expr);
-      typeOf.put(unaryOp, intType);
-      return intType;
+      return memo(unaryOp, intType);
     case NOT:
       check(t, boolType, expr);
-      typeOf.put(unaryOp, boolType);
-      return boolType;
+      return memo(unaryOp, boolType);
     default:
       assert false;
       return null; // dumb compiler
     }
   }
 
-  @Override public PrimitiveType eval(BinaryOp binaryOp) {
+  @Override public Type eval(BinaryOp binaryOp) {
     Expr left = binaryOp.left();
     Expr right = binaryOp.right();
     Type l = left.eval(this);
@@ -457,8 +453,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       // integer arguments and integer result
       check(l, intType, left);
       check(r, intType, right);
-      typeOf.put(binaryOp, intType);
-      return intType;
+      return memo(binaryOp, intType);
     case LT:
     case LE:
     case GE:
@@ -466,8 +461,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       // integer arguments and boolean result
       check(l, intType, left);
       check(r, intType, right);
-      typeOf.put(binaryOp, boolType);
-      return boolType;
+      return memo(binaryOp, boolType);
     case EQUIV:
     case IMPLIES:
     case AND:
@@ -475,21 +469,18 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       // boolean arguments and boolean result
       check(l, boolType, left);
       check(r, boolType, right);
-      typeOf.put(binaryOp, boolType);
-      return boolType;
+      return memo(binaryOp, boolType);
     case SUBTYPE:
       // l subtype of r and boolean result (TODO: a user type is a subtype of a user type)
       check(l, r, left);
-      typeOf.put(binaryOp, boolType);
-      return boolType;
+      return memo(binaryOp, boolType);
     case EQ:
     case NEQ:
       // typeOf(l) == typeOf(r) and boolean result
       typeVarEnter(binaryOp);
       checkExact(l, r, binaryOp);
       typeVarExit(binaryOp);
-      typeOf.put(binaryOp, boolType);
-      return boolType;
+      return memo(binaryOp, boolType);
     default:
       assert false;
       return errType; // dumb compiler
@@ -509,21 +500,18 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     } else if (d instanceof ConstDecl) {
       t = ((ConstDecl)d).type();
     } else assert false;
-    typeOf.put(atomId, t);
-    return t;
+    return memo(atomId, t);
   }
 
-  @Override public PrimitiveType eval(NumberLiteral atomNum) {
-    typeOf.put(atomNum, intType);
-    return intType;
+  @Override public Type eval(NumberLiteral atomNum) {
+    return memo(atomNum, intType);
   }
 
-  @Override public PrimitiveType eval(BooleanLiteral atomLit) {
+  @Override public Type eval(BooleanLiteral atomLit) {
     switch (atomLit.val()) {
     case TRUE:
     case FALSE:
-      typeOf.put(atomLit, boolType);
-      return boolType;
+      return memo(atomLit, boolType);
     default:
       assert false;
       return errType; // dumb compiler 
@@ -531,17 +519,14 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
 
   @Override public Type eval(OldExpr atomOld) {
-    Type t = atomOld.expr().eval(this);
-    typeOf.put(atomOld, t);
-    return t;
+    return memo(atomOld, atomOld.expr().eval(this));
   }
 
-  @Override public PrimitiveType eval(Quantifier atomQuant) {
+  @Override public Type eval(Quantifier atomQuant) {
     Expr e = atomQuant.expression();
     Type t = atomQuant.expression().eval(this);
     check(t, boolType, e);
-    typeOf.put(atomQuant, boolType);
-    return boolType;
+    return memo(atomQuant, boolType);
   }
 
   @Override public Type eval(FunctionApp atomFun) {
@@ -557,17 +542,16 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     check(at, fat, atomFun);
     Type rt = checkRealType(typeListOfDecl(sig.results()), atomFun);
     typeVarExit(atomFun);
-    typeOf.put(atomFun, rt);
-    return rt;
+    return memo(atomFun, rt);
   }
 
   @Override public Type eval(MapSelect atomMapSelect) {
     Expr atom = atomMapSelect.map();
     Type t = atom.eval(this);
-    if (t == errType) return errType;
+    if (t == errType) return memo(atomMapSelect, errType);
     if (!(t instanceof MapType)) {
       errors.add(new FbError(FbError.Type.NEED_ARRAY, atom));
-      return errType;
+      return memo(atomMapSelect, errType);
     }
     MapType at = (MapType)t;
 
@@ -577,8 +561,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     check(typeListOfExpr(index), TupleType.mk(at.idxTypes()), atomMapSelect);
     Type et = checkRealType(at.elemType(), atomMapSelect);
     typeVarExit(atomMapSelect);
-    typeOf.put(atomMapSelect, et);
-    return et;
+    return memo(atomMapSelect, et);
   }
   
   @Override public Type eval(MapUpdate atomMapUpdate) {
@@ -592,19 +575,18 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     if (
         TypeUtils.eq(t, errType) || 
         TypeUtils.eq(ti, errType) || 
-        TypeUtils.eq(tv, errType)) return errType;
+        TypeUtils.eq(tv, errType)) return memo(atomMapUpdate, errType);
     MapType mt;
     if (!(t instanceof MapType)) {
       errors.add(new FbError(FbError.Type.NEED_ARRAY, atom));
       typeVarExit(atomMapUpdate);
-      return errType;
+      return memo(atomMapUpdate, errType);
     }
     mt = (MapType)t;
     check(typeListOfExpr(index), TupleType.mk(mt.idxTypes()), atomMapUpdate);
     check(tv, mt.elemType(), val);
     typeVarExit(atomMapUpdate);
-    typeOf.put(atomMapUpdate, mt);
-    return mt;
+    return memo(atomMapUpdate, mt);
   }
 
   // === visit commands ===
