@@ -1,3 +1,3 @@
 all:
-	fb ArrayList.bpl
 	fb test00.bpl
+#	fb ArrayList.bpl
