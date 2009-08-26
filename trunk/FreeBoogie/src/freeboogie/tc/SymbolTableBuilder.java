@@ -61,7 +61,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
     return null;
   }
   
-  private IdDecl lookup(String s, Ast l) {
+  private IdDecl lookupId(String s, Ast l) {
     IdDecl r = localVarDecl.get(s);
     if (r == null) r = gc.idDef(s);
     return check(r, s, l);
@@ -90,6 +90,14 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
       symbolTable.types.put(userType, check(gc.typeDef(name), name, userType));
   }
 
+  @Override public void see(MapType mapType) {
+    typeVarDecl.push();
+    collectTypeVars(typeVarDecl.peek(), mapType.typeVars());
+    AstUtils.evalListOfType(mapType.idxTypes(), this);
+    mapType.elemType().eval(this);
+    typeVarDecl.pop();
+  }
+
   @Override public void see(CallCmd callCmd) {
     String p = callCmd.procedure();
     symbolTable.procs.put(callCmd, check(gc.procDef(p), p, callCmd));
@@ -106,7 +114,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   }
 
   @Override public void see(Identifier atomId) {
-    symbolTable.ids.put(atomId, lookup(atomId.id(), atomId));
+    symbolTable.ids.put(atomId, lookupId(atomId.id(), atomId));
     AstUtils.evalListOfType(atomId.types(), this);
   }
 
@@ -127,6 +135,14 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
     }
     variableDecl.type().eval(this);
     typeVarDecl.pop();
+  }
+
+  @Override public void see(TypeDecl typeDecl) {
+    typeVarDecl.push();
+    collectTypeVars(typeVarDecl.peek(), typeDecl.typeArgs());
+    if (typeDecl.type() != null) typeDecl.type().eval(this);
+    typeVarDecl.pop();
+    symbolTable.types.seenDef(typeDecl);
   }
 
   @Override public void see(ConstDecl constDecl) {

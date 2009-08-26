@@ -330,6 +330,10 @@ public abstract class AbstractPassivator extends Transformer {
     return assertAssumeCmd;
   }
 
+  @Override public void see(BreakCmd breakCmd) {
+    assert false : "Break commands are assumed to be desugared at this stage.";
+  }
+
   @Override public GotoCmd eval(GotoCmd gotoCmd) {
     ImmutableList.Builder<String> newSuccessors = ImmutableList.builder();
     for (Command succCmd : currentFG.to(gotoCmd)) {

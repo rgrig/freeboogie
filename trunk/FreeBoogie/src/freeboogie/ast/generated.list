@@ -17,6 +17,7 @@ BinaryOp.java
 Block.java
 Body.java
 BooleanLiteral.java
+BreakCmd.java
 CallCmd.java
 Cast.java
 Command.java

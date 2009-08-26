@@ -136,6 +136,10 @@ public class SpecDesugarer extends Transformer {
         Block.mk(newCommands.build(), body.block().loc()), body.loc());
   }
 
+  @Override public void see(BreakCmd breakCmd) {
+    assert false : "Break commands are assumed to be desugared at this stage.";
+  }
+
   @Override public GotoCmd eval(GotoCmd gotoCmd) {
     if (gotoCmd.successors().isEmpty()) {
       return GotoCmd.mk(

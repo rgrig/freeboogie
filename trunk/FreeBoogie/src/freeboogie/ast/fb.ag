@@ -63,6 +63,7 @@ Type :>
   TupleType,
   UserType;
 MapType = 
+  [list] Identifier typeVars,
   [list] Type idxTypes,
   Type! elemType;
 PrimitiveType = 
@@ -105,6 +106,7 @@ Block =
 Command :> 
   AssertAssumeCmd, 
   AssignmentCmd, 
+  BreakCmd,
   CallCmd, 
   GotoCmd,
   HavocCmd,
@@ -117,6 +119,8 @@ AssignmentCmd =
 OneAssignment =
   Identifier lhs,
   Expr rhs;
+BreakCmd =
+  [list] String successors; // TODO(rgrig): perhaps just put a flag on goto?
 AssertAssumeCmd = 
   enum(CmdType: ASSERT, ASSUME) type, 
   [list] Identifier typeArgs, 

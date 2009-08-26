@@ -114,7 +114,7 @@ public class Main {
       normal("Nothing to do. Try --help.");
     for (File f : opt.getFiles()) {
       verbose("Processing " + f.getPath());
-      parse(f);
+      if (!parse(f)) continue;
       if (!typecheck()) continue;
       for (Transformer t : stages) {
         debug("  Stage: " + t.name());
@@ -168,7 +168,7 @@ public class Main {
     }
   }
 
-  private void parse(File f) {
+  private boolean parse(File f) {
     try {
       FbLexer lexer = new FbLexer(new ANTLRFileStream(f.getPath()));
       CommonTokenStream tokens = new CommonTokenStream(lexer);
@@ -182,6 +182,7 @@ public class Main {
       verbose("Can't parse " + f.getName() + ": " + e.getMessage());
       boogie = null;
     }
+    return boogie != null;
   }
 
   private boolean typecheck() {

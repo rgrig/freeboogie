@@ -215,9 +215,10 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     } else if (t instanceof MapType) {
       MapType tt = (MapType)t;
       return MapType.mk(
-        subst(tt.idxTypes(), a, b),
-        subst(tt.elemType(), a, b),
-        tt.loc());
+          tt.typeVars(),
+          subst(tt.idxTypes(), a, b),
+          subst(tt.elemType(), a, b),
+          tt.loc());
     } else if (t instanceof TupleType) {
       TupleType tt = (TupleType) t;
       return TupleType.mk(subst(tt.types(), a, b), tt.loc());
@@ -344,6 +345,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     } if (t instanceof MapType) {
       MapType at = (MapType)t;
       return MapType.mk(
+          at.typeVars(),
           substRealType(at.idxTypes()),
           substRealType(at.elemType()));
     }
