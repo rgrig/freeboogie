@@ -128,6 +128,17 @@ public class FlowGraphMaker extends Transformer {
     if (next != null) currentFlowGraph.edge(havocCmd, next);
   }
 
+  @Override public void see(IfCmd ifCmd) {
+    if (ifCmd.no() != null && !ifCmd.no().commands().isEmpty())
+      currentFlowGraph.edge(ifCmd, ifCmd.no().commands().get(0));
+    else {
+      Command next = nextCommand.peekLast();
+      if (next != null) currentFlowGraph.edge(ifCmd, next);
+    }
+    ifCmd.yes().eval(this);
+    if (ifCmd.no() != null) ifCmd.no().eval(this);
+  }
+
   @Override public void see(WhileCmd whileCmd) {
     Command next = nextCommand.peekLast();
     if (next != null) currentFlowGraph.edge(whileCmd, next);
@@ -137,6 +148,10 @@ public class FlowGraphMaker extends Transformer {
       currentFlowGraph.edge(commands.get(commands.size() - 1), whileCmd);
     }
     whileCmd.body().eval(this);
+  }
+
+  @Override public void see(BreakCmd breakCmd) {
+    assert false : "todo";
   }
 
   @Override public void see(GotoCmd gotoCmd) {

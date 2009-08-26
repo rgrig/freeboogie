@@ -459,6 +459,10 @@ public class PrettyPrinter extends Transformer {
     say("} ");
   }
 
+  @Override public void see(BreakCmd ast) {
+    assert false : "todo";
+  }
+
   @Override public void see(GotoCmd ast) {
     for (String l : ast.labels()) {
       say(l);

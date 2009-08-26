@@ -36,6 +36,9 @@ public class LoopCutter extends CommandDesugarer {
     return Body.mk(body.vars(), block, body.loc());
   }
 
+  @Override public void see(BreakCmd breakCmd) {
+    assert false : "Break commands are assumed to be desugared at this stage.";
+  }
 
   @Override public GotoCmd eval(GotoCmd cmd) {
     ImmutableList.Builder<String> newSuccessors = ImmutableList.builder();

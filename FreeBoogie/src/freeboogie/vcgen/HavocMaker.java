@@ -100,6 +100,10 @@ public class HavocMaker extends CommandDesugarer {
     return cmd;
   }
 
+  @Override public void see(BreakCmd cmd) {
+    assert false : "Break commands are assumed to be desugared at this stage.";
+  }
+
   @Override public GotoCmd eval(GotoCmd cmd) {
     if (entryPoint(cmd))
       cmd = GotoCmd.mk(noString, cmd.successors(), cmd.loc());

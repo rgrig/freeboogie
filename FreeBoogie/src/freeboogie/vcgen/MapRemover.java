@@ -201,7 +201,7 @@ public class MapRemover extends Transformer {
 
   // returns "[T1,...,TN]TV"
   private MapType mkMapType(int n) {
-    return MapType.mk(nTypes(n), mkType("TV"));
+    return MapType.mk(AstUtils.ids(), nTypes(n), mkType("TV"));
   }
 
   // returns "NAME" (as a user type)

@@ -54,6 +54,10 @@ public class LabelsCollector extends Transformer {
     recordLabels(callCmd);
   }
 
+  @Override public void see(BreakCmd breakCmd) {
+    recordLabels(breakCmd);
+  }
+
   @Override public void see(GotoCmd gotoCmd) {
     recordLabels(gotoCmd);
   }

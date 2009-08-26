@@ -126,7 +126,7 @@ program returns [Program v]:
       implementationBuilder = ImmutableList.builder();
     }
     decl* EOF
-    { $v = Program.mk(
+    { if (ok) { $v = Program.mk(
           fileName,
           typeDeclBuilder.build(),
           axiomDeclBuilder.build(),
@@ -135,7 +135,7 @@ program returns [Program v]:
           functionDeclBuilder.build(),
           procedureDeclBuilder.build(),
           implementationBuilder.build(),
-          new FileLocation(fileName, 1, 1)); }
+          new FileLocation(fileName, 1, 1)); }}
 ;
 
 decl:
@@ -362,7 +362,8 @@ command	returns [Command v]:
         { if (ok) { $v = WhileCmd.mk($label_list.v,$c.v,$li.v,$b.v,tokLoc($t)); }}
     | t='if' '(' c=wildcard_or_expr ')' '{' yes=block '}' no=else_branch
         { if (ok) { $v = IfCmd.mk($label_list.v,$c.v,$yes.v,$no.v,tokLoc($t)); }}
-    | t='break' label_comma_list ';' {ok = false;}
+    | t='break' bl=label_comma_list ';' 
+        { if (ok) { $v = BreakCmd.mk($label_list.v, $bl.v, tokLoc($t)); }}
   )
 ;
 
@@ -741,8 +742,7 @@ primitive_type returns [PrimitiveType v]:
 
 map_type returns [MapType v]: 
     ta=type_args s='[' idx=type_list ']' type
-    { if (ok) { $v = MapType.mk($idx.v, $type.v, tokLoc($s)); }}
-    // TODO (radugrigore): keep track of type arguments
+    { if (ok) { $v = MapType.mk($ta.v, $idx.v, $type.v, tokLoc($s)); }}
 ;
 
 type_args returns [ImmutableList<Identifier> v]:
