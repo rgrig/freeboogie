@@ -44,11 +44,15 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   private static final Logger log = Logger.getLogger("freeboogie.tc");
   
   // used for primitive types (so reference equality is used below)
-  private PrimitiveType boolType, intType, refType;
+  private static final PrimitiveType boolType = 
+      PrimitiveType.mk(PrimitiveType.Ptype.BOOL, -1, FileLocation.unknown());
+  private static final PrimitiveType intType = 
+      PrimitiveType.mk(PrimitiveType.Ptype.INT, -1, FileLocation.unknown());
   
   // used to signal an error in a subexpression and to limit
   // errors caused by other errors
-  private PrimitiveType errType;
+  private static final PrimitiveType errType = 
+      PrimitiveType.mk(PrimitiveType.Ptype.ERROR, -1, FileLocation.unknown());
   
   private SymbolTable st;
   
@@ -119,9 +123,6 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     assert new TreeChecker().isTree(ast) : "AST is a dag instead of a tree";
 
     tvLevel = 0; // DBG
-    boolType = PrimitiveType.mk(PrimitiveType.Ptype.BOOL, -1);
-    intType = PrimitiveType.mk(PrimitiveType.Ptype.INT, -1);
-    errType = PrimitiveType.mk(PrimitiveType.Ptype.ERROR, -1);
     
     typeOf = new HashMap<Expr, Type>();
     typeVar = new StackedHashMap<Identifier, Type>();

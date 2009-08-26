@@ -33,7 +33,8 @@ import freeboogie.tc.TypeUtils;
   @see freeboogie.ast.Evaluator
  */
 public class Transformer extends Evaluator<Ast> {
-  private final Ast NULL = Identifier.mk("<NULL>", ImmutableList.<Type>of());
+  private static final Ast NULL = 
+      Identifier.mk("<NULL>", ImmutableList.<Type>of());
   private Deque<Ast> result = new ArrayDeque<Ast>();
   protected TcInterface tc;
 

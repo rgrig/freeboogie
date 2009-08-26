@@ -11,7 +11,11 @@ This template generates code for AST classes.
 /** Do NOT edit. See normal_classes.tpl instead. */
 package freeboogie.ast;
 
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
+import genericutils.Logger;
+
+import static freeboogie.cli.FbCliOptionsInterface.*;
 
 /** @author rgrig */
 public \if_terminal{final}{abstract} class \ClassName extends \BaseName {
@@ -22,6 +26,16 @@ public \if_terminal{final}{abstract} class \ClassName extends \BaseName {
   // === construction ===
   private \ClassName(\mtn_list) {
     this(\members[,]{\memberName}, FileLocation.unknown());
+    log.say(LogCategories.AST, LogLevel.WARNING, new Supplier<String>() {
+      @Override public String get() {
+        StackTraceElement[] stack = new Exception().getStackTrace();
+        for (int i = 1; i < stack.length; ++i) {
+          if (stack[i-1].getMethodName().equals("mk"))
+            return stack[i].toString();
+        }
+        return "unknown invocation of mk() without location";
+      }
+    });
   }
 
   private \ClassName(\mtn_list, FileLocation location) {
@@ -38,6 +52,9 @@ public \if_terminal{final}{abstract} class \ClassName extends \BaseName {
     checkInvariant();
   }
   
+  // TODO(radugrigore): perhaps drop this method so that file
+  // location always has to be provided explicitely (even if it
+  // is FileLocation.unknown()).
   public static \ClassName mk(\mtn_list) {
     return new \ClassName(\members[,]{\memberName});
   }
