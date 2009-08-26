@@ -134,7 +134,8 @@ program returns [Program v]:
           constDeclBuilder.build(),
           functionDeclBuilder.build(),
           procedureDeclBuilder.build(),
-          implementationBuilder.build()); }
+          implementationBuilder.build(),
+          new FileLocation(fileName, 1, 1)); }
 ;
 
 decl:
@@ -175,12 +176,13 @@ type_id:
 ;
 
 axiom_decl:
-    'axiom' e=expr ';' 
+    loc='axiom' e=expr ';' 
     { if (ok) axiomDeclBuilder.add(Axiom.mk(
           ImmutableList.<Attribute>of(),
           Id.get("unnamed"),
           AstUtils.ids(),
-          $e.v)); }
+          $e.v,
+          tokLoc($loc))); }
 ;
 
 var_decl:
@@ -223,11 +225,12 @@ one_const_decl:
 
 // TODO (radugrigore): keep track of expr
 fun_decl:
-    'function' signature (';' | '{' expr '}')
+    loc='function' signature (';' | '{' expr '}')
     { if (ok) {
       functionDeclBuilder.add(FunctionDecl.mk(
           ImmutableList.<Attribute>of(),
-          $signature.v)); }}
+          $signature.v,
+          tokLoc($loc))); }}
 ;
 
 proc_decl
@@ -701,7 +704,10 @@ scope {
   ImmutableList.Builder<Identifier> b;
 }:
     { $type_vars::b = ImmutableList.builder(); }
-    (ID { $type_vars::b.add(Identifier.mk($ID.text, ImmutableList.<Type>of())); })*
+    (ID { $type_vars::b.add(Identifier.mk(
+        $ID.text, 
+        ImmutableList.<Type>of(), 
+        tokLoc($ID))); })*
     { $v = $type_vars::b.build(); }
 ;
 

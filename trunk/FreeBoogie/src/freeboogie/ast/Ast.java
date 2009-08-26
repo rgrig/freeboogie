@@ -1,6 +1,9 @@
 package freeboogie.ast;
 
 import com.google.common.collect.ImmutableList;
+import genericutils.Logger;
+
+import static freeboogie.cli.FbCliOptionsInterface.*;
 
 /** 
  * Base class for the AST hierarchy. 
@@ -16,6 +19,9 @@ import com.google.common.collect.ImmutableList;
  * @author rgrig
  */
 public abstract class Ast implements Cloneable {
+  static Logger<LogCategories,LogLevel> log = 
+      Logger.<LogCategories,LogLevel>get("log");
+
   /** The location of this AST node. */
   protected FileLocation location;
 
