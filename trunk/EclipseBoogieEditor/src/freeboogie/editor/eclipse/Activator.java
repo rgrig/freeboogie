@@ -1,4 +1,4 @@
-package toyeditor;
+package freeboogie.editor.eclipse;
 
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
