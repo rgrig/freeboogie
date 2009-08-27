@@ -101,6 +101,7 @@ public final class TypeUtils {
    * @return the string representation of {@code t}
    */
   public static String typeToString(Type t) {
+    if (t == null) return "NULL_TYPE";
     StringWriter sw = new StringWriter();
     PrettyPrinter pp = new PrettyPrinter();
     pp.writer(sw);

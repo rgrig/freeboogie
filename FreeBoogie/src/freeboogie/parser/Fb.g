@@ -498,7 +498,7 @@ expr_i returns [Expr v]:
     { if (ok) { $v = $expr.v == null?
           MapSelect.mk($v,$expr_list.v,tokLoc($s)) :
           MapUpdate.mk($v,$expr_list.v,$expr.v,tokLoc($s)); }})
-  | (l=number ':' h=number
+  | (h=number ':' l=number
     { if (ok) $v = Slice.mk($v,$l.v,$h.v,fileLoc($l.v));})) ']')*
 ;
 
