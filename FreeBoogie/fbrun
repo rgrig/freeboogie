@@ -1,5 +1,5 @@
 #!/bin/bash
-JFLAGS="-Xss64m -Xms128m -Xmx128m -ea"
+JFLAGS="-Xss64m -Xms64m -Xmx64m -ea"
 if [[ "$OSTYPE" == cygwin ]]; then
   JFLAGS="$JFLAGS -Djline.terminal=jline.UnixTerminal"
 fi
