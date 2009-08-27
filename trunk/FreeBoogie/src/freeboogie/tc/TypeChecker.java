@@ -40,6 +40,10 @@ import freeboogie.astutil.TreeChecker;
  */
 @SuppressWarnings("unused") // many unused parameters
 public class TypeChecker extends Evaluator<Type> implements TcInterface {
+  // shorthand notations
+  private static final BigInteger ZERO = BigInteger.valueOf(0);
+  private static final BigInteger MAX_INT = 
+      BigInteger.valueOf(Integer.MAX_VALUE);
 
   private static final Logger log = Logger.getLogger("freeboogie.tc");
   
@@ -427,6 +431,30 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     errors.add(new FbError(FbError.Type.BAD_TYPE, l,
           TypeUtils.typeToString(a), TypeUtils.typeToString(b)));
   }
+
+  // Check whether |t| is a bit vector.
+  private BigInteger checkBv(Type t, Ast l) {
+    if (t instanceof PrimitiveType) {
+      PrimitiveType pt = (PrimitiveType) t;
+      if (pt.ptype() == PrimitiveType.Ptype.INT && pt.bits() >= 0)
+        return BigInteger.valueOf(pt.bits());
+    }
+    errors.add(new FbError(FbError.Type.BV_REQUIRED, l));
+    return BigInteger.valueOf(-1);
+  }
+
+  private void checkLe(BigInteger a, BigInteger b, Ast l) {
+    if (a.compareTo(b) <= 0) return;
+    errors.add(new FbError(FbError.Type.LE, l, a, b));
+  }
+
+  private PrimitiveType bvt(int w) { 
+    return PrimitiveType.mk(PrimitiveType.Ptype.INT, w);
+  }
+
+  private PrimitiveType bvt(BigInteger w) {
+    return bvt(w.intValue());
+  }
   // END helper methods }}}
 
   // BEGIN visiting operators {{{
@@ -452,6 +480,18 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     Type l = left.eval(this);
     Type r = right.eval(this);
     switch (binaryOp.op()) {
+    case CONCAT:
+      // TODO(radugrigore): add the widths
+      BigInteger w1 = checkBv(l, left);
+      BigInteger w2 = checkBv(r, right);
+      if (w1.signum() == -1 || w2.signum() == -1)
+        return memo(binaryOp, errType);
+      w1 = w1.add(w2);
+      if (w1.compareTo(MAX_INT) > 0) {
+        errors.add(new FbError(FbError.Type.TOO_FAT, binaryOp, w1));
+        return memo(binaryOp, errType);
+      }
+      return memo(binaryOp, bvt(w1));
     case PLUS:
     case MINUS:
     case MUL:
@@ -489,7 +529,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       typeVarExit(binaryOp);
       return memo(binaryOp, boolType);
     default:
-      assert false;
+      assert false : "Unknown oprator " + binaryOp.op().name();
       return errType; // dumb compiler
     }
   }
@@ -515,8 +555,21 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     return memo(id, t);
   }
 
-  @Override public Type eval(NumberLiteral atomNum) {
-    return memo(atomNum, intType);
+  @Override public Type eval(Slice slice) {
+    Type bvt = slice.bv().eval(this);
+    BigInteger w = checkBv(bvt, slice.bv());
+    if (w.signum() == -1) return memo(slice, errType);
+    BigInteger low = slice.low().value().value();
+    BigInteger high = slice.high().value().value();
+    checkLe(ZERO, low, slice.low());
+    checkLe(low, high, slice);
+    checkLe(high, w, slice.high());
+    return memo(slice, bvt(high.subtract(low)));
+  }
+
+  @Override public Type eval(NumberLiteral num) {
+    if (num.value().width() < 0) return memo(num, intType);
+    return memo(num, bvt(num.value().width()));
   }
 
   @Override public Type eval(BooleanLiteral atomLit) {
