@@ -38,11 +38,12 @@ public class FbError {
     NOT_SUBTYPE("Found type %0 instead of %1."),
     PROC_MISSING("Implementation without procedure."),
     REQ_SPECIALIZATION("Explicit specialization required for %0 at %1."),
-    TOO_FAT("The width of this integer (%0) is too big."),
+    TOO_FAT("The width of this integer (%) is too big."),
     TV_ALREADY_DEF("Type variable % already defined."),
+    TYPE_ARGS_MISMATCH("There are %0 arguments instead of %2. See %1."),
+    TYPE_CYCLE("Cyclic type synonyms involving %."),
     UNDECL_ID("Undeclared identifier %."),
-    UNREACHABLE("Command is unreachable. %"),
-    WRONG_LEN("Expecting %0 item(s), got %1.");
+    UNREACHABLE("Command is unreachable. %");
 
     private final String templ;
     public String templ() { return templ; }
