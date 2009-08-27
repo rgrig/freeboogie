@@ -74,8 +74,7 @@ public class FlowGraphMaker extends Transformer {
     for (Command d : children) dfs(d); 
   }
   
-  // === visiting methods ===
-  
+  // BEGIN top-level methods {{{
   @Override public void see(Body body) {
     // initialize graph
     currentFlowGraph = new SimpleGraph<Command>();
@@ -107,28 +106,47 @@ public class FlowGraphMaker extends Transformer {
     if (!commands.isEmpty())
       commands.get(commands.size() - 1).eval(this);
   }
-  
-  @Override public void see(AssertAssumeCmd assertAssumeCmd) {
+
+  private String rep(Command c) {
+    if (c.labels().isEmpty()) return "";
+    StringBuilder sb = new StringBuilder();
+    sb.append("(");
+    for (int i = 0; i < c.labels().size(); ++i) {
+      if (i != 0) sb.append(", ");
+      sb.append(c.labels().get(i));
+    }
+    sb.append(")");
+    return sb.toString();
+  }
+  // END top-level methods }}}
+
+  // BEGIN visit nonbranching commands {{{
+  private void processNonbranchingCommand(Command command) {
+    currentFlowGraph.node(command);
     Command next = nextCommand.peekLast();
-    if (next != null) currentFlowGraph.edge(assertAssumeCmd, next);
+    if (next != null) currentFlowGraph.edge(command, next);
+  }
+
+  @Override public void see(AssertAssumeCmd assertAssumeCmd) {
+    processNonbranchingCommand(assertAssumeCmd);
   }
 
   @Override public void see(AssignmentCmd assignmentCmd) {
-    Command next = nextCommand.peekLast();
-    if (next != null) currentFlowGraph.edge(assignmentCmd, next);
+    processNonbranchingCommand(assignmentCmd);
   }
 
   @Override public void see(CallCmd callCmd) {
-    Command next = nextCommand.peekLast();
-    if (next != null) currentFlowGraph.edge(callCmd, next);
+    processNonbranchingCommand(callCmd);
   }
 
   @Override public void see(HavocCmd havocCmd) {
-    Command next = nextCommand.peekLast();
-    if (next != null) currentFlowGraph.edge(havocCmd, next);
+    processNonbranchingCommand(havocCmd);
   }
+  // END visit nonbranching commands }}}
 
+  // BEGIN visit branching commands {{{
   @Override public void see(IfCmd ifCmd) {
+    currentFlowGraph.node(ifCmd);
     if (ifCmd.no() != null && !ifCmd.no().commands().isEmpty())
       currentFlowGraph.edge(ifCmd, ifCmd.no().commands().get(0));
     else {
@@ -140,6 +158,7 @@ public class FlowGraphMaker extends Transformer {
   }
 
   @Override public void see(WhileCmd whileCmd) {
+    currentFlowGraph.node(whileCmd);
     Command next = nextCommand.peekLast();
     if (next != null) currentFlowGraph.edge(whileCmd, next);
     ImmutableList<Command> commands = whileCmd.body().commands();
@@ -155,6 +174,7 @@ public class FlowGraphMaker extends Transformer {
   }
 
   @Override public void see(GotoCmd gotoCmd) {
+    currentFlowGraph.node(gotoCmd);
     for (String s : gotoCmd.successors()) {
       Command next = labelsCollector.getCommand(currentBody, s);
       if (next == null)
@@ -163,16 +183,6 @@ public class FlowGraphMaker extends Transformer {
         currentFlowGraph.edge(gotoCmd, next);
     }
   }
-
-  private String rep(Command c) {
-    if (c.labels().isEmpty()) return "";
-    StringBuilder sb = new StringBuilder();
-    sb.append("(");
-    for (int i = 0; i < c.labels().size(); ++i) {
-      if (i != 0) sb.append(", ");
-      sb.append(c.labels().get(i));
-    }
-    sb.append(")");
-    return sb.toString();
-  }
+  // END visit branching commands }}}
+ 
 }
