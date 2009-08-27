@@ -1,5 +1,6 @@
 package freeboogie.tc;
 
+//{{{ imports
 import java.math.BigInteger;
 import java.util.*;
 import java.util.logging.Logger;
@@ -12,34 +13,26 @@ import genericutils.*;
 import freeboogie.ErrorsFoundException;
 import freeboogie.ast.*;
 import freeboogie.astutil.TreeChecker;
+//}}}
 
 /**
- * Typechecks an AST.
- *
- * In 'old mode' it uses {@code ForgivingStb} for building a
- * symbol table. 
- * 
- * It also acts more-or-less as a Facade for the whole package.
- *
- * NOTE subtyping is necessary only because of the special type
- * "any" which is likely to be ditched in the future.
- *
- * The typechecking works as follows. The eval functions associate
- * types to nodes in the AST that represent expressions. The check
- * functions ensure that type a can be used when type b is expected,
- * typically by checking the subtype relation. Comparing types
- * is done structurally. The strip function, called repetedly,
- * makes sure that `where' clauses are ignored.
- *
- * Type checking assumes that previous stages such as name resolution
- * (i.e., building of the symbo table) were successful.
- *
- * @author rgrig 
- * @see freeboogie.tc.ForgivingStb
- * @see freeboogie.tc.ForgivingTc
+  Typechecks an AST.
+ 
+  It also acts more-or-less as a Facade for the whole package.
+ 
+  The typechecking works as follows. The {@code eval}
+  functions associate types to nodes in the AST that represent
+  expressions. The {@code check} functions verify equality modulo
+  substitutions for type variables. Comparing types is done
+  structurally.
+  
+  Type checking assumes that (1) a symbot table was built, and
+  (2) type synonyms were desugared.
+ 
+  @author rgrig 
  */
-@SuppressWarnings("unused") // many unused parameters
 public class TypeChecker extends Evaluator<Type> implements TcInterface {
+  // BEGIN data memebers {{{
   // shorthand notations
   private static final BigInteger ZERO = BigInteger.valueOf(0);
   private static final BigInteger MAX_INT = 
@@ -59,9 +52,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       PrimitiveType.mk(PrimitiveType.Ptype.ERROR, -1, FileLocation.unknown());
   
   private SymbolTable st;
-  
   private GlobalsCollector gc;
-  
   private FlowGraphMaker flowGraphs;
   
   // detected errors
@@ -72,9 +63,6 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   
   // maps implementation params to procedure params
   private UsageToDefMap<VariableDecl, VariableDecl> paramMap;
-
-  // maps type variables to their binding types
-  private StackedHashMap<Identifier, Type> typeVar;
 
   // used for (randomized) union-find
   private static final Random rand = new Random(0);
@@ -89,23 +77,16 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   // procedure, implementation)
   private StackedHashMap<Identifier, Identifier> enclosingTypeVar;
 
-  // accept deprecated constructs
-  private boolean acceptOld;
+  // maps type variables to their binding types
+  private StackedHashMap<Identifier, Type> typeVar;
 
   // records the last processed AST
   private Program ast;
 
   private int tvLevel; // DBG
-  
-  // === public interface ===
-  
-  /**
-   * Make the typechecker accept deprecated constructs.
-   */
-  public void setAcceptOld(boolean acceptOld) {
-    this.acceptOld = acceptOld;
-  }
+  /// END data members }}}
 
+  // BEGIN public interface {{{
   @Override public Program ast() { return ast; }
 
   /** 
@@ -185,11 +166,15 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   public SymbolTable st() {
     return st;
   }
+  // END public interface }}}
   
   // BEGIN helper methods {{{
   
-  // ast may be used for debugging; it's here for symmetry
-  private void typeVarEnter(Ast ast) { typeVar.push(); ++tvLevel; }
+  // |ast| may be used for debugging
+  private void typeVarEnter(Ast ast) { 
+    typeVar.push(); 
+    ++tvLevel; 
+  }
  
   private void typeVarExit(Ast ast) {
     Map<Identifier, Type> lis = Maps.newHashMap();
@@ -213,38 +198,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     for (Expr e : es) builder.add(e.eval(this));
     return TupleType.mk(builder.build());
   }
- 
-  // replaces all occurrences of UserType(a) with UserType(b) 
-  private Type subst(Type t, String a, String b) {
-    if (t instanceof UserType) {
-      UserType tt = (UserType)t;
-      if (tt.name().equals(a)) return UserType.mk(b, null, tt.loc());
-      return t;
-    } else if (t instanceof MapType) {
-      MapType tt = (MapType)t;
-      return MapType.mk(
-          tt.typeVars(),
-          subst(tt.idxTypes(), a, b),
-          subst(tt.elemType(), a, b),
-          tt.loc());
-    } else if (t instanceof TupleType) {
-      TupleType tt = (TupleType) t;
-      return TupleType.mk(subst(tt.types(), a, b), tt.loc());
-    }
-    assert t == null || t instanceof PrimitiveType;
-    return t;
-  }
 
-  private ImmutableList<Type> subst(
-      ImmutableList<Type> ts, 
-      String a, 
-      String b
-  ) {
-    ImmutableList.Builder<Type> builder = ImmutableList.builder();
-    for (Type t : ts) builder.add(subst(t, a, b));
-    return builder.build();
-  }
-  
   private boolean sub(PrimitiveType a, PrimitiveType b) {
     return a.ptype() == b.ptype();
   }
@@ -325,8 +279,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
 
   /* Substitutes real types for (known) type variables.
    * If the result is a type variable then an error is reported
-   * at location {@code loc}.
-   */
+   * at location {@code loc}. */
   private Type checkRealType(Type t, Ast l) {
     t = substRealType(t);
     if (isTypeVar(t)) {
@@ -481,7 +434,6 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     Type r = right.eval(this);
     switch (binaryOp.op()) {
     case CONCAT:
-      // TODO(radugrigore): add the widths
       BigInteger w1 = checkBv(l, left);
       BigInteger w2 = checkBv(r, right);
       if (w1.signum() == -1 || w2.signum() == -1)
