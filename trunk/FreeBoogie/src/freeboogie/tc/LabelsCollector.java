@@ -66,6 +66,10 @@ public class LabelsCollector extends Transformer {
     recordLabels(havocCmd);
   }
 
+  @Override public void see(IfCmd cmd) {
+    recordLabels(cmd);
+  }
+
   @Override public void see(WhileCmd whileCmd) {
     recordLabels(whileCmd);
     whileCmd.body().eval(this);

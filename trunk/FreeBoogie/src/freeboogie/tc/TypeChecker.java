@@ -145,7 +145,11 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     if (!errors.isEmpty()) return errors;
 
     // do the typecheck
-    ast.eval(this);
+    AstUtils.evalListOfAxiom(ast.axioms(), this);
+    AstUtils.evalListOfVariableDecl(ast.variables(), this); // for 'where'
+    AstUtils.evalListOfConstDecl(ast.constants(), this);  // for 'where'
+    AstUtils.evalListOfProcedure(ast.procedures(), this);
+    AstUtils.evalListOfImplementation(ast.implementations(), this);
     this.ast = ast;
     return errors;
   }
@@ -178,7 +182,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     return st;
   }
   
-  // === helper methods ===
+  // BEGIN helper methods {{{
   
   // ast may be used for debugging; it's here for symmetry
   private void typeVarEnter(Ast ast) { typeVar.push(); ++tvLevel; }
@@ -423,8 +427,9 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     errors.add(new FbError(FbError.Type.BAD_TYPE, l,
           TypeUtils.typeToString(a), TypeUtils.typeToString(b)));
   }
+  // END helper methods }}}
 
-  // === visiting operators ===
+  // BEGIN visiting operators {{{
   @Override public Type eval(UnaryOp unaryOp) {
     Expr expr = unaryOp.expr();
     Type t = expr.eval(this);
@@ -488,21 +493,26 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
       return errType; // dumb compiler
     }
   }
+  // END visiting operators }}}
   
-  // === visiting atoms ===
-  @Override public Type eval(Identifier atomId) {
-    IdDecl d = st.ids.def(atomId);
+  // BEGIN visiting expressions {{{
+  @Override public Type eval(Identifier id) {
+    IdDecl d = st.ids.def(id);
     Type t = errType;
     if (d instanceof VariableDecl) {
       VariableDecl vd = (VariableDecl)d;
-      typeVarEnter(atomId);
-      mapExplicitGenerics(vd.typeArgs(), atomId.types());
-      t = checkRealType(vd.type(), atomId);
-      typeVarExit(atomId);
+      typeVarEnter(id);
+      mapExplicitGenerics(vd.typeArgs(), id.types());
+      t = checkRealType(vd.type(), id);
+      typeVarExit(id);
     } else if (d instanceof ConstDecl) {
       t = ((ConstDecl)d).type();
-    } else assert false;
-    return memo(atomId, t);
+    } else {
+      assert false : 
+          "SymbolTableBuilder didn't do its job properly: " + 
+          id.id() + "(" + id.loc() + ")";
+    }
+    return memo(id, t);
   }
 
   @Override public Type eval(NumberLiteral atomNum) {
@@ -590,8 +600,9 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     typeVarExit(atomMapUpdate);
     return memo(atomMapUpdate, mt);
   }
+  // END visiting expressions }}}
 
-  // === visit commands ===
+  // BEGIN visiting commands {{{
   @Override public Type eval(AssignmentCmd assignmentCmd) {
     typeVarEnter(assignmentCmd);
     AstUtils.evalListOfOneAssignment(assignmentCmd.assignments(), this);
@@ -633,8 +644,9 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     
     return null;
   }
+  // END visiting commands }}}
   
-  // === visit various things that must have boolean params ===
+  // BEGIN check booleans {{{
   private Type checkBool(ImmutableList<Identifier> tv, Expr e) {
     enclosingTypeVar.push();
     collectEnclosingTypeVars(tv);
@@ -655,16 +667,19 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     return checkBool(axiom.typeArgs(), axiom.expr());
   }
 
-  // === keep track of formal generics (see also eval(Axiom...) and eval(AssertAssumeCmd...)) ===
-  @Override public Type eval(FunctionDecl function) {
-    return null;
-  }
-
   @Override public Type eval(VariableDecl variableDecl) {
     // TODO(radugrigore): check that the 'where' part is a boolean
     return null;
   }
 
+  @Override public Type eval(ConstDecl constDecl) {
+    // TODO(radugrigore): check that the 'where' part is a boolean
+    return null;
+  }
+  // END check booleans }}}
+
+  // BEGIN keep track of type variables {{{
+  // NOTE: check all uses of enclosingTypeVar to see how all tracking is done
   @Override public Type eval(Procedure procedure) {
     enclosingTypeVar.push();
     collectEnclosingTypeVars(procedure.sig().typeArgs());
@@ -682,4 +697,5 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     enclosingTypeVar.pop();
     return null;
   }
+  // END keep track of type variables }}}
 }
