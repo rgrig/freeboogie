@@ -8,12 +8,10 @@ import genericutils.StackedHashMap;
 import freeboogie.ast.*;
 
 /**
- * Constructs a {@code SymbolTable} from an AST.
- *
- * TODO(rgrig): Compute map axiom_name <-> axiom
- * 
- * @author rgrig 
- * @author miko
+  Constructs a {@code SymbolTable} from an AST.
+ 
+  @author rgrig 
+  @author miko
  */
 @SuppressWarnings("unused") // lots of unused parameters
 public class SymbolTableBuilder extends Transformer implements StbInterface {
@@ -62,6 +60,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   }
   
   private IdDecl lookupId(String s, Ast l) {
+//System.out.println("lookup " + s + " at " + l.loc());
     IdDecl r = localVarDecl.get(s);
     if (r == null) r = gc.idDef(s);
     return check(r, s, l);

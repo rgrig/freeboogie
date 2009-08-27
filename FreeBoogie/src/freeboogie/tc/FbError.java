@@ -1,38 +1,45 @@
 package freeboogie.tc;
 
-import java.util.List;
+import java.util.*;
 
-import freeboogie.ast.Ast;
+import com.google.common.collect.Lists;
 import genericutils.Err;
 
+import freeboogie.ast.Ast;
+
 /**
- * Represents an error.
- *
- * Various analyzes of the AST produce lists of errors. Each
- * error has a type, points to an AST node, and contains
- * additional information used to build up an error message
- * when {@code toString()} is called.
- *
- * @author rgrig
+  Represents an error.
+ 
+  Various analyzes of the AST produce lists of errors. Each
+  error has a type, points to an AST node, and contains
+  additional information used to build up an error message
+  when {@code toString()} is called.
+
+  TODO(radugrigore): rename this to FbProblem
+ 
+  @author rgrig
  */
 public class FbError {
-  /** Types of errors. */
+  /** Types of errors. See {@code FbError.toString()} for a description
+      of the format. */
   public static enum Type {
-    UNDECL_ID("Undeclared identifier %."),
-    REQ_SPECIALIZATION("Explicit specialization required for %0 at %1."),
-    GEN_TOOMANY("Too many explicit generics."),
-    NOT_SUBTYPE("Found type %0 instead of %1."),
-    WRONG_LEN("Expecting %0 item(s), got %1."),
-    BAD_TYPE("Unrelated types: %0 and %1."),
-    EXACT_TYPE("Type should be %."),
-    TV_ALREADY_DEF("Type variable % already defined."),
     ALREADY_DEF("Variable % already defined"),
-    GB_ALREADY_DEF("Identifier % was already defined."),
-    MISSING_BLOCK("Inexistent label %."),
-    IP_CNT_MISMATCH("Implementation-Procedure parameter count mismatch."),
+    BAD_TYPE("Unrelated types: %0 and %1."),
+    BREAK_OUTSIDE_WHILE("A break without labels cannot appear outside while."),
     DEP_IMPL_SIG("Dependent type in implementation signature."),
+    EXACT_TYPE("Type should be %."),
+    GB_ALREADY_DEF("Identifier % was already defined."),
+    GEN_TOOMANY("Too many explicit generics."),
+    IP_CNT_MISMATCH("Implementation-Procedure parameter count mismatch."),
+    MISSING_BLOCK("Inexistent label %."),
+    NEED_ARRAY("Must be a map."),
+    NOT_SUBTYPE("Found type %0 instead of %1."),
     PROC_MISSING("Implementation without procedure."),
-    NEED_ARRAY("Must be a map.");
+    REQ_SPECIALIZATION("Explicit specialization required for %0 at %1."),
+    TV_ALREADY_DEF("Type variable % already defined."),
+    UNDECL_ID("Undeclared identifier %."),
+    UNREACHABLE("Command is unreachable. %"),
+    WRONG_LEN("Expecting %0 item(s), got %1.");
 
     private final String templ;
     public String templ() { return templ; }
@@ -104,7 +111,13 @@ public class FbError {
   }
 
   public static boolean reportAll(List<FbError> es) {
-    for (FbError e : es) Err.error(e.toString());
+    List<FbError> errors = Lists.newArrayList(es);
+    Collections.sort(errors, new Comparator<FbError>(){
+      @Override public int compare(FbError a, FbError b) {
+        return a.ast.loc().compareTo(b.ast.loc());
+      }
+    });
+    for (FbError e : errors) Err.error(e.toString());
     return !es.isEmpty();
   }
 }

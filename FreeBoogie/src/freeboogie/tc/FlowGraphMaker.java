@@ -35,9 +35,13 @@ public class FlowGraphMaker extends Transformer {
   
   // the detected problems 
   private List<FbError> errors;
+  private List<FbError> warnings = Lists.newArrayList();
   
   // used for reachability (DFS)
   private HashSet<Command> seenCommands = Sets.newHashSet();
+
+  // used to break out of loops
+  private ArrayDeque<WhileCmd> whileStack = new ArrayDeque<WhileCmd>();
  
   // === public interface ===
   
@@ -49,11 +53,14 @@ public class FlowGraphMaker extends Transformer {
    */
   public List<FbError> process(Program ast) {
     nextCommand.clear();
+    whileStack.clear();
+    warnings.clear();
     labelsCollector = new LabelsCollector();
     errors = Lists.newArrayList();
     flowGraphs = Maps.newHashMap();
     ast.eval(labelsCollector); // collect labels
     ast.eval(this);   // build the graph
+    FbError.reportAll(warnings);
     for (SimpleGraph<Command> fg : flowGraphs.values())
       fg.freeze();
     return errors;
@@ -90,8 +97,8 @@ public class FlowGraphMaker extends Transformer {
     if (commands.isEmpty()) return;
     dfs(commands.get(0));
     for (Command c : labelsCollector.getAllCommands(body)) {
-      if (!seenCommands.contains(c)) 
-        Err.warning("" + c.loc() + ": Command is unreachable." + rep(c));
+      if (!seenCommands.contains(c))
+        warnings.add(new FbError(FbError.Type.UNREACHABLE, c, rep(c)));
     }
   }
 
@@ -102,7 +109,7 @@ public class FlowGraphMaker extends Transformer {
       commands.get(i-1).eval(this);
       nextCommand.removeFirst();
     }
-    // At this point nextCommand.pollLast() is set by the outer block.
+    // At this point nextCommand.peekFirst() is set by the outer block.
     if (!commands.isEmpty())
       commands.get(commands.size() - 1).eval(this);
   }
@@ -123,7 +130,7 @@ public class FlowGraphMaker extends Transformer {
   // BEGIN visit nonbranching commands {{{
   private void processNonbranchingCommand(Command command) {
     currentFlowGraph.node(command);
-    Command next = nextCommand.peekLast();
+    Command next = nextCommand.peekFirst();
     if (next != null) currentFlowGraph.edge(command, next);
   }
 
@@ -147,40 +154,60 @@ public class FlowGraphMaker extends Transformer {
   // BEGIN visit branching commands {{{
   @Override public void see(IfCmd ifCmd) {
     currentFlowGraph.node(ifCmd);
-    if (ifCmd.no() != null && !ifCmd.no().commands().isEmpty())
+    if (!ifCmd.yes().commands().isEmpty()) {
+      currentFlowGraph.edge(ifCmd, ifCmd.yes().commands().get(0));
+      ifCmd.yes().eval(this);
+    } 
+    if (ifCmd.no() != null && !ifCmd.no().commands().isEmpty()) {
       currentFlowGraph.edge(ifCmd, ifCmd.no().commands().get(0));
-    else {
-      Command next = nextCommand.peekLast();
+      ifCmd.no().eval(this);
+    } else {
+      Command next = nextCommand.peekFirst();
       if (next != null) currentFlowGraph.edge(ifCmd, next);
     }
-    ifCmd.yes().eval(this);
-    if (ifCmd.no() != null) ifCmd.no().eval(this);
   }
 
   @Override public void see(WhileCmd whileCmd) {
     currentFlowGraph.node(whileCmd);
-    Command next = nextCommand.peekLast();
+    Command next = nextCommand.peekFirst();
     if (next != null) currentFlowGraph.edge(whileCmd, next);
     ImmutableList<Command> commands = whileCmd.body().commands();
     if (!commands.isEmpty()) {
       currentFlowGraph.edge(whileCmd, commands.get(0));
       currentFlowGraph.edge(commands.get(commands.size() - 1), whileCmd);
     }
+    whileStack.addFirst(whileCmd);
     whileCmd.body().eval(this);
-  }
-
-  @Override public void see(BreakCmd breakCmd) {
-    assert false : "todo";
+    whileStack.removeFirst();
   }
 
   @Override public void see(GotoCmd gotoCmd) {
     currentFlowGraph.node(gotoCmd);
-    for (String s : gotoCmd.successors()) {
+    processSuccessors(gotoCmd, gotoCmd.successors());
+  }
+
+  /* This behaves like |goto| when it has labels, and it goes to the
+     innermost |while| otherwise. */
+  @Override public void see(BreakCmd breakCmd) {
+    currentFlowGraph.node(breakCmd);
+    ImmutableList<String> succ = breakCmd.successors();
+    if (succ.isEmpty()) {
+      WhileCmd next = whileStack.peekFirst();
+      if (next == null)
+        errors.add(new FbError(FbError.Type.BREAK_OUTSIDE_WHILE, breakCmd));
+      else
+        currentFlowGraph.edge(breakCmd, next);
+    } else
+      processSuccessors(breakCmd, succ);
+  }
+
+  private void processSuccessors(Command cmd, ImmutableList<String> succ) {
+    for (String s : succ) {
       Command next = labelsCollector.getCommand(currentBody, s);
       if (next == null)
-        errors.add(new FbError(FbError.Type.MISSING_BLOCK, gotoCmd, s));
+        errors.add(new FbError(FbError.Type.MISSING_BLOCK, cmd, s));
       else
-        currentFlowGraph.edge(gotoCmd, next);
+        currentFlowGraph.edge(cmd, next);
     }
   }
   // END visit branching commands }}}

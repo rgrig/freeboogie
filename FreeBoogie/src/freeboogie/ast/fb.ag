@@ -115,7 +115,7 @@ Command :>
 Command =
   [list] String labels;
 AssignmentCmd = 
-  ImmutableList<OneAssignment> assignments;
+  [list] OneAssignment assignments;
 OneAssignment =
   Identifier lhs,
   Expr rhs;
