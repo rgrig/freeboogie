@@ -23,14 +23,13 @@ public class TypeDesugarer extends Transformer {
 
     return Program.mk(
         program.fileName(),
-        types.build(),
+        typeDecl.build(),
         AstUtils.evalListOfAxiom(program.axioms(), this),
-        AstUtils.evalListOfAxiom(program.axioms(), this),
-        AstUtils.evalListOfVariableDecl(program.vars(), this),
-        AstUtils.evalListOfConstDecl(program.cts(), this),
-        AstUtils.evalListOfFunctionDecl(program.funcs(), this),
-        AstUtils.evalListOfProcedure(program.procs(), this),
-        AstUtils.evalListOfImplementation(program.impls(), this),
+        AstUtils.evalListOfVariableDecl(program.variables(), this),
+        AstUtils.evalListOfConstDecl(program.constants(), this),
+        AstUtils.evalListOfFunctionDecl(program.functions(), this),
+        AstUtils.evalListOfProcedure(program.procedures(), this),
+        AstUtils.evalListOfImplementation(program.implementations(), this),
         program.loc());
   }
 
