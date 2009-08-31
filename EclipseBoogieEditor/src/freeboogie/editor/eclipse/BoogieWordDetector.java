@@ -23,10 +23,10 @@ public class BoogieWordDetector implements IWordDetector {
       wordPart[boogieIdLetters.charAt(i)] = true;
     }
   }
-  
+
   @Override
   public boolean isWordPart(char c) {
-    return wordPart[c];
+  	return wordPart[c];
   }
 
   @Override

@@ -10,7 +10,7 @@ import org.osgi.framework.BundleContext;
 public class Activator extends AbstractUIPlugin {
 
   /** The plugin ID. */
-  public static final String PLUGIN_ID = "ToyEditor";
+  public static final String PLUGIN_ID = "EclipseBoogieEditor";
 
   // The shared instance
   private static Activator plugin;
@@ -18,7 +18,7 @@ public class Activator extends AbstractUIPlugin {
   /**
    * The constructor
    */
-  public Activator() { /* do nothing */}
+  public Activator() {}
 
   @Override
   public void start(final BundleContext context) throws Exception {
@@ -31,6 +31,7 @@ public class Activator extends AbstractUIPlugin {
     plugin = null;
     super.stop(context);
   }
+
 
   /**
    * Returns the shared instance
