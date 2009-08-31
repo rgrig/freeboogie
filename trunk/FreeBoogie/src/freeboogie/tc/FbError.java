@@ -28,7 +28,7 @@ public class FbError {
     BREAK_OUTSIDE_WHILE("A break without labels cannot appear outside while."),
     BV_REQUIRED("Only an integer of fixed width may appear here."),
     DEP_IMPL_SIG("Dependent type in implementation signature."),
-    EXACT_TYPE("Type should be %."),
+    EXACT_TYPE("Type should be %1. (See %0.)"),
     GB_ALREADY_DEF("Identifier % was already defined."),
     GEN_TOOMANY("Too many explicit generics."),
     IP_CNT_MISMATCH("Implementation-Procedure parameter count mismatch."),

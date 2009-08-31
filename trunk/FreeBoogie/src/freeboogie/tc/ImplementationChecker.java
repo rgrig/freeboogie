@@ -88,8 +88,11 @@ public class ImplementationChecker extends Transformer {
       VariableDecl va = ia.next();
       VariableDecl vb = ib.next();
       if (!TypeUtils.eq(va.type(), vb.type())) {
-        errors.add(new FbError(FbError.Type.EXACT_TYPE, va,
-              TypeUtils.typeToString(vb.type())));
+        errors.add(new FbError(
+            FbError.Type.EXACT_TYPE, 
+            va,
+            vb.loc(),
+            TypeUtils.typeToString(vb.type())));
         return;
       }
       paramMap.put(va, vb);

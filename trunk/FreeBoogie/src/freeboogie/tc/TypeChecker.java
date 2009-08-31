@@ -116,6 +116,17 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     ast = stb.ast();
     st = stb.st();
     gc = stb.gc();
+
+    // Desugar type synonyms.
+    // TODO(radugrigore): This messes up the results of STB (including GC)
+    //   which are used later, and yet relies on the results of those in
+    //   the first place.
+    TypeDesugarer typeDesugarer = new TypeDesugarer();
+    typeDesugarer.symbolTable(st);
+    typeDesugarer.globalsCollector(gc);
+    ast = (Program) ast.eval(typeDesugarer);
+    errors = typeDesugarer.errors();
+    if (!errors.isEmpty()) return errors;
     
     // check implementations
     ImplementationChecker ic = new ImplementationChecker();
