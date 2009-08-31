@@ -8,19 +8,24 @@ import freeboogie.ast.*;
 
 /** Desugars type synonyms by applying substitutions. */
 public class TypeDesugarer extends Transformer {
-  private List<FbError> errors;
+  private List<FbError> errors = Lists.newArrayList();
   private SymbolTable st;
+  private GlobalsCollector gc;
 
   /* The following two are used to detect and report cycles in
      type synonyms. */
   private Set<UserType> seenSet = Sets.newHashSet();
   private Deque<UserType> seenStack = new ArrayDeque<UserType>();
 
+  public void symbolTable(SymbolTable st) { this.st = st; }
+  public void globalsCollector(GlobalsCollector gc) { this.gc = gc; }
+  public List<FbError> errors() { return Lists.newArrayList(errors); }
+
   /* Takes care of removing type synonyms from the AST. */
   @Override public Program eval(Program program) {
     seenSet.clear();
     seenStack.clear();
-    errors = Lists.newArrayList();
+    errors.clear();
 
     ImmutableList.Builder<TypeDecl> typeDecl = ImmutableList.builder();
     for (TypeDecl td : program.types())
@@ -39,11 +44,9 @@ public class TypeDesugarer extends Transformer {
   }
 
   @Override public Type eval(UserType userType) {
-    Type result = userType;
-
     // Check if this is a type synonym.
     TypeDecl td = getTypeDeclaration(userType);
-    if (td.type() == null) {
+    if (td == null || td.type() == null) {
       // If not, then just process the children.
       return (Type) super.eval(userType);
     }
@@ -68,15 +71,14 @@ public class TypeDesugarer extends Transformer {
       for (UserType ut : st.typeVars.usages(tv.next()))
         toSubstitute.put(ut, et);
     }
-    result = (Type) td.type().eval(new Substitutor(toSubstitute));
+System.out.println(userType.name() + " " + toSubstitute.size());
+    Type result = (Type) td.type().eval(new Substitutor(toSubstitute));
 
     // Repeat.
     return (Type) result.eval(this);
   }
 
-  // TODO(radugrigore): use the name of userType (so that things
-  //   returned by Substitutor are processed correctly)
   private TypeDecl getTypeDeclaration(UserType userType) {
-    return st.types.def(userType);
+    return gc.typeDef(userType.name());
   }
 }
