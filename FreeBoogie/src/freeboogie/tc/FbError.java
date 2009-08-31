@@ -41,7 +41,7 @@ public class FbError {
     TOO_FAT("The width of this integer (%) is too big."),
     TV_ALREADY_DEF("Type variable % already defined."),
     TYPE_ARGS_MISMATCH("There are %0 arguments instead of %2. See %1."),
-    TYPE_CYCLE("Cyclic type synonyms involving %."),
+    TYPE_CYCLE("Cyclic type synonyms."),
     UNDECL_ID("Undeclared identifier %."),
     UNREACHABLE("Command is unreachable. %");
 

@@ -5,12 +5,13 @@ import java.util.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import genericutils.SimpleGraph;
 
 import freeboogie.ast.*;
 
 /**
  * Collects information about global names.
- * Reports any duplicate names.
+ * Reports duplicate (global) names and cycles in type synonyms.
  * 
  * @author rgrig 
  */
@@ -19,6 +20,10 @@ public class GlobalsCollector extends Transformer {
   
   // the namespace of user defined types
   private HashMap<String, TypeDecl> types = Maps.newHashMap();
+
+  // used to detect cycles in type synonyms
+  private SimpleGraph<String> typeSynonyms;
+  private String currentTypeDecl;
   
   // the namespace of procedures and functions
   private HashMap<String, Procedure> procs = Maps.newHashMap();
@@ -38,6 +43,7 @@ public class GlobalsCollector extends Transformer {
     consts.clear();
     vars.clear();
     errors.clear();
+    typeSynonyms = new SimpleGraph<String>();
   }
   
   /**
@@ -154,6 +160,11 @@ public class GlobalsCollector extends Transformer {
   // === the visiting functions ===
   @Override public void see(TypeDecl typeDecl) {
     addTypeDef(typeDecl.name(), typeDecl);
+    typeSynonyms.node(typeDecl.name());
+    if (typeDecl.type() != null) {
+      currentTypeDecl = typeDecl.name();
+      typeDecl.type().eval(this);
+    }
   }
 
   @Override public void see(ConstDecl constDecl) {
@@ -171,6 +182,12 @@ public class GlobalsCollector extends Transformer {
   @Override public void see(Procedure procedure) {
     addProcDef(procedure.sig().name(), procedure);
   }
+
+  @Override public void see(UserType userType) {
+    // We are in the rhs of a currentTypeDecl
+    typeSynonyms.edge(currentTypeDecl, userType.name());
+    AstUtils.evalListOfType(userType.typeArgs(), this);
+  }
   
   // === visit methods that skip places that might contain local variable decls ===
   @Override public void see(Program program) {
@@ -179,5 +196,9 @@ public class GlobalsCollector extends Transformer {
     AstUtils.evalListOfConstDecl(program.constants(), this);
     AstUtils.evalListOfFunctionDecl(program.functions(), this);
     AstUtils.evalListOfProcedure(program.procedures(), this);
+    if (typeSynonyms.hasCycle()) {
+      // TODO(radugrigore): Better error message.
+      errors.add(new FbError(FbError.Type.TYPE_CYCLE, program));
+    }
   }
 }

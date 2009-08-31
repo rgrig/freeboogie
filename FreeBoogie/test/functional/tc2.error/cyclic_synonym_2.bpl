@@ -1,3 +1,3 @@
-type A a a = A (A a a) (A a a);
+type A a b = A (A a b) (A a b);
 
 procedure p() returns (x : A int) {}

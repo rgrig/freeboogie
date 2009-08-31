@@ -1,8 +1,6 @@
 package freeboogie.tc;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import com.google.common.collect.*;
 
@@ -10,13 +8,20 @@ import freeboogie.ast.*;
 
 /** Desugars type synonyms by applying substitutions. */
 public class TypeDesugarer extends Transformer {
-  private Map<Identifier, Type> toSubstitute = Maps.newHashMap();
-  private List<FbError> errors = Lists.newArrayList();
-  private Set<UserType> seen = Sets.newHashSet();
+  private List<FbError> errors;
   private SymbolTable st;
+
+  /* The following two are used to detect and report cycles in
+     type synonyms. */
+  private Set<UserType> seenSet = Sets.newHashSet();
+  private Deque<UserType> seenStack = new ArrayDeque<UserType>();
 
   /* Takes care of removing type synonyms from the AST. */
   @Override public Program eval(Program program) {
+    seenSet.clear();
+    seenStack.clear();
+    errors = Lists.newArrayList();
+
     ImmutableList.Builder<TypeDecl> typeDecl = ImmutableList.builder();
     for (TypeDecl td : program.types())
       if (td.type() == null) typeDecl.add(td);
@@ -33,50 +38,45 @@ public class TypeDesugarer extends Transformer {
         program.loc());
   }
 
-  // TODO(radugrigore): nicer error for cycles
-  // TODO(radugrigore): make sure that toSubstitute doesn't need nested scopes.
   @Override public Type eval(UserType userType) {
-    ImmutableList<Type> typeArgs = userType.typeArgs();
+    Type result = userType;
 
-    // Check for cycles.
-    if (seen.contains(userType)) {
+    // Check if this is a type synonym.
+    TypeDecl td = getTypeDeclaration(userType);
+    if (td.type() == null) {
+      // If not, then just process the children.
+      return (Type) super.eval(userType);
+    }
+
+    // Check if a correct number of arguments is provided.
+    if (userType.typeArgs().size() != td.typeArgs().size()) {
       errors.add(new FbError(
-          FbError.Type.TYPE_CYCLE, 
-          userType, 
-          userType.name()));
+          FbError.Type.TYPE_ARGS_MISMATCH,
+          userType,
+          userType.typeArgs().size(),
+          td,
+          td.typeArgs().size()));
       return userType;
     }
 
-    // Replace type variables by their real type.
-    Identifier tv = st.typeVars.def(userType);
-    if (tv != null) {
-      if (!typeArgs.isEmpty()) {
-        errors.add(new FbError(
-            FbError.Type.TYPE_ARGS_MISMATCH, 
-            userType, 
-            userType.typeArgs().size(),
-            tv.loc(),
-            0));
-      }
-      return (Type) toSubstitute.get(tv).eval(this);
+    // Do one substitution.
+    Map<Ast, Ast> toSubstitute = Maps.newHashMap();
+    UnmodifiableIterator<Identifier> tv = td.typeArgs().iterator();
+    UnmodifiableIterator<Type> ta = userType.typeArgs().iterator();
+    while (tv.hasNext()) {
+      Type et = ta.next();
+      for (UserType ut : st.typeVars.usages(tv.next()))
+        toSubstitute.put(ut, et);
     }
+    result = (Type) td.type().eval(new Substitutor(toSubstitute));
 
-    // Replace type synonyms by their real type.
-    ImmutableList<Type> newTypeArgs = AstUtils.evalListOfType(typeArgs, this);
-    TypeDecl td = st.types.def(userType);
-    Type t = td.type();
-    if (t != null) {
-      UnmodifiableIterator<Identifier> formals = td.typeArgs().iterator();
-      UnmodifiableIterator<Type> actuals = userType.typeArgs().iterator();
-      while (formals.hasNext()) 
-        toSubstitute.put(formals.next(), actuals.next());
-      return (Type) t.eval(this);
-    }
+    // Repeat.
+    return (Type) result.eval(this);
+  }
 
-    // Otherwise, just keep the result of the recursive
-    // processing of children.
-    if (newTypeArgs != typeArgs)
-      userType = UserType.mk(userType.name(), newTypeArgs, userType.loc());
-    return userType;
+  // TODO(radugrigore): use the name of userType (so that things
+  //   returned by Substitutor are processed correctly)
+  private TypeDecl getTypeDeclaration(UserType userType) {
+    return st.types.def(userType);
   }
 }
