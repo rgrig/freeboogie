@@ -113,13 +113,16 @@ public class Main {
     if (opt.getFiles().isEmpty())
       normal("Nothing to do. Try --help.");
     for (File f : opt.getFiles()) {
-      verbose("Processing " + f.getPath());
-      if (!parse(f)) continue;
-      if (!typecheck()) continue;
-      for (Transformer t : stages) {
-        debug("  Stage: " + t.name());
-        boogie = t.process(boogie, tc);
-        dumpState(t.name());
+      try {
+        verbose("Processing " + f.getPath());
+        if (!parse(f)) continue;
+        for (Transformer t : stages) {
+          debug("  Stage: " + t.name());
+          boogie = t.process(boogie, tc);
+          dumpState(t.name());
+        }
+      } catch (ErrorsFoundException e) {
+        e.report();
       }
     }
   }
@@ -147,9 +150,7 @@ public class Main {
 
     // Initialize the Boogie transformers.
     stages = Lists.newArrayList();
-    stages.add(new Transformer() { @Override public String name() {
-      return "Parsing";
-    }}); // dummy transformer to report state immediately after parsing
+    if (opt.getDesugarTypeSynonyms()) stages.add(new TypeDesugarer());
     if (opt.getMakeHavoc()) stages.add(new HavocMaker());
     if (opt.getCutLoops()) stages.add(new LoopCutter());
     if (opt.getDesugarCalls()) stages.add(new CallDesugarer());
@@ -183,11 +184,6 @@ public class Main {
       boogie = null;
     }
     return boogie != null;
-  }
-
-  private boolean typecheck() {
-    if (FbError.reportAll(tc.process(boogie))) return false;
-    return true;
   }
 
   private void dumpState(String stageName) {

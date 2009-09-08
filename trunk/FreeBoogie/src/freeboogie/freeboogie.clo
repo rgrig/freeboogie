@@ -81,6 +81,7 @@ ARGS::
   DesugarCalls :{} :[default="true"]
   DesugarHavoc :{} :[default="true"]
   DesugarSpec :{} :[default="true"]
+  DesugarTypeSynonyms :{} :[default="true"]
   Passivate :{} :[default="true"]
   DoVcGen :{} :[default="true"]
 

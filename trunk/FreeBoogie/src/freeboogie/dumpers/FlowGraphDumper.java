@@ -23,6 +23,11 @@ import freeboogie.tc.TcInterface;
 public class FlowGraphDumper extends Transformer {
   private File directory;
 
+  @Override public Program process(Program program, TcInterface typechecker) {
+    program.eval(this);
+    return program;
+  }
+
   public void directory(File directory) {
     Preconditions.checkArgument(directory.exists());
     this.directory = directory;

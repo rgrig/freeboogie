@@ -13,6 +13,7 @@ import genericutils.Err;
 
 import freeboogie.Main;
 import freeboogie.ast.*;
+import freeboogie.tc.TcInterface;
 
 /**
  * Prints AST nodes in a readable (and parseable) way.
@@ -87,6 +88,11 @@ public class PrettyPrinter extends Transformer {
     skipVar = 0;
     prefixByBq = false;
     initConstants();
+  }
+
+  @Override public Program process(Program program, TcInterface typechecker) {
+    program.eval(this);
+    return program;
   }
 
   public void writer(Writer writer) {
@@ -413,7 +419,8 @@ public class PrettyPrinter extends Transformer {
       say(" ");
     }
     say(ast.name());
-    // TODO: print space-separated typeArgs
+    say(" ");
+    printList(" ", ast.typeArgs());
     if (ast.type ()!= null) {
       say(" = ");
       ast.type().eval(this);
@@ -427,8 +434,11 @@ public class PrettyPrinter extends Transformer {
   }
 
   @Override public void see(UserType ast) {
+    say("(");
     say(ast.name());
-    // TODO: print space-separated typeArgs
+    say(" ");
+    printList(" ", ast.typeArgs());
+    say(")");
   }
 
   @Override public void see(VariableDecl ast) {

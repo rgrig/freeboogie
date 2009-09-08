@@ -18,7 +18,6 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   private StackedHashMap<String, VariableDecl> localVarDecl;
   private StackedHashMap<String, Identifier> typeVarDecl;
 
-  private Program p;
   private SymbolTable symbolTable;
   private GlobalsCollector gc;
   
@@ -35,18 +34,20 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
    * @return a list with the problems detected
    */
   @Override
-  public List<FbError> process(Program p) {
+  public Program process(Program p, TcInterface typechecker) 
+  throws ErrorsFoundException {
+    typechecker = null; // NOT used later
     localVarDecl = new StackedHashMap<String, VariableDecl>();
     typeVarDecl = new StackedHashMap<String, Identifier>();
     symbolTable = new SymbolTable();
     gc = new GlobalsCollector();
     lookInLocalScopes = true;
     errors = gc.process(p);
-    this.p = (Program) p.eval(this);
-    return errors;
+    p = (Program) p.eval(this);
+    if (!errors.isEmpty()) throw new ErrorsFoundException(errors);
+    return p;
   }
 
-  @Override public Program ast() { return p; }
   @Override public SymbolTable st() { return symbolTable; }
   @Override public GlobalsCollector gc() { return gc; }
   
