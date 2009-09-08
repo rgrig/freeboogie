@@ -15,6 +15,7 @@
     classpath="/usr/share/java/checkstyle.jar:/usr/share/java/antlr.jar:/usr/share/java/commons-beanutils.jar:/usr/share/java/commons-collections.jar:/usr/share/java/commons-logging.jar" />
 
   <!-- set global properties for this build -->
+  <!-- TODO(radugrigore): move these into a .properties file -->
   <property name="debug" value="yes" />
   <property name="version" value="0.2"/>
   <property name="genericutils-jar" value="genericutils-0.1.jar"/>
@@ -22,34 +23,40 @@
   <property name="astgen-jar" value="astgen-0.2.jar"/>
   <property name="clops-jar" value="clops-runtime.jar"/>
   <property name="jline-jar" value="jline-0.9.94.jar"/>
-  <property name="ast-dir" location="src/freeboogie/ast" />
-  <property name="parser-dir" location="src/freeboogie/parser" />
   <property name="gcollect-jar" value="google-collect-1.0-rc1.jar"/>
   <property name="junit_src" location="test/junit" />
   <property name="junit_reports" location="test/junit/reports"/>
+  <property name="ast-dir" value="freeboogie/ast" />
+  <property name="parser-dir" value="freeboogie/parser" />
+  <property name="cli-dst-dir" location="generated-src/freeboogie/cli" />
   <path id="classpath">
     <fileset dir="lib" includes="*.jar" />
     <pathelement path="classes"  />
   </path>
 
+  <!-- properties computed from basic ones -->
+  <property name="ast-src-dir" location="src/${ast-dir}"/>
+  <property name="ast-dst-dir" location="generated-src/${ast-dir}"/>
+  <property name="parser-src-dir" location="src/${parser-dir}"/>
+  <property name="parser-dst-dir" location="generated-src/${parser-dir}"/>
+
   <!-- code generation and related -->
   <target name="generate_ast" depends="clean_ast" 
     description="generates AST">
-    <mkdir dir="classes" />
-    <java fork="yes" dir="${ast-dir}" jar="lib/${astgen-jar}">
-      <arg value="fb.ag" />
-      <arg value="classes.tpl" />
-      <arg value="evaluator.tpl" />
-      <arg value="transformer.tpl" />
-      <arg value="substitutor.tpl" />
-      <arg value="html.tpl" />
-      <arg value="list.tpl" />
-      <arg value="utils.tpl" />
+    <mkdir dir="${ast-dst-dir}" />
+    <java fork="yes" dir="${ast-dst-dir}" jar="lib/${astgen-jar}">
+      <arg value="${ast-src-dir}/fb.ag" />
+      <arg value="${ast-src-dir}/classes.tpl" />
+      <arg value="${ast-src-dir}/evaluator.tpl" />
+      <arg value="${ast-src-dir}/transformer.tpl" />
+      <arg value="${ast-src-dir}/substitutor.tpl" />
+      <arg value="${ast-src-dir}/html.tpl" />
+      <arg value="${ast-src-dir}/utils.tpl" />
     </java>
   </target>
 
   <target name="generate_ast_picture" depends="generate_ast">
-    <exec dir="${ast-dir}" executable="dot">
+    <exec dir="${ast-dst-dir}" executable="dot">
       <arg value="-Tgif" />
       <arg value="hierarchy.dot" />
       <arg value="-o" />
@@ -58,19 +65,21 @@
   </target>
 
   <target name="generate_parser">
-    <java fork="yes" dir="${parser-dir}" classname="org.antlr.Tool">
+    <mkdir dir="${parser-dst-dir}" />
+    <java fork="yes" dir="${parser-dst-dir}" classname="org.antlr.Tool">
       <classpath refid="classpath" />
-      <arg value="Fb.g" />
+      <arg value="-o"/><arg value="${parser-dst-dir}"/>
+      <arg value="${parser-src-dir}/Fb.g" />
     </java>
   </target>
 
   <target name="generate_cli_parser">
-    <mkdir dir="src/freeboogie/cli" />
+    <mkdir dir="${cli-dst-dir}" />
     <java fork="yes" classname="ie.ucd.clops.dsl.Main" output="clops.log">
       <assertions><enable/></assertions>
       <classpath refid="classpath"/>
-      <arg value="-o=src/freeboogie/cli"/>
-      <arg value="-t=src/freeboogie/cli"/>
+      <arg value="-o=${cli-dst-dir}"/>
+      <arg value="-t=${cli-dst-dir}"/>
       <arg value="-b=html"/>
       <arg value="-c=src/freeboogie/usage.vm"/>
       <arg value="-p=freeboogie.cli"/>
@@ -87,8 +96,9 @@
       name="compile"
       depends="generate_code"
       description="compile the source ">
+    <mkdir dir="classes"/>
     <javac 
-        srcdir="src"
+        srcdir="src:generated-src"
         destdir="classes" 
         optimize="yes"
         debug="${debug}">
@@ -180,24 +190,15 @@
 
   <!-- Cleanup targets -->
   <target name="clean_ast" description="removes AST generated files">
-    <delete>
-      <fileset dir="${ast-dir}" includesfile="${ast-dir}/generated.list"/>
-    </delete>
+    <delete dir="${ast-dst-dir}" />
   </target>
 
   <target name="clean" depends="clean_ast" description="clean up">
     <delete dir="classes" />
+    <delete dir="generated-src"/>
     <delete dir="dist" />
     <delete dir="docs/api" />
-    <delete dir="src/freeboogie/cli" />
     <delete file="clops.log"/>
-    <delete>
-      <!-- ANTLR generated files -->
-      <fileset dir="src/freeboogie/parser" includes="FbParser.java" />
-      <fileset dir="src/freeboogie/parser" includes="FbLexer.java" />
-      <fileset dir="src/freeboogie/parser" includes="Fb.tokens" />
-      <fileset dir="src/freeboogie/parser" includes="*.gl" />
-    </delete>
     <delete includeEmptyDirs="true" quiet="true">
       <!-- files generated by testing -->
       <fileset dir="test/functional" includes="**/diff.*" />
