@@ -46,7 +46,8 @@ public class Transformer extends Evaluator<Ast> {
     return getClass().getName();
   }
 
-  public Program process(Program p, TcInterface tc) {
+  public Program process(Program p, TcInterface tc) 
+  throws ErrorsFoundException {
     this.tc = tc;
     return TypeUtils.internalTypecheck((Program)p.eval(this), tc);
   }

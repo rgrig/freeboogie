@@ -1,4 +1,4 @@
-package freeboogie;
+package freeboogie.ast;
 
 import java.util.ArrayList;
 import java.util.List;

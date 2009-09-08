@@ -10,7 +10,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.UnmodifiableIterator;
 import genericutils.*;
 
-import freeboogie.ErrorsFoundException;
 import freeboogie.ast.*;
 import freeboogie.astutil.TreeChecker;
 //}}}
@@ -87,8 +86,6 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   /// END data members }}}
 
   // BEGIN public interface {{{
-  @Override public Program ast() { return ast; }
-
   /** 
    * Returns implicit specializations deduced/used by the typechecker
    * at various points in the AST. If later you want to check the
@@ -98,9 +95,9 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   public Map<Ast, Map<Identifier, Type>> implicitSpec() {
     return implicitSpec;
   }
-  
+ 
   @Override
-  public List<FbError> process(Program ast) {
+  public Program process(Program ast) throws ErrorsFoundException {
     assert new TreeChecker().isTree(ast) : "AST is a dag instead of a tree";
 
     tvLevel = 0; // DBG
@@ -110,35 +107,22 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     implicitSpec = Maps.newHashMap();
     
     // build symbol table
-    StbInterface stb = new SymbolTableBuilder();
-    errors = stb.process(ast);
-    if (!errors.isEmpty()) return errors;
-    ast = stb.ast();
+    SymbolTableBuilder stb = new SymbolTableBuilder();
+    ast = stb.process(ast, null);
     st = stb.st();
     gc = stb.gc();
-
-    // Desugar type synonyms.
-    // TODO(radugrigore): This messes up the results of STB (including GC)
-    //   which are used later, and yet relies on the results of those in
-    //   the first place.
-    TypeDesugarer typeDesugarer = new TypeDesugarer();
-    typeDesugarer.symbolTable(st);
-    typeDesugarer.globalsCollector(gc);
-    ast = (Program) ast.eval(typeDesugarer);
-    errors = typeDesugarer.errors();
-    if (!errors.isEmpty()) return errors;
-    
+   
     // check implementations
     ImplementationChecker ic = new ImplementationChecker();
     errors.addAll(ic.process(ast, gc));
-    if (!errors.isEmpty()) return errors;
+    if (!errors.isEmpty()) throw new ErrorsFoundException(errors);
     implProc = ic.implProc();
     paramMap = ic.paramMap();
     
     // check blocks
     flowGraphs = new FlowGraphMaker();
     errors.addAll(flowGraphs.process(ast));
-    if (!errors.isEmpty()) return errors;
+    if (!errors.isEmpty()) throw new ErrorsFoundException(errors);
 
     // do the typecheck
     AstUtils.evalListOfAxiom(ast.axioms(), this);
@@ -146,8 +130,10 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     AstUtils.evalListOfConstDecl(ast.constants(), this);  // for 'where'
     AstUtils.evalListOfProcedure(ast.procedures(), this);
     AstUtils.evalListOfImplementation(ast.implementations(), this);
-    this.ast = ast;
-    return errors;
+
+    if (!errors.isEmpty()) throw new ErrorsFoundException(errors);
+
+    return ast;
   }
 
   @Override

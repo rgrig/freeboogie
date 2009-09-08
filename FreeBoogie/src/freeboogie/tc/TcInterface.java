@@ -4,22 +4,24 @@ import java.util.*;
 
 import genericutils.SimpleGraph;
 
-import freeboogie.ErrorsFoundException;
 import freeboogie.ast.*;
 
 /**
- * Interface for type-checkers.
- *
- * Users call {@code process} on an AST and they get back a
- * list of type errors. Additional information can be queried
- * using the other methods. Note in particular the method {@code
- * getAST()}: It is possible for an implementation to modify the
- * AST, and in that case all the provided information referrs to
- * the modified AST.
- *
- * This behaves as a Facade for the package.
- *
- * @author rgrig
+  Interface for type-checkers.
+ 
+  Users call {@code process} on an AST and they get back a
+  list of type errors. Additional information can be queried
+  using the other methods. Note in particular the method {@code
+  getAST()}: It is possible for an implementation to modify the
+  AST, and in that case all the provided information referrs to
+  the modified AST.
+ 
+  This behaves as a Facade for the package.
+
+  TODO(radugrigore): this should be removed in the favor of 
+      DecoratedProgramInterface
+ 
+  @author rgrig
  */
 public interface TcInterface {
   /**
@@ -27,7 +29,7 @@ public interface TcInterface {
    * @param ast the AST to check
    * @return the detected errors 
    */
-  List<FbError> process(Program p);
+  Program process(Program p) throws ErrorsFoundException;
 
   /**
    * Returns the flow graph of {@code bdy}.
@@ -59,12 +61,5 @@ public interface TcInterface {
    * @return the symbol table
    */
   SymbolTable st(); 
-
-  /**
-   * Returns the (possibly modified) AST that was last processed.
-   * @return the last processed AST
-   */
-  Program ast();
-  
 }
 

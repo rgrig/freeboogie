@@ -157,7 +157,10 @@ public final class TypeUtils {
    * error if the typecheck fails.
    */
   public static Program internalTypecheck(Program ast, TcInterface tc) {
-    if (FbError.reportAll(tc.process(ast))) {
+    try {
+      ast = tc.process(ast);
+    } catch (ErrorsFoundException e) {
+      e.report();
       PrintWriter pw = new PrintWriter(System.out);
       PrettyPrinter pp = new PrettyPrinter();
       pp.writer(pw);
@@ -165,6 +168,6 @@ public final class TypeUtils {
       pw.flush();
       Err.internal("Invalid Boogie produced.");
     }
-    return tc.ast();
+    return ast;
   }
 }
