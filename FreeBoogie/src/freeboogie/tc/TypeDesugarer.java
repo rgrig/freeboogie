@@ -77,8 +77,9 @@ public class TypeDesugarer extends Transformer {
     UnmodifiableIterator<Type> ta = userType.typeArgs().iterator();
     while (tv.hasNext()) {
       Type et = ta.next();
-      for (UserType ut : st.typeVars.usages(tv.next()))
+      for (UserType ut : st.typeVars.usages(tv.next())) {
         toSubstitute.put(ut, et);
+      }
     }
     Type result = (Type) td.type().eval(new Substitutor(toSubstitute)).clone();
 

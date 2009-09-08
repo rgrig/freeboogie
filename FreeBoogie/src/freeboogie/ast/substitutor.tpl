@@ -26,7 +26,25 @@ public class Substitutor extends Transformer {
   \classes{\if_terminal{
     @Override public Ast eval(\ClassName \className) {
       Ast r = subst.get(\className);
-      return r == null ? \className : r;
+      if (r != null) return r;
+      boolean sameChildren = true;
+      \members{
+        \mt \memberName;
+        \if_primitive{
+          \memberName = \className.\memberName();
+        }{
+          \if_tagged{list}{
+            \memberName = AstUtils.evalListOf\MemberType(
+                \className.\memberName(), this);
+          }{
+            \memberName = \className.\memberName() == null? 
+              null :
+              (\MemberType) \className.\memberName().eval(this);
+          }
+          sameChildren &= \memberName == \className.\memberName();
+        }
+      }
+      return sameChildren? \className : \ClassName.mk(\members[,]{\memberName}, \className.loc());
     }
   }{}}
 }

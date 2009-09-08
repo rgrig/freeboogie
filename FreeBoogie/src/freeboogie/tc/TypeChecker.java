@@ -114,7 +114,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
    
     // check implementations
     ImplementationChecker ic = new ImplementationChecker();
-    errors.addAll(ic.process(ast, gc));
+    errors = ic.process(ast, gc);
     if (!errors.isEmpty()) throw new ErrorsFoundException(errors);
     implProc = ic.implProc();
     paramMap = ic.paramMap();

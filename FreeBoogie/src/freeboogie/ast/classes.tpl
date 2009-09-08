@@ -126,6 +126,7 @@ public \if_terminal{final}{abstract} class \ClassName extends \BaseName {
 
 \if_terminal{
   public String toString() {
-    return "[\ClassName " + \members[ + " " + ]{\memberName} + "]";
+    return "[\ClassName<" + hash() + 
+        "> "+ \members[ + " " + ]{\memberName} + "]";
   }
 }{}}

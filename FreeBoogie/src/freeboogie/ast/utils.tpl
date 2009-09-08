@@ -7,7 +7,11 @@ vim:ft=java:
 /** Do NOT edit. See utils.tpl instead. */
 package freeboogie.ast;
 
+import java.io.PrintWriter;
+
 import com.google.common.collect.ImmutableList;
+
+import freeboogie.astutil.PrettyPrinter;
 
 /** Provides shorthands for common operations in transformers. */
 public class AstUtils {
@@ -62,5 +66,13 @@ public class AstUtils {
 
   public static BinaryOp mkImplies(Expr lhs, Expr rhs) {
     return BinaryOp.mk(BinaryOp.Op.IMPLIES, lhs, rhs);
+  }
+
+  public static void print(Ast ast) {
+    PrintWriter pw = new PrintWriter(System.out);
+    PrettyPrinter pp = new PrettyPrinter();
+    pp.writer(pw);
+    ast.eval(pp);
+    pw.flush();
   }
 }
