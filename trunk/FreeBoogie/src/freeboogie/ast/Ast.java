@@ -49,4 +49,9 @@ public abstract class Ast implements Cloneable {
    * Returns a clone of this AST.
    */
   abstract public Ast clone();
+
+  /** Used for debugging. */
+  public String hash() {
+    return String.format("%03x", (hashCode() * -1717986919) >>> 20);
+  }
 }
