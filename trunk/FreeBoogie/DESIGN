@@ -103,5 +103,35 @@ after each phase. This way the output is more detailed and, being
 organized in directories and files, it's easy to run tools like
 dot on them directly.
 
+[2 September 2009] The pipeline organization of FreeBoogie
+appears explicitly in freeboogie.Main as the array of
+transformers called |stages|. These are called one by one in
+sequence. The call has the form
+  program = transformer.process(program, typechecker)
+The typechecker is given as a parameters so that (1) it is used
+to extract information about the program and (2) it is updated
+to reflect the new program. Note that there is an asymmetry
+between how the program and the typechecker are handled, even
+though they should be modified in sync by the transformer.
+This is ugly. Fixing it completely requires more time than
+I have now, but ugliness points to a more serious problem:
+Since the program is immutable the new version shares a lot (of
+memory) with the old version, but the information held by the new
+typechecker is (almost) completely recomputed! That is something
+we definitely *don't* want. (Note that if each phase creates a
+constant number of AST nodes then the recomputing approach takes
+time quadratic in the number of phases, while linear time is
+possible.) The solution is obviously *not* to recompute what is
+known. The typechecker itself already does this (by reusing the
+caching mechanism in Evaluator) but not SymbolTableBuilder and
+GlobalsCollector. So, I will add caching to these two.
+
+A proper solution (the one I don't have time for now) is to
+turn the typechecker into (1) a persistent data structure and
+(2) the code that computes the persistent data structure using
+memoization. This way the information that should be forgotten
+will be collected by the garbage collector.
+
+
 
 vim:spell:fdm=manual:
