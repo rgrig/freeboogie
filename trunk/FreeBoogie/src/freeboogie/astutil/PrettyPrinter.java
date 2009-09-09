@@ -441,6 +441,12 @@ public class PrettyPrinter extends Transformer {
     say(")");
   }
 
+  @Override public void see(TupleType ast) {
+    say("(");
+    printList(", ", ast.types());
+    say(")");
+  }
+
   @Override public void see(VariableDecl ast) {
     if (skipVar==0) say("var ");
     printList(" ", ast.attributes());
