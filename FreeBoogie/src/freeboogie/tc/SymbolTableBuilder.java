@@ -88,6 +88,7 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
       symbolTable.typeVars.put(userType, tv);
     else
       symbolTable.types.put(userType, check(gc.typeDef(name), name, userType));
+    AstUtils.evalListOfType(userType.typeArgs(), this);
   }
 
   @Override public void see(MapType mapType) {
@@ -188,9 +189,12 @@ public class SymbolTableBuilder extends Transformer implements StbInterface {
   
   @Override public void see(Quantifier atomQuant) {
     localVarDecl.push();
+    typeVarDecl.push();
+    collectTypeVars(typeVarDecl.peek(), atomQuant.typeVariables());
     AstUtils.evalListOfVariableDecl(atomQuant.vars(), this);
     AstUtils.evalListOfAttribute(atomQuant.attributes(), this);
     atomQuant.expression().eval(this);
+    typeVarDecl.pop();
     localVarDecl.pop();
   }
   

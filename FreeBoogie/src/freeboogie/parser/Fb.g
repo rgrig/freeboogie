@@ -549,8 +549,8 @@ scope {
     )?
   | t='old' '(' expr ')'
               { if(ok) $v = OldExpr.mk($expr.v,tokLoc($t)); }
-  | t='(' a=quant_op type_args b=id_type_list '::' c=attributes d=expr ')'
-              { if(ok) $v = Quantifier.mk($a.v,$b.v,$c.v,$d.v,tokLoc($t)); }
+  | t='(' a=quant_op ta=type_args b=id_type_list '::' c=attributes d=expr ')'
+              { if(ok) $v = Quantifier.mk($a.v,$ta.v,$b.v,$c.v,$d.v,tokLoc($t)); }
   | '(' expr ')'  { $v = $expr.v; }
 ;
 

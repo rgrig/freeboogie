@@ -180,6 +180,7 @@ public class MapRemover extends Transformer {
         typeArgs,
         Quantifier.mk(
             Quantifier.QuantType.FORALL,
+            AstUtils.ids(),
             vars,
             ImmutableList.<Attribute>of(),
             expr));
