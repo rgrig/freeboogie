@@ -497,6 +497,11 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   // END visiting operators }}}
   
   // BEGIN visiting expressions {{{
+  @Override public Type eval(Cast cast) {
+    cast.expr().eval(this);
+    return memo(cast, cast.type());
+  }
+
   @Override public Type eval(Identifier id) {
     IdDecl d = st.ids.def(id);
     Type t = errType;
@@ -513,6 +518,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
           "SymbolTableBuilder didn't do its job properly: " + 
           id.id() + "(" + id.loc() + ")";
     }
+    assert t != null;
     return memo(id, t);
   }
 
