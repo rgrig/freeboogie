@@ -76,6 +76,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   // that can contain expressions (e.g., functions, axioms,
   // procedure, implementation, quantifiers)
   private StackedHashMap<Identifier, Identifier> enclosingTypeVar;
+  private boolean ignoreEnclosingTypeVariables;  // used for checking ==
 
   // maps type variables to their binding types
   private StackedHashMap<Identifier, Type> typeVar;
@@ -200,35 +201,35 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     return TupleType.mk(builder.build());
   }
 
-  private boolean sub(PrimitiveType a, PrimitiveType b) {
+  private boolean eq(PrimitiveType a, PrimitiveType b) {
     return a.ptype() == b.ptype();
   }
   
-  private boolean sub(MapType a, MapType b) {
-    if (!sub(b.idxTypes(), a.idxTypes())) return false;  // contravariant
-    return sub(a.elemType(), b.elemType()); // covariant
+  private boolean eq(MapType a, MapType b) {
+    if (!eq(b.idxTypes(), a.idxTypes())) return false;  // contravariant
+    return eq(a.elemType(), b.elemType()); // covariant
   }
   
-  private boolean sub(UserType a, UserType b) {
-    return a.name().equals(b.name()) && sub(a.typeArgs(), b.typeArgs());
+  private boolean eq(UserType a, UserType b) {
+    return a.name().equals(b.name()) && eq(a.typeArgs(), b.typeArgs());
   }
   
-  private boolean sub(ImmutableList<Type> a, ImmutableList<Type> b) {
+  private boolean eq(ImmutableList<Type> a, ImmutableList<Type> b) {
     if (a.size() != b.size()) return false;
     UnmodifiableIterator<Type> ia = a.iterator();
     UnmodifiableIterator<Type> ib = b.iterator();
-    while (ia.hasNext()) if (!sub(ia.next(), ib.next())) return false;
+    while (ia.hasNext()) if (!eq(ia.next(), ib.next())) return false;
     return true;
   }
 
-  private boolean sub(TupleType a, TupleType b) {
-    return sub(a.types(), b.types());
+  private boolean eq(TupleType a, TupleType b) {
+    return eq(a.types(), b.types());
   }
-  
-  // returns (a <: b)
-  private boolean sub(Type a, Type b) {
+ 
+  /* Checks whether |a| and |b| represent the same type. */ 
+  private boolean eq(Type a, Type b) {
     if (a == b) return true; // the common case
-    if (a == errType || b == errType) return true; // don't trickle up errors
+    if (a == errType || b == errType) return true; // don't bubble up errors
 
     // (t) == t
     a = stripTuple(a);
@@ -244,15 +245,25 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
 
     // the main check
     if (a instanceof PrimitiveType && b instanceof PrimitiveType)
-      return sub((PrimitiveType)a, (PrimitiveType)b);
+      return eq((PrimitiveType)a, (PrimitiveType)b);
     else if (a instanceof MapType && b instanceof MapType)
-      return sub((MapType)a, (MapType)b);
+      return eq((MapType)a, (MapType)b);
     else if (a instanceof UserType && b instanceof UserType) 
-      return sub((UserType)a, (UserType)b);
+      return eq((UserType)a, (UserType)b);
     else if (a instanceof TupleType && b instanceof TupleType)
-      return sub((TupleType) a, (TupleType) b);
+      return eq((TupleType) a, (TupleType) b);
     else
       return false;
+  }
+
+  /* Checks whether |a| and |b| may represent the same type by substituting
+    (some) real types for the type variables they contain. */
+  private boolean possiblyEq(Type a, Type b) {
+    assert !ignoreEnclosingTypeVariables : "no nesting";
+    ignoreEnclosingTypeVariables = true;
+    boolean r = eq(a, b);
+    ignoreEnclosingTypeVariables = false;
+    return r;
   }
 
   private Type stripTuple(Type t) {
@@ -271,9 +282,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     Type nt;
     while (true) {
       ai = getTypeVarDecl(t);
-if (ai == null) System.out.println("NOTDEF " + t + "@" + t.loc());
       if (ai == null || (nt = typeVar.get(ai)) == null) break;
-System.out.println("DEF " + t + "@" + t.loc() + ": " + ai.loc());
       typeVar.put(ai, nt);
       t = nt;
     }
@@ -286,7 +295,6 @@ System.out.println("DEF " + t + "@" + t.loc() + ": " + ai.loc());
   private Type checkRealType(Type t, Ast l) {
     t = substRealType(t);
     if (isTypeVar(t)) {
-System.out.println("!" + l.hash() + ": " + t);
       errors.add(new FbError(FbError.Type.REQ_SPECIALIZATION, l,
             TypeUtils.typeToString(t), t.loc(), getTypeVarDecl(t)));
       t = errType;
@@ -326,7 +334,8 @@ System.out.println("!" + l.hash() + ": " + t);
 
   private boolean isTypeVar(Type t) {
     Identifier ai = getTypeVarDecl(t);
-    return ai != null && enclosingTypeVar.get(ai) == null;
+    return ai != null && 
+        (ignoreEnclosingTypeVariables || enclosingTypeVar.get(ai) == null);
   }
 
   private Identifier getTypeVarDecl(Type t) {
@@ -373,18 +382,14 @@ System.out.println("!" + l.hash() + ": " + t);
    * at location {@code l} is produced and {@code errors} is set.
    */
   private void check(Type a, Type b, Ast l) {
-    if (sub(a, b)) return;
-    errors.add(new FbError(FbError.Type.NOT_SUBTYPE, l,
+    if (eq(a, b)) return;
+    errors.add(new FbError(FbError.Type.BAD_TYPE, l,
           TypeUtils.typeToString(a), TypeUtils.typeToString(b)));
   }
   
-  /**
-   * Same as {@code check}, except it is more picky about the types:
-   * They must be exactly the same.
-   */
-  private void checkExact(Type a, Type b, Ast l) {
-    // BUG? Should || be &&?
-    if (sub(a, b) || sub(b, a)) return;
+  /** Checks that two types may be equal. */
+  private void checkLenient(Type a, Type b, Ast l) {
+    if (possiblyEq(a, b)) return;
     errors.add(new FbError(FbError.Type.BAD_TYPE, l,
           TypeUtils.typeToString(a), TypeUtils.typeToString(b)));
   }
@@ -481,7 +486,7 @@ System.out.println("!" + l.hash() + ": " + t);
     case NEQ:
       // typeOf(l) == typeOf(r) and boolean result
       typeVarEnter(binaryOp);
-      checkExact(l, r, binaryOp);
+      checkLenient(l, r, binaryOp);
       typeVarExit(binaryOp);
       return memo(binaryOp, boolType);
     default:
@@ -546,13 +551,9 @@ System.out.println("!" + l.hash() + ": " + t);
   @Override public Type eval(Quantifier atomQuant) {
     Expr e = atomQuant.expression();
     enclosingTypeVar.push();
-for (Identifier tv : atomQuant.typeVariables())
-System.out.println("+" + tv.hash() + ": " + tv);
     collectEnclosingTypeVars(atomQuant.typeVariables());
     Type t = atomQuant.expression().eval(this);
     check(t, boolType, e);
-for (Identifier tv : atomQuant.typeVariables())
-System.out.println("-" + tv.hash());
     enclosingTypeVar.pop();
     return memo(atomQuant, boolType);
   }
@@ -588,7 +589,6 @@ System.out.println("-" + tv.hash());
     typeVarEnter(atomMapSelect);
     TupleType ait = typeListOfExpr(index);
     TupleType fit = TupleType.mk(at.idxTypes());
-System.out.println("CHECK " + ait + " == " + fit);
     check(ait, fit, atomMapSelect);
     Type et = checkRealType(at.elemType(), atomMapSelect);
     typeVarExit(atomMapSelect);

@@ -106,7 +106,7 @@ procedure foobar3(N:int, X:int) returns () {
   x,a[i]:=x+1,x;
   // err: a[i],a[j]:=a[j],a[i]; // two a-s on the left
   b[i][x,y]:=10;
-  b:=b[i:=b[i][m,n:=10]]; // Boogie typechecker fails here but it seems OK
+  b:=b[i:=b[i][x,y:=10]];
   i:=0;
   while (i<N) {
     if (a[i]==X) {break;} // by default, break out of the innermost while
