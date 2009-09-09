@@ -9,7 +9,6 @@ import com.google.common.collect.UnmodifiableIterator;
 import genericutils.Err;
 
 import freeboogie.ast.*;
-import freeboogie.astutil.PrettyPrinter;
 
 /**
  * Various utilities for handling {@code Type}. For the moment, it contains

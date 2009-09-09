@@ -11,8 +11,6 @@ import java.io.PrintWriter;
 
 import com.google.common.collect.ImmutableList;
 
-import freeboogie.astutil.PrettyPrinter;
-
 /** Provides shorthands for common operations in transformers. */
 public class AstUtils {
   private AstUtils() { /* prevent instantiation and subclassing */ }

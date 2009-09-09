@@ -14,12 +14,10 @@ import org.antlr.runtime.CommonTokenStream;
 import org.antlr.runtime.RecognitionException;
 
 import freeboogie.ast.*;
-import freeboogie.astutil.PrettyPrinter;
 import freeboogie.backend.ProverException;
 import freeboogie.cli.FbCliOptionsInterface;
 import freeboogie.cli.FbCliParser;
 import freeboogie.cli.FbCliUtil;
-import freeboogie.dumpers.FlowGraphDumper;
 import freeboogie.parser.FbLexer;
 import freeboogie.parser.FbParser;
 import freeboogie.tc.*;

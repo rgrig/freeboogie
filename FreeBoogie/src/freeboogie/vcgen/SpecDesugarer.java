@@ -7,7 +7,6 @@ import com.google.common.collect.*;
 import genericutils.*;
 
 import freeboogie.ast.*;
-import freeboogie.astutil.PrettyPrinter;
 import freeboogie.tc.*;
 
 /**

@@ -11,6 +11,7 @@ import freeboogie.tc.*;
 /**
   Gets rid of assignments and "old" expressions by introducing 
   new variables. We assume that
+    (0) break, while, if-s are desugared,
     (1) specs are desugared,
     (2) calls are desugared,
     (3) havocs are desugared,
@@ -325,7 +326,8 @@ public abstract class AbstractPassivator extends Transformer {
         assertAssumeCmd.labels(),
         assertAssumeCmd.type(),
         assertAssumeCmd.typeArgs(),
-        (Expr) assertAssumeCmd.expr().eval(this));
+        (Expr) assertAssumeCmd.expr().eval(this),
+        assertAssumeCmd.loc());
     currentCommand = null;
     return assertAssumeCmd;
   }
@@ -345,7 +347,8 @@ public abstract class AbstractPassivator extends Transformer {
         endOfBodyCommands.addAll(copyCommands);
         endOfBodyCommands.add(GotoCmd.mk(
             noString, 
-            ImmutableList.of(oldTarget)));
+            ImmutableList.of(oldTarget),
+            gotoCmd.loc()));
         newSuccessors.add(endOfBodyCommands.peekFirst().labels().get(0));
       }
     }
@@ -405,10 +408,11 @@ public abstract class AbstractPassivator extends Transformer {
     Integer last = newVarsCnt.get(variableDecl);
     if (last == null) last = 0;
     newVarsCnt.remove(variableDecl);
+    String oldName = variableDecl.name();
     if (inResults) {
       variableDecl = VariableDecl.mk(
           ImmutableList.<Attribute>of(),
-          name(variableDecl.name(), last),
+          name(oldName, last),
           variableDecl.type(),
           variableDecl.typeArgs(),
           variableDecl.where(),
@@ -422,7 +426,7 @@ public abstract class AbstractPassivator extends Transformer {
     for (int i = start; i <= last; ++i) {
       newLocals.add(VariableDecl.mk(
           ImmutableList.<Attribute>of(),
-          name(variableDecl.name(), i),
+          name(oldName, i),
           variableDecl.type().clone(), 
           AstUtils.cloneListOfIdentifier(variableDecl.typeArgs()),
           variableDecl.where(),

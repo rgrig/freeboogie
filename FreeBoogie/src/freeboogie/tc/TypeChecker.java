@@ -10,7 +10,6 @@ import com.google.common.collect.UnmodifiableIterator;
 import genericutils.*;
 
 import freeboogie.ast.*;
-import freeboogie.astutil.TreeChecker;
 
 import static freeboogie.cli.FbCliOptionsInterface.*;
 //}}}
@@ -270,7 +269,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     if (!(t instanceof TupleType)) return t;
     TupleType tt = (TupleType) t;
     if (tt.types().size() != 1) return t;
-    return tt.types().get(0);
+    return stripTuple(tt.types().get(0));
   }
 
   private void collectEnclosingTypeVars(ImmutableList<Identifier> ids) {
