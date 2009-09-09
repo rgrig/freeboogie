@@ -196,6 +196,7 @@ OldExpr =
   Expr! expr;
 Quantifier =
   enum(QuantType: EXISTS, FORALL) quant,
+  [list] Identifier typeVariables,
   [list] VariableDecl vars,
   [list] Attribute attributes,
   Expr! expression;

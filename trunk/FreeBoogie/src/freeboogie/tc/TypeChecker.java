@@ -3,7 +3,6 @@ package freeboogie.tc;
 //{{{ imports
 import java.math.BigInteger;
 import java.util.*;
-import java.util.logging.Logger;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -12,6 +11,8 @@ import genericutils.*;
 
 import freeboogie.ast.*;
 import freeboogie.astutil.TreeChecker;
+
+import static freeboogie.cli.FbCliOptionsInterface.*;
 //}}}
 
 /**
@@ -36,7 +37,8 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   private static final BigInteger MAX_INT = 
       BigInteger.valueOf(Integer.MAX_VALUE);
 
-  private static final Logger log = Logger.getLogger("freeboogie.tc");
+  private static final Logger<LogCategories, LogLevel> log = 
+      Logger.<LogCategories, LogLevel>get("log");
   
   // used for primitive types (so reference equality is used below)
   private static final PrimitiveType boolType = 
@@ -72,7 +74,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   // used as a stack of sets; this must be updated whenever
   // we decend into something parametrized by a generic type
   // that can contain expressions (e.g., functions, axioms,
-  // procedure, implementation)
+  // procedure, implementation, quantifiers)
   private StackedHashMap<Identifier, Identifier> enclosingTypeVar;
 
   // maps type variables to their binding types
@@ -165,6 +167,9 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   // END public interface }}}
   
   // BEGIN helper methods {{{
+  private static void info(String s) {
+    log.say(LogCategories.TYPECHECK, LogLevel.INFO, s);
+  }
   
   // |ast| may be used for debugging
   private void typeVarEnter(Ast ast) { 
@@ -205,7 +210,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   }
   
   private boolean sub(UserType a, UserType b) {
-    return a.name().equals(b.name());
+    return a.name().equals(b.name()) && sub(a.typeArgs(), b.typeArgs());
   }
   
   private boolean sub(ImmutableList<Type> a, ImmutableList<Type> b) {
@@ -266,7 +271,9 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     Type nt;
     while (true) {
       ai = getTypeVarDecl(t);
+if (ai == null) System.out.println("NOTDEF " + t + "@" + t.loc());
       if (ai == null || (nt = typeVar.get(ai)) == null) break;
+System.out.println("DEF " + t + "@" + t.loc() + ": " + ai.loc());
       typeVar.put(ai, nt);
       t = nt;
     }
@@ -279,6 +286,7 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   private Type checkRealType(Type t, Ast l) {
     t = substRealType(t);
     if (isTypeVar(t)) {
+System.out.println("!" + l.hash() + ": " + t);
       errors.add(new FbError(FbError.Type.REQ_SPECIALIZATION, l,
             TypeUtils.typeToString(t), t.loc(), getTypeVarDecl(t)));
       t = errType;
@@ -339,9 +347,9 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     }
     Identifier ai = getTypeVarDecl(a);
     if (getTypeVarDecl(b) != ai) {
-      log.fine("TC: typevar " + ai.id() + "@" + ai.loc() +
-        " == type " + TypeUtils.typeToString(b));
-      assert tvLevel > 0; // you probably need to add typeVarEnter/Exit in some places
+      info("" + ai.id() + "@" + ai.loc() + "==" + TypeUtils.typeToString(b));
+      assert tvLevel > 0 : 
+          "you probably need to add typeVarEnter/Exit in some places";
       typeVar.put(ai, b);
     }
   }
@@ -537,8 +545,15 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
 
   @Override public Type eval(Quantifier atomQuant) {
     Expr e = atomQuant.expression();
+    enclosingTypeVar.push();
+for (Identifier tv : atomQuant.typeVariables())
+System.out.println("+" + tv.hash() + ": " + tv);
+    collectEnclosingTypeVars(atomQuant.typeVariables());
     Type t = atomQuant.expression().eval(this);
     check(t, boolType, e);
+for (Identifier tv : atomQuant.typeVariables())
+System.out.println("-" + tv.hash());
+    enclosingTypeVar.pop();
     return memo(atomQuant, boolType);
   }
 
@@ -571,7 +586,10 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     // look at indexing types
     ImmutableList<Expr> index = atomMapSelect.idx();
     typeVarEnter(atomMapSelect);
-    check(typeListOfExpr(index), TupleType.mk(at.idxTypes()), atomMapSelect);
+    TupleType ait = typeListOfExpr(index);
+    TupleType fit = TupleType.mk(at.idxTypes());
+System.out.println("CHECK " + ait + " == " + fit);
+    check(ait, fit, atomMapSelect);
     Type et = checkRealType(at.elemType(), atomMapSelect);
     typeVarExit(atomMapSelect);
     return memo(atomMapSelect, et);

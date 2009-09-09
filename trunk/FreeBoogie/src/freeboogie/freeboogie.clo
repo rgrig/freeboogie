@@ -60,7 +60,7 @@ ARGS::
     :"Configure where logging should be done. If the file does not exist
       it is created; if the file does exist the new log messages are appended."
   LogCategories :{"--log-categories", "-lc"} :{enum-list} 
-    :[choices="MAIN,VCGEN,PROVER,STATS,BACKEND,AST"]
+    :[choices="MAIN,VCGEN,PROVER,STATS,BACKEND,AST,TYPECHECK"]
     :"Configure what type of information should go in the log file. 
       By default all categories are disabled."
   LogLevel :{"--log-level", "-ll"} :{enum} 
