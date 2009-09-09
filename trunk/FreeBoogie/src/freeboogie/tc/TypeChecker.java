@@ -25,8 +25,7 @@ import freeboogie.astutil.TreeChecker;
   substitutions for type variables. Comparing types is done
   structurally.
   
-  Type checking assumes that (1) a symbot table was built, and
-  (2) type synonyms were desugared.
+  Type checking assumes that type synonyms were desugared.
  
   @author rgrig 
  */
