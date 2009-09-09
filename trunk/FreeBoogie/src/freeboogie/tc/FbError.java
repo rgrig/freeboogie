@@ -35,7 +35,6 @@ public class FbError {
     LE("Condition %0 <= %1 not met."),
     MISSING_BLOCK("Inexistent label %."),
     NEED_ARRAY("Must be a map."),
-    NOT_SUBTYPE("Found type %0 instead of %1."),
     PROC_MISSING("Implementation without procedure."),
     REQ_SPECIALIZATION("Explicit specialization required for %0 at %1."),
     TOO_FAT("The width of this integer (%) is too big."),
