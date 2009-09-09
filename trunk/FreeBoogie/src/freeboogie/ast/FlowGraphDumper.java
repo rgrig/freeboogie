@@ -11,17 +11,17 @@ import genericutils.*;
 import freeboogie.tc.TcInterface;
 
 /**
- * Dumps flow graphs for all implementations in dot format.
- *
- * TODO: Move to freeboogie.astutil and remove this package.
- *
- * @author rgrig 
+  Dumps flow graphs for all implementations in dot format.
+ 
+  @author rgrig 
  */
 @SuppressWarnings("unused") // unused parameters
 public class FlowGraphDumper extends Transformer {
   private File directory;
 
+  /* Don't run the internal typecheck. */
   @Override public Program process(Program program, TcInterface typechecker) {
+    tc = typechecker;
     program.eval(this);
     return program;
   }
@@ -36,7 +36,7 @@ public class FlowGraphDumper extends Transformer {
     PrettyPrinter pp = new PrettyPrinter();
     pp.writer(sw);
     c.eval(pp);
-    return sw.toString();
+    return sw.toString().replaceAll("\n", " ");
   }
 
   @Override public void see(Implementation impl) {
