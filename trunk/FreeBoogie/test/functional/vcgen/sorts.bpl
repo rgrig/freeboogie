@@ -1,5 +1,8 @@
 // equiv2.bpl
 
+type ref;
+type name;
+
 var Heap : [ref, name]int;
 const FIELD : name;
 var x : int, y : int, z : int;

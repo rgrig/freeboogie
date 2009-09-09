@@ -1,4 +1,4 @@
-package freeboogie.dumpers;
+package freeboogie.ast;
 
 import java.io.*;
 import java.util.HashMap;
@@ -8,8 +8,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import genericutils.*;
 
-import freeboogie.ast.*;
-import freeboogie.astutil.PrettyPrinter;
 import freeboogie.tc.TcInterface;
 
 /**

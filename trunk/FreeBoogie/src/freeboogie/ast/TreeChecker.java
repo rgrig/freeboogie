@@ -1,9 +1,6 @@
-package freeboogie.astutil;
+package freeboogie.ast;
 
 import java.util.HashSet;
-
-import freeboogie.ast.Ast;
-import freeboogie.ast.Transformer;
 
 //DBG import java.io.PrintWriter;
 

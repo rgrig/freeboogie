@@ -1,5 +1,8 @@
 // heapsucc0.bpl
 
+type ref;
+type name;
+
 var Heap : [ref, name]int;
 const unique FIELD : name;
 const unique OTHERFIELD : name;

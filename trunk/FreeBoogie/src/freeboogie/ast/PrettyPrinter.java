@@ -1,4 +1,4 @@
-package freeboogie.astutil;
+package freeboogie.ast;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -12,7 +12,6 @@ import com.google.common.collect.Maps;
 import genericutils.Err;
 
 import freeboogie.Main;
-import freeboogie.ast.*;
 import freeboogie.tc.TcInterface;
 
 /**
@@ -349,13 +348,9 @@ public class PrettyPrinter extends Transformer {
   }
 
   private void printSpecs(ImmutableList<? extends Specification> specs) {
-    for (Specification s : specs) {
-      ++indentLevel; 
-      nl();
-      s.eval(this);
-      --indentLevel;
-      nl();
-    }
+    ++indentLevel; 
+    for (Specification s : specs) s.eval(this);
+    --indentLevel;
   }
 
   @Override public void see(Signature ast) {
