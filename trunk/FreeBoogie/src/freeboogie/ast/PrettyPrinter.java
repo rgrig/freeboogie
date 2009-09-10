@@ -122,6 +122,9 @@ public class PrettyPrinter extends Transformer {
   // === the visiting methods ===
   
   @Override public void see(MapType ast) {
+    if (!ast.typeVars().isEmpty()) say("<");
+    printList(", ", ast.typeVars());
+    if (!ast.typeVars().isEmpty()) say(">");
     say("[");
     assert !prefixByBq;
     printList(", ", ast.idxTypes());
@@ -429,11 +432,11 @@ public class PrettyPrinter extends Transformer {
   }
 
   @Override public void see(UserType ast) {
-    say("(");
+    if (!ast.typeArgs().isEmpty()) say("(");
     say(ast.name());
-    say(" ");
+    if (!ast.typeArgs().isEmpty()) say(" ");
     printList(" ", ast.typeArgs());
-    say(")");
+    if (!ast.typeArgs().isEmpty()) say(")");
   }
 
   @Override public void see(TupleType ast) {
