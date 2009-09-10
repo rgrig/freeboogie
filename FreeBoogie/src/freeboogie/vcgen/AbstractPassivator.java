@@ -280,12 +280,14 @@ public abstract class AbstractPassivator extends Transformer {
     return Block.mk(newCommands.build(), block.loc());
   }
 
-  // === visitors ===
+  // BEGIN command visitors {{{
   // Note the return type
   @Override public AssertAssumeCmd eval(AssignmentCmd cmd) {
     trailingCommands = getCopyCommands(
         cmd, 
         currentFG.to(cmd).iterator().next());
+    assert currentCommand == null : "no nesting";
+    currentCommand = cmd;
     Expr assume = BooleanLiteral.mk(BooleanLiteral.Type.TRUE, cmd.loc());
     for (OneAssignment oa : cmd.assignments()) {
       assume = BinaryOp.mk(
@@ -294,12 +296,14 @@ public abstract class AbstractPassivator extends Transformer {
           (Expr) oa.eval(this), 
           cmd.loc());
     }
-    return AssertAssumeCmd.mk(
+    AssertAssumeCmd assumeCmd = AssertAssumeCmd.mk(
         cmd.labels(),
         AssertAssumeCmd.CmdType.ASSUME,
         AstUtils.ids(),
         assume,
         cmd.loc());
+    currentCommand = null;
+    return assumeCmd;
   }
 
   @Override public Expr eval(OneAssignment oneAssignment) {
@@ -385,7 +389,9 @@ public abstract class AbstractPassivator extends Transformer {
     currentCommand = null;
     return callCmd;
   }
+  // END command visitors }}}
 
+  // BEGIN other visitors {{{
   @Override public Expr eval(OldExpr atomOld) {
     Expr expr = atomOld.expr();
     ++belowOld;
@@ -434,6 +440,7 @@ public abstract class AbstractPassivator extends Transformer {
     }
     return variableDecl;
   }
+  // END other visitors }}}
 
   // === helpers ===
   private int getIdx(
