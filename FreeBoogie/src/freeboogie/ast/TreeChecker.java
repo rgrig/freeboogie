@@ -23,16 +23,11 @@ public class TreeChecker extends Transformer {
 
   @Override
   public void enterNode(Ast ast) {
-    /* DBG
+    /*
     if (seen.contains(ast)) {
-      System.out.println("=== BEGIN SHARED");
-      PrintWriter pw = new PrintWriter(System.out);
-      PrettyPrinter pp = new PrettyPrinter(pw);
-      ast.eval(pp);
-      pw.flush();
+      System.out.print("SHARED ");
+      AstUtils.print(ast);
       System.out.println();
-      System.out.println(ast.loc());
-      System.out.println("=== END SHARED");
     }
     */
     duplicateFound |= !seen.add(ast);
