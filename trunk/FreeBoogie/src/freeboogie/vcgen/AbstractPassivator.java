@@ -264,6 +264,7 @@ public abstract class AbstractPassivator extends Transformer {
     newCommands.addAll(endOfBodyCommands);
 
     // NOTE: eval(Implementation) will add newLocals to vars
+    AstUtils.evalListOfVariableDecl(body.vars(), this);
     return Body.mk(
         body.vars(), 
         Block.mk(newCommands.build(), block.loc()),
@@ -421,7 +422,7 @@ public abstract class AbstractPassivator extends Transformer {
           name(oldName, last),
           variableDecl.type(),
           variableDecl.typeArgs(),
-          variableDecl.where(),
+          null,
           variableDecl.loc());
     }
     int start = 1;
@@ -435,7 +436,7 @@ public abstract class AbstractPassivator extends Transformer {
           name(oldName, i),
           variableDecl.type().clone(), 
           AstUtils.cloneListOfIdentifier(variableDecl.typeArgs()),
-          variableDecl.where(),
+          null,
           variableDecl.loc()));
     }
     return variableDecl;
