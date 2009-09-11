@@ -69,8 +69,8 @@ public abstract class ACalculus<T extends Term<T>> {
     flow = tc.flowGraph(bdy);
     log.say(LogCategories.STATS, LogLevel.INFO, "cfg_size " + flow.nodeCount());
     currentBody = bdy;
-    assert flow.isFrozen();
-    assert !flow.hasCycle(); // please cut loops first
+    assert flow.isFrozen() : "please freeze flowgraph first";
+    assert !flow.hasCycle() : "please cut loops first";
     resetCache();
   }
 

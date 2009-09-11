@@ -361,33 +361,12 @@ public abstract class AbstractPassivator extends Transformer {
   }
 
   @Override public HavocCmd eval(HavocCmd havocCmd) {
-    trailingCommands = getCopyCommands(
-        havocCmd, 
-        currentFG.to(havocCmd).iterator().next());
-    assert currentCommand == null; // no nesting
-    currentCommand = havocCmd;
-    havocCmd = HavocCmd.mk(
-        havocCmd.labels(), 
-        AstUtils.evalListOfIdentifier(havocCmd.ids(), this),
-        havocCmd.loc());
-    currentCommand = null;
+    assert false : "HavocCmd is assumed to be desugared.";
     return havocCmd;
   }
 
   @Override public CallCmd eval(CallCmd callCmd) {
-    trailingCommands = getCopyCommands(
-        callCmd,
-        currentFG.to(callCmd).iterator().next());
-    assert currentCommand == null; // no nesting
-    currentCommand = callCmd;
-    callCmd = CallCmd.mk(
-        callCmd.labels(),
-        callCmd.procedure(),
-        callCmd.types(),
-        AstUtils.evalListOfIdentifier(callCmd.results(), this),
-        AstUtils.evalListOfExpr(callCmd.args(), this),
-        callCmd.loc());
-    currentCommand = null;
+    assert false : "CallCmd is assumed to be desugared";
     return callCmd;
   }
   // END command visitors }}}
@@ -476,6 +455,7 @@ public abstract class AbstractPassivator extends Transformer {
               AstUtils.mkId(name(v.name(), ri)),
               AstUtils.mkId(name(v.name(), wi))),
           ca.loc()));
+      labels = null;
     }
     return result;
   }

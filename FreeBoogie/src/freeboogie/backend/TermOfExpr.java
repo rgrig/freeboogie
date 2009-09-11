@@ -127,6 +127,10 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
     return term.mk(prefix + atomFun.function(), tuple(atomFun.args()));
   }
 
+  @Override public T eval(Cast cast) {
+    return cast.expr().eval(this);
+  }
+
   @Override public T eval(Identifier atomId) {
     Type t = st.ids.def(atomId).type();
     if (TypeUtils.isInt(t)) {
