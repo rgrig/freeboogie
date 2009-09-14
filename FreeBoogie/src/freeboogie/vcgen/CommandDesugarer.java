@@ -1,7 +1,6 @@
 package freeboogie.vcgen;
 
-import java.util.ArrayDeque;
-import java.util.HashMap;
+import java.util.*;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -30,7 +29,7 @@ public class CommandDesugarer extends Transformer {
   // These two are used as stacks, because blocks can be nested.
   private Deque<Deque<Command>> equivCmds = 
       new ArrayDeque<Deque<Command>>();
-  private Deque<HashMap<IdDecl, Expr>> toSubstitute =
+  private Deque<Map<IdDecl, Expr>> toSubstitute =
       new ArrayDeque<Map<IdDecl, Expr>>();
 
   // These are the variables that should be added to the body.
@@ -38,11 +37,11 @@ public class CommandDesugarer extends Transformer {
 
   // === interface for subclasses ===
   void addEquivalentCommand(Command c) {
-    equivCmds.add(c);
+    equivCmds.peekFirst().add(c);
   }
 
   void addSubstitution(IdDecl d, Expr e) {
-    toSubstitute.put(d, e);
+    toSubstitute.peekFirst().put(d, e);
   }
 
   void addVariable(VariableDecl vd) {
@@ -59,7 +58,7 @@ public class CommandDesugarer extends Transformer {
   }
 
   @Override public Block eval(Block block) {
-    toSubstitute.addFirst(Maps.newHashMap());
+    toSubstitute.addFirst(new HashMap<IdDecl, Expr>());
     equivCmds.addFirst(new ArrayDeque<Command>());
     ImmutableList.Builder<Command> newCommands = ImmutableList.builder();
     boolean same = true;
@@ -67,7 +66,7 @@ public class CommandDesugarer extends Transformer {
       equivCmds.peekFirst().clear();
         toSubstitute.clear();
         Command nc = (Command) c.eval(this);
-        newCommands.addAll(equivCmds);
+        newCommands.addAll(equivCmds.peekFirst());
         if (nc != null)  newCommands.add(nc);
         same = equivCmds.isEmpty() && nc == c;
     }
@@ -78,7 +77,7 @@ public class CommandDesugarer extends Transformer {
   }
  
   @Override public Expr eval(Identifier atomId) {
-    Expr e = toSubstitute.get(tc.st().ids.def(atomId));
+    Expr e = toSubstitute.peekFirst().get(tc.st().ids.def(atomId));
     return e == null? atomId : e;
   }
 }
