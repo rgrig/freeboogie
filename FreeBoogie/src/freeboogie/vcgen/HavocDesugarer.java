@@ -43,6 +43,7 @@ import freeboogie.tc.TypeUtils;
 public class HavocDesugarer extends CommandDesugarer {
   @Override public HavocCmd eval(HavocCmd havocCmd) {
     Expr e = BooleanLiteral.mk(BooleanLiteral.Type.TRUE, havocCmd.loc());
+    ImmutableList<String> labels = havocCmd.labels();
     for (Identifier id : havocCmd.ids()) {
       VariableDecl vd = (VariableDecl)tc.st().ids.def(id);
       VariableDecl vd2 = tc.paramMap().def(vd);
@@ -53,9 +54,10 @@ public class HavocDesugarer extends CommandDesugarer {
           id.loc());
       addSubstitution(vd, fresh);
       addEquivalentCommand(AssignmentCmd.mk(
-          havocCmd.labels(), 
+          labels, 
           ImmutableList.of(OneAssignment.mk(id, fresh, havocCmd.loc())), 
           havocCmd.loc()));
+      labels = noString;
       /* TODO (radugrigore): use the 'where' part of vd
       if (vd.type() instanceof DepType) {
         Expr p = ((DepType) vd.type()).pred();
