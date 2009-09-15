@@ -4,6 +4,7 @@ package freeboogie.tc;
 import java.math.BigInteger;
 import java.util.*;
 
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.UnmodifiableIterator;
@@ -142,12 +143,14 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     return flowGraphs.flowGraph(body);
   }
   
+  /* The cast is ugly, I know, but it reduces significantly memory use.
+    The good FIX is to have persistent data structures recording the
+    extra information associated with AST nodes, and it will take some
+    time to implement. */
+  @SuppressWarnings("unchecked")
   @Override
   public Map<Expr, Type> types() {
-    Map<Expr, Type> result = Maps.newHashMap();
-    for (Map.Entry<Ast, Type> e : evalCache.entrySet())
-      result.put((Expr) e.getKey(), e.getValue());
-    return result;
+    return (Map<Expr, Type>)(Object)Collections.unmodifiableMap(evalCache);
   }
   
   @Override
@@ -168,6 +171,10 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
   
   // BEGIN helper methods {{{
   private static void info(String s) {
+    log.say(LogCategories.TYPECHECK, LogLevel.INFO, s);
+  }
+
+  private static void info(Supplier<String> s) {
     log.say(LogCategories.TYPECHECK, LogLevel.INFO, s);
   }
   
@@ -353,9 +360,15 @@ public class TypeChecker extends Evaluator<Type> implements TcInterface {
     if (!isTypeVar(a) || (isTypeVar(b)  && rand.nextBoolean())) {
       Type t = a; a = b; b = t;
     }
-    Identifier ai = getTypeVarDecl(a);
+    final Identifier ai = getTypeVarDecl(a);
+    final Type bb = b;
     if (getTypeVarDecl(b) != ai) {
-      info("" + ai.id() + "@" + ai.loc() + "==" + TypeUtils.typeToString(b));
+      info(new Supplier<String>() {
+        @Override public String get() {
+          return "" + ai.id() + "@" + ai.loc() + "==" + 
+              TypeUtils.typeToString(bb); // this one takes time
+        }
+      });
       assert tvLevel > 0 : 
           "you probably need to add typeVarEnter/Exit in some places";
       typeVar.put(ai, b);

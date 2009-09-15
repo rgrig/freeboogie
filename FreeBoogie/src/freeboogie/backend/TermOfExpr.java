@@ -257,7 +257,7 @@ public class TermOfExpr<T extends Term<T>> extends Evaluator<T> {
     case MINUS: 
       return mk(
           "-", 
-          mk("literal_int", new BigInteger("0")), 
+          mk("literal_int", new FbInteger(new BigInteger("0"), -1)), 
           unaryOp.expr().eval(this));
     case NOT: 
       return not(unaryOp.expr().eval(this));
