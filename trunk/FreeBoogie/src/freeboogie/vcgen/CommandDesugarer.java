@@ -64,11 +64,11 @@ public class CommandDesugarer extends Transformer {
     boolean same = true;
     for (Command c : block.commands()) {
       equivCmds.peekFirst().clear();
-        toSubstitute.clear();
-        Command nc = (Command) c.eval(this);
-        newCommands.addAll(equivCmds.peekFirst());
-        if (nc != null)  newCommands.add(nc);
-        same = equivCmds.isEmpty() && nc == c;
+      toSubstitute.peekFirst().clear();
+      Command nc = (Command) c.eval(this);
+      newCommands.addAll(equivCmds.peekFirst());
+      if (nc != null)  newCommands.add(nc);
+      same = equivCmds.isEmpty() && nc == c;
     }
     equivCmds.removeFirst();
     toSubstitute.removeFirst();
@@ -77,8 +77,11 @@ public class CommandDesugarer extends Transformer {
   }
  
   @Override public Expr eval(Identifier atomId) {
-    Expr e = toSubstitute.peekFirst().get(tc.st().ids.def(atomId));
-    return e == null? atomId : e;
+    Map<IdDecl, Expr> ts = toSubstitute.peekFirst();
+    if (ts == null) return atomId;
+    Expr e = ts.get(tc.st().ids.def(atomId));
+    if (e == null) return atomId;
+    return e;
   }
 }
 

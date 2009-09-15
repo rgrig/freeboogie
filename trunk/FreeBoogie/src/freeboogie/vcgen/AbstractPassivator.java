@@ -216,7 +216,8 @@ public abstract class AbstractPassivator extends Transformer {
           computeWriteIndex(c);
         }
       });
-      int maxVersion = 0;
+      Integer maxVersion = newVarsCnt.get(currentVar);
+      if (maxVersion == null) maxVersion = 0;
       for (int version : currentWriteIdxCache.values()) 
         maxVersion = Math.max(maxVersion, version);
       newVarsCnt.put(currentVar, maxVersion);
@@ -455,7 +456,7 @@ public abstract class AbstractPassivator extends Transformer {
               AstUtils.mkId(name(v.name(), ri)),
               AstUtils.mkId(name(v.name(), wi))),
           ca.loc()));
-      labels = null;
+      labels = noString;
     }
     return result;
   }
