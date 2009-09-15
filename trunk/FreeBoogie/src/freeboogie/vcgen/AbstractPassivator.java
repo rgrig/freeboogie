@@ -355,7 +355,7 @@ public abstract class AbstractPassivator extends Transformer {
             noString, 
             ImmutableList.of(oldTarget),
             gotoCmd.loc()));
-        newSuccessors.add(endOfBodyCommands.peekFirst().labels().get(0));
+        newSuccessors.add(copyCommands.peekFirst().labels().get(0));
       }
     }
     return GotoCmd.mk(gotoCmd.labels(), newSuccessors.build(), gotoCmd.loc());
