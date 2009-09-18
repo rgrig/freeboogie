@@ -4,7 +4,7 @@
    - Do *not* use tabs.
 -->
 
-<project name="FreeBoogie" default="dist" basedir=".">
+<project name="FreeBoogie" default="compile" basedir=".">
   <description>infrastructure for handling Boogie code</description>
 
   <!-- custom tasks -->
@@ -41,9 +41,14 @@
   <property name="parser-dst-dir" location="generated-src/${parser-dir}"/>
 
   <!-- code generation and related -->
-  <target name="generate_ast" depends="clean_ast" 
-    description="generates AST">
+  <target 
+      name="generate_ast" 
+      depends="check_ast_uptodate"
+      unless="ast.notRequired"
+      description="generates AST">
+    <antcall target="clean_ast"/>
     <mkdir dir="${ast-dst-dir}" />
+    <touch file="generated-src/ast.timestamp"/>
     <java fork="yes" dir="${ast-dst-dir}" jar="lib/${astgen-jar}">
       <arg value="${ast-src-dir}/fb.ag" />
       <arg value="${ast-src-dir}/classes.tpl" />
@@ -64,8 +69,12 @@
     </exec>
   </target>
 
-  <target name="generate_parser">
+  <target 
+      name="generate_parser" 
+      depends="check_parser_uptodate"
+      unless="parser.notRequired">
     <mkdir dir="${parser-dst-dir}" />
+    <touch file="generated-src/parser.timestamp"/>
     <java fork="yes" dir="${parser-dst-dir}" classname="org.antlr.Tool">
       <classpath refid="classpath" />
       <arg value="-o"/><arg value="${parser-dst-dir}"/>
@@ -73,8 +82,12 @@
     </java>
   </target>
 
-  <target name="generate_cli_parser">
+  <target 
+      name="generate_cli_parser" 
+      depends="check_cli_uptodate"
+      unless="cli.notRequired">
     <mkdir dir="${cli-dst-dir}" />
+    <touch file="generated-src/cli.timestamp"/>
     <java fork="yes" classname="ie.ucd.clops.dsl.Main" output="clops.log">
       <assertions><enable/></assertions>
       <classpath refid="classpath"/>
@@ -90,6 +103,31 @@
   <target
       name="generate_code"
       depends="generate_ast,generate_parser,generate_cli_parser"/>
+
+  <target name="check_ast_uptodate">
+    <uptodate 
+        property="ast.notRequired" 
+        targetfile="generated-src/ast.timestamp">
+      <srcfiles dir="${ast-src-dir}" includes="*.tpl"/>
+      <srcfiles file="${ast-src-dir}/fb.ag"/>
+    </uptodate>
+  </target>
+
+  <target name="check_parser_uptodate">
+    <uptodate 
+        property="parser.notRequired" 
+        targetfile="generated-src/parser.timestamp">
+      <srcfiles file="${parser-src-dir}/Fb.g"/>
+    </uptodate>
+  </target>
+
+  <target name="check_cli_uptodate">
+    <uptodate
+        property="cli.notRequired"
+        targetfile="generated-src/cli.timestamp">
+      <srcfiles file="src/freeboogie/freeboogie.clo"/>
+    </uptodate>
+  </target>
 
   <!-- Compilation and documentation targets -->
   <target
