@@ -48,6 +48,10 @@ public class IfDesugarer extends CommandDesugarer {
         cmd.loc()));
     for (Command c : yes.commands())
       addEquivalentCommand(c);
+    addEquivalentCommand(GotoCmd.mk(
+        noString,
+        ImmutableList.of(l3),
+        cmd.loc()));
     addEquivalentCommand(AssertAssumeCmd.mk(
         ImmutableList.of(l2),
         AssertAssumeCmd.CmdType.ASSUME,
