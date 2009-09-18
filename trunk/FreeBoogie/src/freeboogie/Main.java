@@ -149,6 +149,7 @@ public class Main {
     // Initialize the Boogie transformers.
     stages = Lists.newArrayList();
     if (opt.getDesugarTypeSynonyms()) stages.add(new TypeDesugarer());
+    if (opt.getDesugarBreak()) stages.add(new BreakDesugarer());
     if (opt.getDesugarIf()) stages.add(new IfDesugarer());
     if (opt.getMakeHavoc()) stages.add(new HavocMaker());
     if (opt.getCutLoops()) stages.add(new LoopCutter());

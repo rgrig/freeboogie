@@ -474,7 +474,16 @@ public class PrettyPrinter extends Transformer {
   }
 
   @Override public void see(BreakCmd ast) {
-    assert false : "todo";
+    for (String l : ast.labels()) {
+      say(l);
+      say(": ");
+    }
+    say("break");
+    say(" ");
+    for (int i = 0; i < ast.successors().size(); ++i) {
+      if (i != 0) say(", ");
+      say(ast.successors().get(i));
+    }
   }
 
   @Override public void see(GotoCmd ast) {
@@ -492,6 +501,35 @@ public class PrettyPrinter extends Transformer {
       }
     }
     semi();
+  }
+
+  @Override public void see(IfCmd ast) {
+    say("if");
+    say(" ");
+    say("(");
+    ast.condition.eval(this);
+    say(")");
+    say(" ");
+    say("{");
+    ++indentLevel;
+    nl();
+    ast.yes().eval(this);
+    --indentLevel;
+    nl();
+    say("}");
+    if (ast.no() != null) {
+      say(" ");
+      say("else");
+      say(" ");
+      say("{");
+      ++indentLevel;
+      nl();
+      ast.no().eval(this);
+      --indentLevel;
+      nl();
+      say("}");
+    }
+    nl();
   }
 
   @Override public void see(WhileCmd ast) {

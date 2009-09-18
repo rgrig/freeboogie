@@ -78,6 +78,7 @@ ARGS::
   // These cannot appear on the command line.
   MakeHavoc :{} :[default="true"]
   CutLoops :{} :[default="true"]
+  DesugarBreak :{} :[default="true"]
   DesugarIf :{} :[default="true"]
   DesugarCalls :{} :[default="true"]
   DesugarHavoc :{} :[default="true"]
