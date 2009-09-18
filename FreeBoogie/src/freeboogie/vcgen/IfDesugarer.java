@@ -26,6 +26,9 @@ import freeboogie.ast.*;
   wildcard then the statements at L1 and L2 are both <tt>assume
   true</tt>.
 
+  <p>The <tt>goto L3</tt> statement is ommitted if Y ands with
+  a <b>goto</b>.
+
   <p>The <b>if</b> statements in Y and N are processed first.
  */
 public class IfDesugarer extends CommandDesugarer {
@@ -48,10 +51,14 @@ public class IfDesugarer extends CommandDesugarer {
         cmd.loc()));
     for (Command c : yes.commands())
       addEquivalentCommand(c);
-    addEquivalentCommand(GotoCmd.mk(
-        noString,
-        ImmutableList.of(l3),
-        cmd.loc()));
+    int yesLen = yes.commands().size();
+    if (yesLen == 0 || !(yes.commands().get(yesLen-1) instanceof GotoCmd)) {
+      // The 'if' above avoids introducing unreachable commands.
+      addEquivalentCommand(GotoCmd.mk(
+          noString,
+          ImmutableList.of(l3),
+          cmd.loc()));
+    }
     addEquivalentCommand(AssertAssumeCmd.mk(
         ImmutableList.of(l2),
         AssertAssumeCmd.CmdType.ASSUME,

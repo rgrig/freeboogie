@@ -16,7 +16,9 @@ B:
   while (x % 2 == 1) {
     while (x % 2 == 1) {
       x := x + 1;
-      if (x % 2 == 0) break B;
+      if (x % 2 == 0) {
+        break B;
+      }
     }
   }
   return;

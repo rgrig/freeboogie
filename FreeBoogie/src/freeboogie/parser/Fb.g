@@ -362,8 +362,8 @@ command	returns [Command v]:
         { if (ok) { $v = WhileCmd.mk($label_list.v,$c.v,$li.v,$b.v,tokLoc($t)); }}
     | t='if' '(' c=wildcard_or_expr ')' '{' yes=block '}' no=else_branch
         { if (ok) { $v = IfCmd.mk($label_list.v,$c.v,$yes.v,$no.v,tokLoc($t)); }}
-    | t='break' bl=label_comma_list ';' 
-        { if (ok) { $v = BreakCmd.mk($label_list.v, $bl.v, tokLoc($t)); }}
+    | t='break' (bl=ID)? ';' 
+        { if (ok) { $v = BreakCmd.mk($label_list.v, $bl.text, tokLoc($t)); }}
   )
 ;
 

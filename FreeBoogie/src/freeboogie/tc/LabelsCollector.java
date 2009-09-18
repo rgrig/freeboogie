@@ -68,6 +68,8 @@ public class LabelsCollector extends Transformer {
 
   @Override public void see(IfCmd cmd) {
     recordLabels(cmd);
+    cmd.yes().eval(this);
+    if (cmd.no() != null) cmd.no().eval(this);
   }
 
   @Override public void see(WhileCmd whileCmd) {

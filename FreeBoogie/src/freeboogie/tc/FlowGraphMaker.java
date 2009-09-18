@@ -4,6 +4,7 @@ import java.util.*;
 
 import com.google.common.collect.*;
 import genericutils.Err;
+import genericutils.Pair;
 import genericutils.SimpleGraph;
 
 import freeboogie.ast.*;
@@ -19,16 +20,69 @@ import freeboogie.ast.*;
   @author rgrig
  */
 public class FlowGraphMaker extends Transformer {
-  // Connects labels to commands.
+  /* IMPLEMENTATION NOTE
+    
+    For each type of command TC there is a function see(TC cmd)
+    that adds the outgoing edges of cmd to the currentFlowGraph.
+    To do so these functions need to know a little about their
+    context. Blocks contain lists of commands, and there is
+    no other place where commands occur. The top of the stack
+    |nextCommand| always points the next command in the innermost
+    such list, or |null| if the command being visited is the last
+    one in the innermost such list. In turn, blocks appear only
+    in implementation bodies, while bodies, and if branches. A
+    second stack, |enclosingScope|, keeps track of these. Note
+    that |nextCommand.size()==enclosingScope.size()| whenever
+    a command is visited.
+
+    Since we iterate through these stacks (and we don't care
+    only about the last element) they are implemented with
+    ArrayList-s. (Other choices include (1) ArrayDeque, which is
+    faster, and an Iterator for traversal, which is slower, or
+    (2) a singly linked list).
+
+    When a non-branching command is being visited we find the
+    next command by searching for the first nonnull element
+    of |nextCommand| (starting from the top, which is where
+    you pop).
+
+    Dealing with |break| is only a bit more complicated. The first
+    step is to identify the while/if command it refers to. We do so
+    by traveling the |enclosingScope| stack until we find the
+    first while command that has a matching label.
+
+    The second step works like this:
+      connect(break, lastCmd, lastScope)
+        if nextCommand[lastCmd] != null
+          edge(break, nextCommand[lastCmd])
+        else
+          switch (typeof(enclosingScope[lastScope]))
+            case Body: do nothing
+            case WhileCmd: edge(break, enclosingScope[lastScope])
+            case IfCmd: connect(break, lastCmd-1, lastScope-1)
+    In words: If we are last in a list of statements then that
+    list of statements comes either from an implementation (in
+    which case 'break' means 'return'), a while command (in which
+    case we go to the while command), or an if command (in which
+    case we act as if we were requested to break out of that if
+    command).
+
+    In order to process goto commands we first use
+    |LabelsCollector| to link labels to their commands.
+   */
+
+  // The two stacks described in the implementation note above.
+  private ArrayList<Command> nextCommand = Lists.newArrayList();
+  private ArrayList<Ast> enclosingScope = Lists.newArrayList();
+
+  // Used for handling goto (but *not* for handling break).
   private LabelsCollector labelsCollector;
 
-  // A stack with next commands within each nested block.
-  private ArrayDeque<Command> nextCommand = new ArrayDeque<Command>();
+  // Used for querying |labelsCollector|.
+  private Body currentBody;
   
   // the flow graph currently being built
   private SimpleGraph<Command> currentFlowGraph;
-  
-  private Body currentBody;
 
   // maps bodies to their flowgraphs
   private HashMap<Body, SimpleGraph<Command>> flowGraphs;
@@ -53,12 +107,12 @@ public class FlowGraphMaker extends Transformer {
    */
   public List<FbError> process(Program ast) {
     nextCommand.clear();
-    whileStack.clear();
+    enclosingScope.clear();
     warnings.clear();
     labelsCollector = new LabelsCollector();
     errors = Lists.newArrayList();
     flowGraphs = Maps.newHashMap();
-    ast.eval(labelsCollector); // collect labels
+    ast.eval(labelsCollector);
     ast.eval(this);   // build the graph
     FbError.reportAll(warnings);
     for (SimpleGraph<Command> fg : flowGraphs.values())
@@ -88,8 +142,10 @@ public class FlowGraphMaker extends Transformer {
     flowGraphs.put(body, currentFlowGraph);
 
     // build graph
+    enclosingScope.add(body);
     currentBody = body;
     body.block().eval(this);
+    enclosingScope.remove(enclosingScope.size() - 1);
 
     // check for reachability
     seenCommands.clear();
@@ -105,13 +161,15 @@ public class FlowGraphMaker extends Transformer {
   @Override public void see(Block block) {
     ImmutableList<Command> commands = block.commands();
     for (int i = 1; i < commands.size(); ++i) {
-      nextCommand.addFirst(commands.get(i));
+      nextCommand.add(commands.get(i));
       commands.get(i-1).eval(this);
-      nextCommand.removeFirst();
+      nextCommand.remove(nextCommand.size() - 1);
     }
-    // At this point nextCommand.peekFirst() is set by the outer block.
-    if (!commands.isEmpty())
+    if (!commands.isEmpty()) {
+      nextCommand.add(null);
       commands.get(commands.size() - 1).eval(this);
+      nextCommand.remove(nextCommand.size() - 1);
+    }
   }
 
   private String rep(Command c) {
@@ -129,9 +187,18 @@ public class FlowGraphMaker extends Transformer {
 
   // BEGIN visit nonbranching commands {{{
   private void processNonbranchingCommand(Command command) {
+    assert nextCommand.size() == enclosingScope.size() : "see impl note";
     currentFlowGraph.node(command);
-    Command next = nextCommand.peekFirst();
-    if (next != null) currentFlowGraph.edge(command, next);
+    int i = nextCommand.size();
+    while (--i >= 0) {
+      if (nextCommand.get(i) != null) {
+        currentFlowGraph.edge(command, nextCommand.get(i));
+        return;
+      } else if (enclosingScope.get(i) instanceof WhileCmd) {
+        currentFlowGraph.edge(command, (Command) enclosingScope.get(i));
+        return;
+      }
+    }
   }
 
   @Override public void see(AssertAssumeCmd assertAssumeCmd) {
@@ -156,60 +223,74 @@ public class FlowGraphMaker extends Transformer {
     currentFlowGraph.node(ifCmd);
     if (!ifCmd.yes().commands().isEmpty()) {
       currentFlowGraph.edge(ifCmd, ifCmd.yes().commands().get(0));
+      enclosingScope.add(ifCmd);
       ifCmd.yes().eval(this);
+      enclosingScope.remove(enclosingScope.size() - 1);
     } 
     if (ifCmd.no() != null && !ifCmd.no().commands().isEmpty()) {
       currentFlowGraph.edge(ifCmd, ifCmd.no().commands().get(0));
+      enclosingScope.add(ifCmd);
       ifCmd.no().eval(this);
-    } else {
-      Command next = nextCommand.peekFirst();
-      if (next != null) currentFlowGraph.edge(ifCmd, next);
-    }
+      enclosingScope.remove(enclosingScope.size() - 1);
+    } else processNonbranchingCommand(ifCmd);
   }
 
   @Override public void see(WhileCmd whileCmd) {
     currentFlowGraph.node(whileCmd);
-    Command next = nextCommand.peekFirst();
-    if (next != null) currentFlowGraph.edge(whileCmd, next);
+    processNonbranchingCommand(whileCmd);
     ImmutableList<Command> commands = whileCmd.body().commands();
-    if (!commands.isEmpty()) {
+    if (!commands.isEmpty())
       currentFlowGraph.edge(whileCmd, commands.get(0));
-      currentFlowGraph.edge(commands.get(commands.size() - 1), whileCmd);
-    }
-    whileStack.addFirst(whileCmd);
+    enclosingScope.add(whileCmd);
     whileCmd.body().eval(this);
-    whileStack.removeFirst();
+    enclosingScope.remove(enclosingScope.size() - 1);
   }
 
   @Override public void see(GotoCmd gotoCmd) {
     currentFlowGraph.node(gotoCmd);
-    processSuccessors(gotoCmd, gotoCmd.successors());
-  }
-
-  /* This behaves like |goto| when it has labels, and it goes to the
-     innermost |while| otherwise. */
-  @Override public void see(BreakCmd breakCmd) {
-    currentFlowGraph.node(breakCmd);
-    ImmutableList<String> succ = breakCmd.successors();
-    if (succ.isEmpty()) {
-      WhileCmd next = whileStack.peekFirst();
-      if (next == null)
-        errors.add(new FbError(FbError.Type.BREAK_OUTSIDE_WHILE, breakCmd));
-      else
-        currentFlowGraph.edge(breakCmd, next);
-    } else
-      processSuccessors(breakCmd, succ);
-  }
-
-  private void processSuccessors(Command cmd, ImmutableList<String> succ) {
-    for (String s : succ) {
+    for (String s : gotoCmd.successors()) {
       Command next = labelsCollector.getCommand(currentBody, s);
       if (next == null)
-        errors.add(new FbError(FbError.Type.MISSING_BLOCK, cmd, s));
-      else
-        currentFlowGraph.edge(cmd, next);
+        errors.add(new FbError(FbError.Type.MISSING_BLOCK, gotoCmd, s));
+      else 
+        currentFlowGraph.edge(gotoCmd, next);
+    }
+  }
+
+  // See the implementation note at the beginning of the class.
+  @Override public void see(BreakCmd breakCmd) {
+    assert nextCommand.size() == enclosingScope.size() : "see impl note";
+    currentFlowGraph.node(breakCmd);
+    String l = breakCmd.successor();
+
+    // Find the target of break.
+    int i = nextCommand.size();
+    while (--i > 0) {
+      Ast target = enclosingScope.get(i);
+      if (target instanceof WhileCmd) {
+        WhileCmd t = (WhileCmd) target;
+        if (l == null || t.labels().indexOf(l) != -1) break;
+      } else {
+        assert target instanceof IfCmd;
+        IfCmd t = (IfCmd) target;
+        if (t.labels().indexOf(l) != -1) break;
+      }
+    }
+
+    // Find what follows the target.
+    if (i == 0) 
+      errors.add(new FbError(FbError.Type.BAD_BREAK_TARGET, breakCmd));
+    else while (--i >= 0) {
+      Command c = nextCommand.get(i);
+      Ast s = enclosingScope.get(i);
+      if (c != null) {
+        currentFlowGraph.edge(breakCmd, c);
+        break;
+      } else if (s instanceof WhileCmd) {
+        currentFlowGraph.edge(breakCmd, (Command) s);
+        break;
+      }
     }
   }
   // END visit branching commands }}}
- 
 }
