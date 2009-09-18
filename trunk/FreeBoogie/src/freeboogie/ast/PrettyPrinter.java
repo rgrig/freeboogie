@@ -30,6 +30,8 @@ public class PrettyPrinter extends Transformer {
    * Should be zero when I start and when I finish printing.
    */ 
   protected int indentLevel;
+  private boolean startOfLine;
+
   
   protected int skipVar; // if >0 then skip "var "
 
@@ -86,6 +88,7 @@ public class PrettyPrinter extends Transformer {
     indentLevel = 0;
     skipVar = 0;
     prefixByBq = false;
+    startOfLine = true;
     initConstants();
   }
 
@@ -100,18 +103,27 @@ public class PrettyPrinter extends Transformer {
   }
 
   /** Swallow exceptions. */
-  protected void say(String s) {
+  private void internalSay(String s) {
     try {
       writer.write(s);
     } catch (IOException e) {
       Err.help("Can't pretty print. Nevermind.");
     }
   }
+
+  protected void say(String s) {
+    if (startOfLine) {
+      for (int i = indent * indentLevel; i > 0; --i) 
+        internalSay(" ");
+      startOfLine = false;
+    }
+    internalSay(s);
+  }
   
   /** Send a newline to the writer. */
   protected void nl() {
-    say("\n"); // TODO: handle Windows?
-    for (int i = indent * indentLevel; i > 0; --i) say(" ");
+    internalSay("\n");
+    startOfLine = true;
   }
   
   /** End command. */
@@ -119,6 +131,22 @@ public class PrettyPrinter extends Transformer {
     say(";"); nl();
   }
   
+  protected <T extends Ast> void printList(String sep, ImmutableList<T> list) {
+    Iterator<T> i = list.iterator();
+    if (i.hasNext()) i.next().eval(this);
+    while (i.hasNext()) {
+      say(sep);
+      i.next().eval(this);
+    }
+  }
+
+  protected void printLabels(Command cmd) {
+    for (String l : cmd.labels()) {
+      say(l);
+      say(": ");
+    }
+  }
+
   // === the visiting methods ===
   
   @Override public void see(MapType ast) {
@@ -301,15 +329,6 @@ public class PrettyPrinter extends Transformer {
     semi();
   }
 
-  public <T extends Ast> void printList(String sep, ImmutableList<T> list) {
-    Iterator<T> i = list.iterator();
-    if (i.hasNext()) i.next().eval(this);
-    while (i.hasNext()) {
-      say(sep);
-      i.next().eval(this);
-    }
-  }
-
   @Override public void see(FunctionDecl ast) {
     say("function ");
     printList(" ", ast.attributes());
@@ -344,6 +363,7 @@ public class PrettyPrinter extends Transformer {
     printList(" ", ast.attributes());
     ast.sig().eval(this);
     say(";");
+    nl();
     printSpecs(ast.preconditions());
     printSpecs(ast.modifies());
     printSpecs(ast.postconditions());
@@ -474,23 +494,17 @@ public class PrettyPrinter extends Transformer {
   }
 
   @Override public void see(BreakCmd ast) {
-    for (String l : ast.labels()) {
-      say(l);
-      say(": ");
-    }
+    printLabels(ast);
     say("break");
-    say(" ");
-    for (int i = 0; i < ast.successors().size(); ++i) {
-      if (i != 0) say(", ");
-      say(ast.successors().get(i));
+    if (ast.successor() != null) {
+      say(" ");
+      say(ast.successor());
     }
+    semi();
   }
 
   @Override public void see(GotoCmd ast) {
-    for (String l : ast.labels()) {
-      say(l);
-      say(": ");
-    }
+    printLabels(ast);
     if (ast.successors().isEmpty())
       say("return");
     else {
@@ -504,6 +518,7 @@ public class PrettyPrinter extends Transformer {
   }
 
   @Override public void see(IfCmd ast) {
+    printLabels(ast);
     say("if");
     say(" ");
     say("(");
@@ -515,7 +530,6 @@ public class PrettyPrinter extends Transformer {
     nl();
     ast.yes().eval(this);
     --indentLevel;
-    nl();
     say("}");
     if (ast.no() != null) {
       say(" ");
@@ -526,13 +540,37 @@ public class PrettyPrinter extends Transformer {
       nl();
       ast.no().eval(this);
       --indentLevel;
-      nl();
       say("}");
     }
     nl();
   }
 
   @Override public void see(WhileCmd ast) {
-    assert false : "not implemented";
+    printLabels(ast);
+    say("while");
+    say(" ");
+    say("(");
+    ast.condition().eval(this);
+    say(")");
+    ++indentLevel;
+    nl();
+    printList("", ast.inv());
+    --indentLevel;
+    say("{");
+    ++indentLevel;
+    nl();
+    ast.body().eval(this);
+    --indentLevel;
+    say("}");
+    nl();
+  }
+
+  @Override public void see(LoopInvariant ast) {
+    if (ast.free()) {
+      say("free");
+      say(" ");
+    }
+    ast.expr().eval(this);
+    semi();
   }
 }

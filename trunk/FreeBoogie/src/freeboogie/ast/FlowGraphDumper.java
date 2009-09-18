@@ -50,16 +50,18 @@ public class FlowGraphDumper extends Transformer {
       SimpleGraph<Command> fg = tc.flowGraph(body);
       w.println("digraph \"" + name + "\" {");
       final HashMap<Command, String> blockNames = Maps.newHashMap();
-      for (Command c : body.block().commands()) 
-        blockNames.put(c, Id.get("L"));
+      fg.iterNode(new Closure<Command>() {
+        @Override public void go(Command c) {
+          String n = Id.get("L");
+          blockNames.put(c, n);
+          w.print("  \"" + n + "\" ");
+          w.print("[shape=box,label=\""+cmdToString(c)+"\"]");
+          w.println(";");
+        }
+      });
       if (!body.block().commands().isEmpty()) {
         w.println("  \"" + blockNames.get(body.block().commands().get(0)) + 
             "\" [style=bold];");
-      }
-      for (Command c : body.block().commands()) {
-        w.print("  \"" + blockNames.get(c) + "\" ");
-        w.print("[shape=box,label=\""+cmdToString(c)+"\"]");
-        w.println(";");
       }
       fg.iterEdge(new Closure<Pair<Command,Command>>() {
         @Override public void go(Pair<Command,Command> t) {

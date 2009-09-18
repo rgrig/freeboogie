@@ -120,7 +120,7 @@ OneAssignment =
   Identifier lhs,
   Expr rhs;
 BreakCmd =
-  [list] String successors; // TODO(rgrig): perhaps just put a flag on goto?
+  String successor;
 AssertAssumeCmd = 
   enum(CmdType: ASSERT, ASSUME) type, 
   [list] Identifier typeArgs, 

@@ -24,8 +24,8 @@ public class FbError {
       of the format. */
   public static enum Type {
     ALREADY_DEF("Variable % already defined"),
+    BAD_BREAK_TARGET("Illegal break."),
     BAD_TYPE("Unrelated types: %0 and %1."),
-    BREAK_OUTSIDE_WHILE("A break without labels cannot appear outside while."),
     BV_REQUIRED("Only an integer of fixed width may appear here."),
     DEP_IMPL_SIG("Dependent type in implementation signature."),
     EXACT_TYPE("Type should be %1. (See %0.)"),

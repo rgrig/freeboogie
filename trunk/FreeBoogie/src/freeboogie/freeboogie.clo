@@ -79,6 +79,7 @@ ARGS::
   MakeHavoc :{} :[default="true"]
   CutLoops :{} :[default="true"]
   DesugarBreak :{} :[default="true"]
+  DesugarWhile :{} :[default="true"]
   DesugarIf :{} :[default="true"]
   DesugarCalls :{} :[default="true"]
   DesugarHavoc :{} :[default="true"]
