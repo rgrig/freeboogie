@@ -372,7 +372,7 @@ wildcard_or_expr returns [Expr v]: expr { $v = $expr.v; } ;
 
 // TODO(radugrigore): get rid of duplication (perhaps by introducing LStmt)
 else_branch returns [Block v]:
-  'else' (
+( 'else' (
     '{' b=block '}'  {$v = $b.v;}
   | loc='if' '(' c=wildcard_or_expr ')' '{' yes=block '}' no=else_branch
      { if (ok) {
@@ -381,7 +381,7 @@ else_branch returns [Block v]:
           $c.v,
           $yes.v,
           $no.v,
-          tokLoc($loc))), tokLoc($loc)); }})
+          tokLoc($loc))), tokLoc($loc)); }}))?
 ;
 
 loop_invariants returns [ImmutableList<LoopInvariant> v]
