@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language:	BoogiePL
 " Version: 0.2
-" Last Change:	2008/08/26
+" Last Change:	2009/09/20
 " Maintainer:  Radu Grigore <radu.grigore@gmail.com>
 
 if exists("b:current_syntax")
@@ -12,7 +12,7 @@ syn case match
 syn sync lines=250
 
 syn keyword boogieplDeclaration type finite const unique function axiom var procedure implementation
-syn keyword boogieplSpecification free requires ensures modifies
+syn keyword boogieplSpecification free requires ensures modifies invariant
 syn keyword boogieplCommand assert assume havoc call
 syn keyword boogieplConstant false true
 syn keyword boogieplExpression old cast where

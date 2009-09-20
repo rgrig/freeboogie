@@ -40,13 +40,16 @@ public class LoopCutter extends CommandDesugarer {
     assert false : "Break commands are assumed to be desugared at this stage.";
   }
 
-  @Override public GotoCmd eval(GotoCmd cmd) {
-    ImmutableList.Builder<String> newSuccessors = ImmutableList.builder();
+  @Override public Command eval(GotoCmd cmd) {
+    ImmutableList.Builder<String> builder = ImmutableList.builder();
     for (Command c : currentFG.to(cmd)) {
       if (!toRemove.contains(Pair.of(cmd, c))) 
-        newSuccessors.add(c.labels().get(0));
+        builder.add(c.labels().get(0));
     }
-    return GotoCmd.mk(cmd.labels(), newSuccessors.build(), cmd.loc());
+    ImmutableList<String> newSuccessors = builder.build();
+    if (newSuccessors.isEmpty() && !cmd.successors().isEmpty())
+      addEquivalentCommand(AstUtils.stuckCmd(cmd.labels(), cmd.loc()));
+    return GotoCmd.mk(cmd.labels(), newSuccessors, cmd.loc());
   }
 
   @Override public Command eval(AssertAssumeCmd assertAssumeCmd) {

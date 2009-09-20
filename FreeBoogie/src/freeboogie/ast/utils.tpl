@@ -66,6 +66,37 @@ public class AstUtils {
     return BinaryOp.mk(BinaryOp.Op.IMPLIES, lhs, rhs);
   }
 
+  public static AssertAssumeCmd stuckCmd(
+      ImmutableList<String> labels,
+      FileLocation loc)
+  {
+    return AssertAssumeCmd.mk(
+        labels,
+        AssertAssumeCmd.CmdType.ASSUME,
+        ids(),
+        BooleanLiteral.mk(BooleanLiteral.Type.FALSE, loc),
+        loc);
+  }
+  public static AssertAssumeCmd stuckCmd(FileLocation loc) {
+    return stuckCmd(ImmutableList.<String>of(), loc);
+  }
+
+  public static AssertAssumeCmd skipCmd(
+      ImmutableList<String> labels,
+      FileLocation loc)
+  {
+    return AssertAssumeCmd.mk(
+        labels,
+        AssertAssumeCmd.CmdType.ASSUME,
+        ids(),
+        BooleanLiteral.mk(BooleanLiteral.Type.FALSE, loc),
+        loc);
+  }
+  public static AssertAssumeCmd skipCmd(FileLocation loc) {
+    return skipCmd(ImmutableList.<String>of(), loc);
+  }
+
+
   public static void print(Ast ast) {
     PrintWriter pw = new PrintWriter(System.out);
     PrettyPrinter pp = new PrettyPrinter();

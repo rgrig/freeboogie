@@ -389,7 +389,7 @@ scope {
   ImmutableList.Builder<LoopInvariant> b;
 }:
     { $loop_invariants::b = ImmutableList.builder(); }
-    ((f='free')? loc='invariant' expr 
+    ({$f=null;} (f='free')? loc='invariant' expr ';'
       { if (ok) $loop_invariants::b.add(LoopInvariant.mk(
             $f!=null,
             $expr.v,
