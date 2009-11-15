@@ -7,6 +7,7 @@ import genericutils.Closure;
 import freeboogie.ast.Command;
 import freeboogie.backend.Term;
 import freeboogie.tc.TcInterface;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Computes strongest postcondition for one {@code
@@ -61,13 +62,14 @@ public class StrongestPostcondition<T extends Term<T>> extends ACalculus<T> {
   private T pre(Command b) {
     T r = preCache.get(b);
     if (r != null) return r;
-    ArrayList<T> toOr = new ArrayList<T>();
+    ImmutableList.Builder<T> toOr = ImmutableList.builder();
     for (Command p : flow.from(b)) 
       toOr.add(post(p));
-    if (toOr.isEmpty())
+    ImmutableList<T> or = toOr.build();
+    if (or.isEmpty())
       r = trueTerm;
     else
-      r = term.mk("or", toOr);
+      r = term.mk("or", or);
     preCache.put(b, r);
     return r;
   }
@@ -93,13 +95,13 @@ public class StrongestPostcondition<T extends Term<T>> extends ACalculus<T> {
 
   @Override
   public T vc() {
-    final ArrayList<T> vcs = new ArrayList<T>();
+    final ImmutableList.Builder<T> vcs = ImmutableList.builder();
     flow.iterNode(new Closure<Command>() {
       @Override
       public void go(Command b) {
         vcs.add(vc(b));
       }
     });
-    return term.mk("and", vcs);
+    return term.mk("and", vcs.build());
   }
 }
