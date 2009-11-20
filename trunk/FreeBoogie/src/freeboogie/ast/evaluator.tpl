@@ -1,9 +1,7 @@
 vim:ft=java:
 
 This is the generic interface for a visitor that can return
-a value. As a convenience, the object is also deconstructed
-in the class. The original object is sent nevertheless because
-we may want to use it.
+a value.
 
 Some useful macros:
 \def{smt}{\if_primitive{\if_enum{\ClassName.}{}\Membertype}{\MemberType}}

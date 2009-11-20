@@ -1,3 +1,4 @@
+const unique x : int;
 procedure indexOf(x : int, a : [int] int, al : int) returns (i : int) {
   A: i := 0; goto B, D;
   B: assume i < al && a[i] != x; goto C;
