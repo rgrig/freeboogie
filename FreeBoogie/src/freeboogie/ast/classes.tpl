@@ -21,7 +21,7 @@ import static freeboogie.cli.FbCliOptionsInterface.*;
 public \if_terminal{final}{abstract} class \ClassName extends \BaseName {
   \enums{public static enum \EnumName {\values[,]{\VALUE_NAME}}}
 \if_terminal{
-  \members{protected final \mtn;}
+  \members{private final \mtn;}
 
   // === construction ===
   private \ClassName(\mtn_list) {

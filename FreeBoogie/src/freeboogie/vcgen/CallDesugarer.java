@@ -50,7 +50,7 @@ public class CallDesugarer extends CommandDesugarer {
       addEquivalentCommand(AssertAssumeCmd.mk(
           labels,
           AssertAssumeCmd.CmdType.ASSERT,
-          ImmutableList.<Identifier>of(),
+          AstUtils.ids(),
           (Expr) pre.expr().eval(this).clone(),
           callCmd.loc()));
       labels = ImmutableList.of();

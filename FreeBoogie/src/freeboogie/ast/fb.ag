@@ -216,6 +216,6 @@ Slice =
 MapSelect: !idx.isEmpty()
 MapUpdate: !idx.isEmpty()
 HavocCmd: !ids.isEmpty()
-Body: !block.commands().isEmpty() && block.commands().get(block.commands.size()-1) instanceof GotoCmd
+Body: !block.commands().isEmpty() && block.commands().get(block.commands().size()-1) instanceof GotoCmd
 
 // TODO(radugrigore): rename using whole words

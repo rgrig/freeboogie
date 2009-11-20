@@ -522,7 +522,7 @@ public class PrettyPrinter extends Transformer {
     say("if");
     say(" ");
     say("(");
-    ast.condition.eval(this);
+    ast.condition().eval(this);
     say(")");
     say(" ");
     say("{");
