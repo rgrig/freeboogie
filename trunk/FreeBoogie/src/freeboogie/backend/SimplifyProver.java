@@ -4,9 +4,11 @@ import java.io.IOException;
 import java.util.*;
 
 import genericutils.Err;
+import genericutils.Pair;
 
 import static freeboogie.cli.FbCliOptionsInterface.LogCategories;
 import static freeboogie.cli.FbCliOptionsInterface.LogLevel;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Used to interact with Simplify and Z3 (when run in Simplify
@@ -112,15 +114,19 @@ public class SimplifyProver extends Prover<SmtTerm> {
     }
   }
 
-  @Override
-  protected void sendAssume(SmtTerm t) throws ProverException {
-    t = SmtTerms.eliminateSharing(t, builder);
+  protected void sendFatAssume(SmtTerm t) throws ProverException {
     strBuilder.setLength(0);
     strBuilder.append("(BG_PUSH ");
     printTerm(t, strBuilder);
     strBuilder.append(")");
     simplify.sendCommand(strBuilder.toString());
     log(strBuilder.toString());
+  }
+
+  @Override
+  protected void sendAssume(SmtTerm t) throws ProverException {
+    t = SmtTerms.eliminateSharing(t, builder);
+    sendFatAssume(t);
   }
 
   @Override
@@ -131,9 +137,10 @@ public class SimplifyProver extends Prover<SmtTerm> {
   
   @Override
   public boolean isValid(SmtTerm t) throws ProverException {
-    t = SmtTerms.eliminateSharing(t, builder);
+    Pair<SmtTerm, ImmutableList<SmtTerm>> p = SmtTerms.eliminateSharingPair(t, builder);
+    sendFatAssume(builder.mk("and", p.second));
     strBuilder.setLength(0);
-    printTerm(t, strBuilder);
+    printTerm(p.first, strBuilder);
     log(strBuilder.toString());
     long startTime = System.nanoTime();
     boolean r = simplify.isValid(strBuilder.toString());
@@ -143,6 +150,7 @@ public class SimplifyProver extends Prover<SmtTerm> {
         LogCategories.STATS,
         LogLevel.INFO,
         String.format("provertime %.3fs", 1e-9*time));
+    sendRetract();
     return r;
   }
 

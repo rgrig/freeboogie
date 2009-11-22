@@ -4,6 +4,7 @@ import java.util.*;
 
 import com.google.common.collect.ImmutableList;
 import genericutils.Id;
+import genericutils.Pair;
 
 /**
  * Utilities for handling {@code SmtTerm}s.
@@ -39,11 +40,17 @@ public final class SmtTerms {
     UNKNOWN
   }
 
-  public static SmtTerm eliminateSharing(SmtTerm t, TermBuilder<SmtTerm> term) {
+  public static Pair<ImmutableList<SmtTerm>, ImmutableList<SmtTerm>> eliminateSharingPair(ImmutableList<SmtTerm> ts, TermBuilder<SmtTerm> term) {
+    ImmutableList.Builder<SmtTerm> newTerms = ImmutableList.builder();
     EliminateSharingContext context = new EliminateSharingContext();
     context.term = term;
-    countParents(t, context);
-    t = unshare(t, Position.NEGATIVE, context);
+
+    for (SmtTerm t : ts)
+      countParents(t, context);
+
+    for (SmtTerm t : ts)
+     newTerms.add(unshare(t, Position.NEGATIVE, context));
+
     ImmutableList.Builder<SmtTerm> defs = ImmutableList.builder();
     for (Map.Entry<String, SmtTerm> vd : context.varDefs.entrySet()) {
       SmtTerm v = term.mk("var_formula", vd.getKey());
@@ -60,7 +67,21 @@ public final class SmtTerms {
         defs.add(term.mk("iff", v, nd));
       }
     }
-    return term.mk("implies", term.mk("and", defs.build()), t);
+    return Pair.of(newTerms.build(), defs.build());
+  }
+
+  public static Pair<SmtTerm, ImmutableList<SmtTerm>> eliminateSharingPair(SmtTerm t, TermBuilder<SmtTerm> term) {
+    ImmutableList.Builder<SmtTerm> singleTerm = ImmutableList.builder();
+    singleTerm.add(t);
+    Pair<ImmutableList<SmtTerm>, ImmutableList<SmtTerm>> p = eliminateSharingPair(singleTerm.build(), term);
+    return Pair.of(p.first.get(0), p.second);
+  }
+
+  public static SmtTerm eliminateSharing(SmtTerm t, TermBuilder<SmtTerm> term) {
+    ImmutableList.Builder<SmtTerm> singleTerm = ImmutableList.builder();
+    singleTerm.add(t);
+    Pair<ImmutableList<SmtTerm>, ImmutableList<SmtTerm>> p = eliminateSharingPair(singleTerm.build(), term);
+    return term.mk("implies", term.mk("and", p.second), p.first.get(0));
   }
 
   private static void countParents(SmtTerm t, EliminateSharingContext context) {
