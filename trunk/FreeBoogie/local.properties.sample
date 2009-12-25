@@ -1,0 +1,6 @@
+# NOTE: To use the findbugs ANT target you must
+#   1.  Install FindBugs and set the variable findbugs.home (below)
+#   2.  Copy findbugs-ant.jar in the ANT lib directory
+#         (/usr/share/ant/lib on Ubuntu)
+findbugs.home=/home/rg/findbugs-1.3.2
+

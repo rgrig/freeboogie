@@ -18,32 +18,29 @@
     classname="edu.umd.cs.findbugs.anttask.FindBugsTask"/>
   <!-- TODO(radugrigore): task for clops -->
 
-  <!-- set global properties for this build -->
-  <!-- TODO(radugrigore): move these into a .properties file -->
-  <property name="findbugs.home" value="/home/rg/findbugs-1.3.2"/>
-  <property name="debug" value="yes" />
-  <property name="version" value="0.2"/>
-  <property name="genericutils-jar" value="genericutils-0.1.jar"/>
-  <property name="antlr-jar" value="antlr-runtime-3.1.3.jar" />
-  <property name="astgen-jar" value="astgen-0.2.jar"/>
-  <property name="clops-jar" value="clops-runtime.jar"/>
-  <property name="jline-jar" value="jline-0.9.94.jar"/>
-  <property name="gcollect-jar" value="google-collect-1.0-rc1.jar"/>
-  <property name="junit_src" location="test/junit" />
-  <property name="junit_reports" location="test/junit/reports"/>
-  <property name="ast-dir" value="freeboogie/ast" />
-  <property name="parser-dir" value="freeboogie/parser" />
-  <property name="cli-dst-dir" location="generated-src/freeboogie/cli" />
-  <path id="classpath">
-    <fileset dir="lib" includes="*.jar" />
-    <pathelement path="classes"  />
-  </path>
+  <!-- set properties for this build, and helpers -->
+  <property file="global.properties"/>
+  <property file="local.properties"/>
+  <target name="locals.check">
+    <available file="local.properties" property="locals.ok"/>
+  </target>
+  <target name="locals" depends="locals.check" unless="locals.ok">
+    <copy file="local.properties.sample" tofile="local.properties"/>
+    <echo>WARNING: Please edit the file local.properties</echo>
+    <echo>WARNING: You won't see these warnings again.</echo>
+  </target>
 
-  <!-- properties computed from basic ones -->
+
+  <!-- properties that are computed -->
+  <property name="cli-dst-dir" location="generated-src/freeboogie/cli"/>
   <property name="ast-src-dir" location="src/${ast-dir}"/>
   <property name="ast-dst-dir" location="generated-src/${ast-dir}"/>
   <property name="parser-src-dir" location="src/${parser-dir}"/>
   <property name="parser-dst-dir" location="generated-src/${parser-dir}"/>
+  <path id="classpath">
+    <fileset dir="lib" includes="*.jar" />
+    <pathelement path="classes"  />
+  </path>
 
   <!-- code generation and related -->
   <target 
@@ -185,31 +182,6 @@
  
   <!-- Test targets -->
 
-  <target name="compile_junit" depends="compile" 
-    description="compile the junit tests ">
-    <javac srcdir="${junit_src}" destdir="classes" 
-           optimize="yes" debug="${debug}">
-      <classpath refid="classpath" /> 
-      <compilerarg value="-Xlint:all" />
-    </javac>
-  </target>
-
-
-  <target name="junit_test" depends="compile_junit" 
-    description="run the junit tests ">
-     <mkdir dir="${junit_reports}"/>
-     <junit printsummary="yes" haltonfailure="yes">
-     <classpath refid="classpath" />
-     <formatter type="plain"/>
-
-      <batchtest fork="yes" todir="${junit_reports}">
-        <fileset dir="${junit_src}">
-          <include name="**/*.java"/>
-        </fileset>
-      </batchtest>
-    </junit>
-   </target>
-
   <target name="functional_test" depends="compile" description="run functional tests">
     <exec executable="test/functional/test" 
           dir="test/functional"
@@ -217,7 +189,7 @@
           failonerror="true"/>
   </target>
 
-  <target name="test" depends="junit_test,functional_test" description="run all tests"></target>
+  <target name="test" depends="functional_test" description="run all tests"></target>
 
   <!-- Static analyzes -->
   <target name="style">
@@ -231,7 +203,7 @@
     </checkstyle>
   </target>
 
-  <target name="findbugs">
+  <target name="findbugs" depends="locals" if="locals.ok">
     <findbugs home="${findbugs.home}" output="text" outputFile="bugs.txt">
       <auxClasspath refid="classpath"/>
       <sourcePath path="src"/>
