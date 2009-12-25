@@ -1,5 +1,4 @@
 On Linux, try this:
+  ant
   source setenv
-  ant test
-  fbrun freeboogie.Main -h
-  fbrun freeboogie.Main test/functional/parser/boogie_Bag2.bpl
+  fb --help
