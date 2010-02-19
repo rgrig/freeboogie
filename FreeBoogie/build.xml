@@ -13,6 +13,7 @@
   <taskdef
     resource="checkstyletask.properties"
     classpath="/usr/share/java/checkstyle.jar:/usr/share/java/antlr.jar:/usr/share/java/commons-beanutils.jar:/usr/share/java/commons-collections.jar:/usr/share/java/commons-logging.jar" />
+  <!-- Please put findbugs-ant.jar in the ANT libdir (e.g., /usr/share/ant/lib on Ubuntu) -->
   <taskdef 
     name="findbugs" 
     classname="edu.umd.cs.findbugs.anttask.FindBugsTask"/>
