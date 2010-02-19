@@ -8,7 +8,7 @@ import freeboogie.tc.TypeUtils;
  *
  * Boogie 'int' maps to Sort.INT.
  * Boogie 'bool' maps to Sort.BOOL. This may map to formulas or to terms.
- * Boogie axioms map to Sort.PRED. This maps to formulas.
+ * Boogie axioms map to Sort.FORMULA. This maps to formulas.
  * 
  * Provers have formulas that evaluate to true/false if all their
  * variables are bound and terms that are just 'stuff'. Uninterpreted

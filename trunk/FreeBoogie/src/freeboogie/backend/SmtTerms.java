@@ -40,6 +40,11 @@ public final class SmtTerms {
     UNKNOWN
   }
 
+  /** 
+    Eliminates the shared parts of {@code ts}. It returns the
+    modified term and the extracted parts in a pair. It uses the
+    builder {@code term} to create the modified term.
+   */
   public static Pair<ImmutableList<SmtTerm>, ImmutableList<SmtTerm>> eliminateSharingPair(ImmutableList<SmtTerm> ts, TermBuilder<SmtTerm> term) {
     ImmutableList.Builder<SmtTerm> newTerms = ImmutableList.builder();
     EliminateSharingContext context = new EliminateSharingContext();
