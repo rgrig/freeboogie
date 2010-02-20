@@ -224,6 +224,7 @@ public class Project {
         if (args[i].endsWith(".class")) {
           args[i] = args[i].substring(0, args[i].lastIndexOf(".class"));
         }
+        // TODO(rgrig): Don't NullPointerException when the class can't be loaded
         types.add(args[i].replace('/', '.'));
         i++;
       }
