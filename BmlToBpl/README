@@ -1,0 +1,8 @@
+Compile using:
+  ant
+
+Run using:
+  java -jar dist/bml2bpl-1.0.jar [FILES] > result.bpl
+
+You should be able to get more info with:
+  java -jar dist/bml2bpl-1.0.jar -h
