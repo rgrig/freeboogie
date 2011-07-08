@@ -1,4 +1,4 @@
 #summary A reference for using GenericUtils (pairs, logging, ...)
 #labels Incomplete
 
-TODO.
+ * Use `Err.internal(message)` instead of `assert false : message` if you want the assertion to fire even without `-ea`.
